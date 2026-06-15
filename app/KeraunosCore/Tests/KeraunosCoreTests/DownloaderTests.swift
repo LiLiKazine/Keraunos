@@ -2,7 +2,7 @@ import Testing
 import Foundation
 import KeraunosCore
 
-@Suite(.serialized)
+extension StubNetworkSuite {
 struct DownloaderTests {
     private func tempFile(_ name: String) -> URL {
         let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
@@ -51,4 +51,5 @@ struct DownloaderTests {
         #expect(StubURLProtocol.lastRequest?.value(forHTTPHeaderField: "X-Keraunos-Test") == "yes")
         #expect(StubURLProtocol.lastRequest?.value(forHTTPHeaderField: "Referer") == "https://x.test/")
     }
+}
 }

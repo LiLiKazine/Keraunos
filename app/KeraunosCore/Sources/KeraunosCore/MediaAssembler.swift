@@ -1,0 +1,47 @@
+import Foundation
+
+/// Turns a `ResolvedMedia` into a finished file in the store's directory:
+/// progressive = download one file; adaptive = download both tracks to a temp
+/// dir, mux into one MP4, and clean up the temp inputs.
+public struct MediaAssembler {
+    public enum Phase: Sendable { case downloading, downloadingVideo, downloadingAudio, merging }
+
+    private let downloader: any FileDownloading
+    private let merger: any MediaMerging
+
+    public init(downloader: any FileDownloading, merger: any MediaMerging) {
+        self.downloader = downloader
+        self.merger = merger
+    }
+
+    public func assemble(_ media: ResolvedMedia,
+                         into store: DownloadStore,
+                         onPhase: (Phase) -> Void = { _ in }) async throws -> URL {
+        switch media.kind {
+        case .progressive(let track):
+            onPhase(.downloading)
+            let destination = store.directory.appendingPathComponent(media.suggestedFilename)
+            try await downloader.download(track, to: destination)
+            return destination
+
+        case .adaptive(let video, let audio):
+            let scratch = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+            try FileManager.default.createDirectory(at: scratch, withIntermediateDirectories: true)
+            defer { try? FileManager.default.removeItem(at: scratch) }
+
+            let videoURL = scratch.appendingPathComponent("video.\(video.fileExtension)")
+            let audioURL = scratch.appendingPathComponent("audio.\(audio.fileExtension)")
+            onPhase(.downloadingVideo)
+            try await downloader.download(video, to: videoURL)
+            onPhase(.downloadingAudio)
+            try await downloader.download(audio, to: audioURL)
+
+            onPhase(.merging)
+            let base = (media.suggestedFilename as NSString).deletingPathExtension
+            let destination = store.directory.appendingPathComponent("\(base).mp4")
+            try? FileManager.default.removeItem(at: destination)
+            try await merger.merge(video: videoURL, audio: audioURL, into: destination)
+            return destination
+        }
+    }
+}
