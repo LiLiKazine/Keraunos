@@ -25,7 +25,10 @@
   If `iPhone 17` is unavailable, pick one from `xcrun simctl list devices available | grep iPhone`.
 - **Commits:** use the `structured-commit` skill. The `git commit` lines below give the summary line; let the skill expand the body.
 - **TDD:** every code task is test-first. Run the test, see it fail, implement, see it pass, commit.
-- **Swift 6 isolation:** the app target is **main-actor-by-default** (`SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor`). UI types (`DownloadViewModel`, views) get `@MainActor` for free. Every **non-UI** type that runs off the main actor — `KeraunosError`, `ResolvedMedia`, `ExtractionResult`, `ExtractionDecoder`, `MediaExtracting`/`MockExtractor`, `FileDownloading`/`Downloader`, `DownloadStore` — is declared `nonisolated` so the `PythonExtractor` and URLSession callbacks can use it without a main-actor hop. Test targets are `nonisolated` by default, so a suite touching the main-actor view model (`DownloadViewModelTests`) must be `@MainActor`, and a suite mutating shared global state (`DownloaderTests`) must be `@Suite(.serialized)`.
+- **Swift 6 isolation (minimal-annotation rule):** the app target is **main-actor-by-default** (`SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor`). The idiom is to *let code stay on the main actor* and only opt out where it genuinely runs off it. So:
+  - **No annotation** (main-actor by default) for UI and main-only types: `DownloadViewModel`, the views, and the **download path** `Downloader` / `FileDownloading` / `DownloadStore`. `await session.download(...)` *suspends* the main-actor task rather than blocking the main thread, so there is no reason to leave the main actor.
+  - **`nonisolated`** only for the **extraction path**, which executes on `PythonExtractor`'s background queue and crosses back to the main actor: `MediaExtracting`, `MockExtractor`, `ResolvedMedia`, `KeraunosError`, `ExtractionResult`, `ExtractionDecoder`, `PythonExtractor`. Add `Sendable` where values cross actors (`ResolvedMedia`, the `MediaExtracting` existential).
+  - **Tests** are `nonisolated` by default, so suites that construct/use main-actor types are `@MainActor` (`DownloadViewModelTests`, `DownloaderTests`, and the `SpyDownloader` double). `DownloaderTests` is additionally `@Suite(.serialized)` because it mutates the shared `StubURLProtocol.handler`.
 
 ---
 
@@ -427,6 +430,7 @@ import Foundation
 @testable import Keraunos
 
 @Suite(.serialized)
+@MainActor
 struct DownloaderTests {
     private func tempDir() -> URL {
         let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
@@ -491,13 +495,13 @@ Expected: FAIL — `cannot find 'Downloader'`.
 ```swift
 import Foundation
 
-nonisolated protocol FileDownloading: Sendable {
+protocol FileDownloading {
     func download(_ media: ResolvedMedia, to destinationDirectory: URL) async throws -> URL
 }
 
 /// Downloads a resolved media file with URLSession and moves it into place.
 /// Milestone 1: simple await-to-completion. Background sessions come later.
-nonisolated struct Downloader: FileDownloading {
+struct Downloader: FileDownloading {
     private let session: URLSession
     init(session: URLSession = .shared) { self.session = session }
 
@@ -585,7 +589,7 @@ Expected: FAIL — `cannot find 'DownloadStore'`.
 import Foundation
 
 /// Owns the download destination and lists finished downloads.
-nonisolated struct DownloadStore {
+struct DownloadStore {
     let directory: URL
 
     init(directory: URL? = nil) {
@@ -685,6 +689,7 @@ struct DownloadViewModelTests {
 }
 
 /// Minimal downloader double for view-model tests.
+@MainActor
 struct SpyDownloader: FileDownloading {
     enum Behavior { case succeed(URL); case fail(KeraunosError) }
     let behavior: Behavior
