@@ -5,8 +5,8 @@ import http.server
 import functools
 from pathlib import Path
 
-RES = Path(__file__).resolve().parents[1] / "Keraunos" / "PythonRuntime" / "Resources"
-sys.path.insert(0, str(RES))
+APP = Path(__file__).resolve().parents[1] / "Keraunos" / "PythonRuntime" / "app"
+sys.path.insert(0, str(APP))
 import keraunos_extract  # noqa: E402
 
 
