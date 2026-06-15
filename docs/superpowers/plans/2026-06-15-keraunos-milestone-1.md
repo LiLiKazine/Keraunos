@@ -63,15 +63,18 @@ app/Keraunos/Keraunos/                    # app target — main-actor-by-default
   UI/
     DownloadViewModel.swift               # Task 8
     DownloadScreen.swift                  # Task 8
-  PythonRuntime/                          # b14 layout (see docs/logs/2026-06-15-01)
-    app/
-      keraunos_extract.py                 # Task 9 (also dev-tested outside the app)
-      cacert.pem                          # Task 10 (certifi bundle)
-    app_packages/yt_dlp/...               # Task 10 (vendored pure-Python yt-dlp)
-    Python.xcframework/...                # Task 10 (gitignored; stdlib lives inside)
+  PythonRuntime/                          # b14 bridge SOURCE (in sync root, compiled)
     PythonBridge.h / PythonBridge.m       # Task 12 (C-API init + extract)
     PythonExtractor.swift                 # Task 13 (implements KeraunosCore.MediaExtracting)
   Keraunos-Bridging-Header.h              # Task 12
+
+app/Keraunos/PythonResources/             # b14 RESOURCES — outside sync root (folder refs)
+  app/
+    keraunos_extract.py                   # Task 9 (also dev-tested outside the app)
+    cacert.pem                            # Task 10 (certifi bundle)
+  app_packages/yt_dlp/...                 # Task 10 (vendored pure-Python yt-dlp)
+  Python.xcframework/...                  # Task 10 (gitignored; stdlib lives inside)
+  README.md                               # Task 10
 
 app/Keraunos/KeraunosTests/
   DownloadViewModelTests.swift            # Task 8
@@ -1116,7 +1119,7 @@ Expected: a `Python.xcframework` containing `build/utils.sh`. There is **no** to
 - [ ] **Step 3: Vendor yt-dlp (pure-Python) into `app_packages/`**
 
 ```bash
-PR=app/Keraunos/Keraunos/PythonRuntime
+PR=app/Keraunos/PythonResources          # outside the synchronized Keraunos/ source root
 mkdir -p "$PR/app" "$PR/app_packages"
 app/Keraunos/python-dev/.venv/bin/pip install --target "$PR/app_packages" "yt-dlp"
 rm -rf "$PR/app_packages"/Crypto* "$PR/app_packages"/brotli* "$PR/app_packages"/curl_cffi* "$PR/app_packages"/bin "$PR/app_packages"/share 2>/dev/null || true
@@ -1157,16 +1160,16 @@ git commit -m "chore(python): vendor yt-dlp + CA bundle for b14 embedding"
 
 **Files:** `app/Keraunos/Keraunos.xcodeproj` (changed via Xcode UI)
 
-- [ ] **Step 1: Add the xcframework** — Keraunos target → **General → Frameworks, Libraries, and Embedded Content → + → Add Other… → Add Files…** → `app/Keraunos/Keraunos/PythonRuntime/Python.xcframework`. Set **Embed & Sign**.
+- [ ] **Step 1: Add the xcframework** — Keraunos target → **General → Frameworks, Libraries, and Embedded Content → + → Add Other… → Add Files…** → `app/Keraunos/PythonResources/Python.xcframework`. Set **Embed & Sign**.
 
-- [ ] **Step 2: Add `app` and `app_packages` as folder references** — The file-system-synchronized group already includes `PythonRuntime/`, but `app/` and `app_packages/` must reach the bundle **root** as `app`/`app_packages` (the bridge expects `<resources>/app` and `<resources>/app_packages`). Add each to **Build Phases → Copy Bundle Resources** as a **folder reference** (blue folder), named exactly `app` and `app_packages`. (b14: there is no `python-stdlib` to bundle — the next step unpacks it.)
+- [ ] **Step 2: Add `app` and `app_packages` as folder references** — `PythonResources/` is outside the synchronized source root, so add each to **Build Phases → Copy Bundle Resources** as a **folder reference** (blue folder), named exactly `app` and `app_packages` (the bridge expects `<bundle>/app` and `<bundle>/app_packages`). (b14: there is no `python-stdlib` to bundle — the next step unpacks it.)
 
 - [ ] **Step 3: Add the "process Python libraries" run-script phase** — Add a **New Run Script Phase** placed **after** "Embed Frameworks" with (paths relative to `$PROJECT_DIR` = `app/Keraunos`):
 
 ```sh
 set -e
-source "$PROJECT_DIR/Keraunos/PythonRuntime/Python.xcframework/build/utils.sh"
-install_python "Keraunos/PythonRuntime/Python.xcframework" "Keraunos/PythonRuntime/app" "Keraunos/PythonRuntime/app_packages"
+source "$PROJECT_DIR/PythonResources/Python.xcframework/build/utils.sh"
+install_python "PythonResources/Python.xcframework" "PythonResources/app" "PythonResources/app_packages"
 ```
 This copies the stdlib out of the xcframework into `<bundle>/python/lib/python3.13` and processes binary modules into the form iOS requires. Uncheck "Based on dependency analysis".
 

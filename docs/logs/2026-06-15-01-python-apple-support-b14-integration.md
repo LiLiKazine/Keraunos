@@ -69,3 +69,21 @@ Key model differences adopted:
 - yt-dlp is pure Python once the optional Crypto/brotli/curl_cffi extras are
   excluded, so `app_packages` contains no `.so` — `process_dylibs` is a no-op.
 - Python version reported: 3.13.14.
+
+## Follow-up: resource relocation (PythonRuntime → PythonResources)
+
+The app target uses Xcode file-system-synchronized groups (`Keraunos/` is a
+synchronized root). Placing `app/`/`app_packages/` under `Keraunos/PythonRuntime/`
+would auto-include the `.py`/`.pem` files as target resources via the synchronized
+group, with no reliable guarantee the `app/` and `app_packages/` directory
+structure is preserved at the bundle root (the runtime requires `<bundle>/app/…`
+and `<bundle>/app_packages/…` intact).
+
+To match the BeeWare testbed's explicit folder-reference model and remove the
+synchronized-group variable, the **resources** were moved to
+`app/Keraunos/PythonResources/` (a sibling of `Keraunos.xcodeproj`, outside any
+synchronized root); the **bridge source** (`PythonBridge.{h,m}`,
+`PythonExtractor.swift`) stays under `Keraunos/PythonRuntime/` so it is still
+auto-compiled. The run-script + folder-reference paths in Task 11 were updated
+accordingly. The runtime bundle paths the Swift/C bridge computes are unchanged
+(they derive from `Bundle.main.resourceURL`).
