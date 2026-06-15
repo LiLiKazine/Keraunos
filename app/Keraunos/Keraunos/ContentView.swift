@@ -1,24 +1,19 @@
-//
-//  ContentView.swift
-//  Keraunos
-//
-//  Created by Leo Sheng on 2026/6/15.
-//
-
 import SwiftUI
+import KeraunosCore
 
 struct ContentView: View {
     var body: some View {
-        VStack {
-            Image(systemName: "globe")
-                .imageScale(.large)
-                .foregroundStyle(.tint)
-            Text("Hello, world!")
-        }
-        .padding()
+        DownloadScreen(model: DownloadViewModel(
+            extractor: PythonExtractor(),
+            downloader: Downloader(),
+            store: DownloadStore()))
     }
 }
 
 #Preview {
-    ContentView()
+    // Preview keeps the mock so the canvas needs no interpreter.
+    DownloadScreen(model: DownloadViewModel(
+        extractor: MockExtractor(),
+        downloader: Downloader(),
+        store: DownloadStore()))
 }

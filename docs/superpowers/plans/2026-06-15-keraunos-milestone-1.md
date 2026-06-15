@@ -63,15 +63,18 @@ app/Keraunos/Keraunos/                    # app target — main-actor-by-default
   UI/
     DownloadViewModel.swift               # Task 8
     DownloadScreen.swift                  # Task 8
-  PythonRuntime/
-    Resources/
-      keraunos_extract.py                 # Task 9 (also dev-tested outside the app)
-      cacert.pem                          # Task 10 (certifi bundle)
-      python-stdlib/...                   # Task 10 (from Python-Apple-support)
-      site-packages/yt_dlp/...            # Task 10 (vendored yt-dlp)
+  PythonRuntime/                          # b14 bridge SOURCE (in sync root, compiled)
     PythonBridge.h / PythonBridge.m       # Task 12 (C-API init + extract)
     PythonExtractor.swift                 # Task 13 (implements KeraunosCore.MediaExtracting)
   Keraunos-Bridging-Header.h              # Task 12
+
+app/Keraunos/PythonResources/             # b14 RESOURCES — outside sync root (folder refs)
+  app/
+    keraunos_extract.py                   # Task 9 (also dev-tested outside the app)
+    cacert.pem                            # Task 10 (certifi bundle)
+  app_packages/yt_dlp/...                 # Task 10 (vendored pure-Python yt-dlp)
+  Python.xcframework/...                  # Task 10 (gitignored; stdlib lives inside)
+  README.md                               # Task 10
 
 app/Keraunos/KeraunosTests/
   DownloadViewModelTests.swift            # Task 8
@@ -914,6 +917,16 @@ git commit -m "feat(ui): add DownloadScreen + DownloadViewModel wired to mock ex
 
 > Procedural Xcode steps that can't be code; each ends with a verification gate. Do not skip the gates.
 
+> **⚠️ Updated for Python-Apple-support `3.13-b14` (2026-06-15).** The current release
+> uses a single-xcframework layout (stdlib *inside* `Python.xcframework`), not the
+> `python-stdlib/`+`site-packages/` layout this phase was first drafted against. The
+> bundle is now `Python.xcframework` + `app/` (our `.py` + `cacert.pem`) +
+> `app_packages/` (vendored yt-dlp), and the C bridge uses `PYTHONHOME=<res>/python`
+> + `site.addsitedir` instead of manual `module_search_paths`. The Task 10/12/13
+> bodies below have been revised to match; rationale and the exact deltas are in
+> **`docs/logs/2026-06-15-01-python-apple-support-b14-integration.md`**. The
+> committed `app/Keraunos/Keraunos/PythonRuntime/*` files are the source of truth.
+
 ### Task 9: `keraunos_extract.py` — TDD with system Python
 
 **Files:**
@@ -1081,70 +1094,64 @@ git commit -m "feat(python): add yt-dlp extraction bridge with JSON contract"
 
 **Files (downloaded, not hand-written):** into `app/Keraunos/Keraunos/PythonRuntime/Resources/`
 
+> **b14 revision.** No `python-stdlib`/`site-packages` to copy — the stdlib stays
+> inside `Python.xcframework` and is unpacked by the build phase (Task 11). We only
+> vendor our own module + yt-dlp + the CA bundle into `app/` and `app_packages/`.
+
 - [ ] **Step 1: Download Python-Apple-support (Python 3.13, iOS)**
 
 ```bash
+gh release view 3.13-b14 --repo beeware/Python-Apple-support --json assets --jq '.assets[].name'
 cd /tmp && rm -rf pas && mkdir pas
-gh release download --repo beeware/Python-Apple-support --pattern '*3.13*iOS*.tar.gz' --dir /tmp/pas
-ls /tmp/pas
+gh release download 3.13-b14 --repo beeware/Python-Apple-support --pattern 'Python-3.13-iOS-support.b14.tar.gz' --dir /tmp/pas
 ```
-If pattern matching fails, `gh release list --repo beeware/Python-Apple-support` and download the latest `Python-3.13-iOS-support.b*.tar.gz`.
+If `3.13-b14` is superseded, `gh release list --repo beeware/Python-Apple-support` and pick the newest `3.13-b*`.
 
-- [ ] **Step 2: Extract and record the stdlib layout**
+- [ ] **Step 2: Extract and confirm the layout**
 
 ```bash
 mkdir -p /tmp/pas/x && tar -xzf /tmp/pas/*.tar.gz -C /tmp/pas/x
-find /tmp/pas/x -maxdepth 2 -type d | sort
+ls /tmp/pas/x/Python.xcframework            # build/ ios-arm64 ios-arm64_x86_64-simulator lib ...
+ls /tmp/pas/x/Python.xcframework/build      # utils.sh + dylib Info template — used by Task 11
 ```
-Expected: a `Python.xcframework` and a `python-stdlib` directory. **Record the exact `python-stdlib` path** — referenced in Task 13.
+Expected: a `Python.xcframework` containing `build/utils.sh`. There is **no** top-level `python-stdlib`.
 
-- [ ] **Step 3: Vendor yt-dlp (pure-Python) into site-packages**
+- [ ] **Step 3: Vendor yt-dlp (pure-Python) into `app_packages/`**
 
 ```bash
-app/Keraunos/python-dev/.venv/bin/pip install --target /tmp/pas/site-packages "yt-dlp"
-rm -rf /tmp/pas/site-packages/Crypto* /tmp/pas/site-packages/brotli* /tmp/pas/site-packages/curl_cffi* 2>/dev/null || true
+PR=app/Keraunos/PythonResources          # outside the synchronized Keraunos/ source root
+mkdir -p "$PR/app" "$PR/app_packages"
+app/Keraunos/python-dev/.venv/bin/pip install --target "$PR/app_packages" "yt-dlp"
+rm -rf "$PR/app_packages"/Crypto* "$PR/app_packages"/brotli* "$PR/app_packages"/curl_cffi* "$PR/app_packages"/bin "$PR/app_packages"/share 2>/dev/null || true
 ```
 
-- [ ] **Step 4: Get the certifi CA bundle**
+- [ ] **Step 4: Get the certifi CA bundle (into `app/`)**
 
 ```bash
-app/Keraunos/python-dev/.venv/bin/python -c "import certifi,shutil;shutil.copy(certifi.where(),'app/Keraunos/Keraunos/PythonRuntime/Resources/cacert.pem')"
+app/Keraunos/python-dev/.venv/bin/python -c "import certifi,shutil;shutil.copy(certifi.where(),'$PR/app/cacert.pem')"
 ```
 
-- [ ] **Step 5: Place stdlib + site-packages into app resources**
+- [ ] **Step 5: Move the extraction module into `app/`** (Task 9 created it under `Resources/`)
 
 ```bash
-DEST_RES=app/Keraunos/Keraunos/PythonRuntime/Resources
-mkdir -p "$DEST_RES/python-stdlib" "$DEST_RES/site-packages"
-cp -R "$(find /tmp/pas/x -type d -name python-stdlib | head -1)/" "$DEST_RES/python-stdlib/"
-cp -R /tmp/pas/site-packages/ "$DEST_RES/site-packages/"
-find "$DEST_RES" -name '__pycache__' -type d -prune -exec rm -rf {} + 2>/dev/null || true
+git mv "$PR/Resources/keraunos_extract.py" "$PR/app/keraunos_extract.py" && rmdir "$PR/Resources" 2>/dev/null || true
+# update python-dev/test_extract.py sys.path: ".../PythonRuntime/app", then re-run pytest (2 passed)
+find "$PR/app" "$PR/app_packages" -name '__pycache__' -type d -prune -exec rm -rf {} + 2>/dev/null || true
 ```
 
-- [ ] **Step 6: Copy the xcframework into the app**
+- [ ] **Step 6: Copy the xcframework into the app (gitignored)**
 
 ```bash
-cp -R "$(find /tmp/pas/x -type d -name Python.xcframework | head -1)" app/Keraunos/Keraunos/PythonRuntime/
+cp -R /tmp/pas/x/Python.xcframework "$PR/Python.xcframework"
 ```
 
-- [ ] **Step 7: Document the non-committed framework** — `Python.xcframework/` is gitignored. Create `app/Keraunos/Keraunos/PythonRuntime/README.md`:
+- [ ] **Step 7: Document the non-committed framework** — rewrite `PythonRuntime/README.md` for the b14 layout (restore steps for `Python.xcframework`; note `app/`, `app_packages/yt_dlp`, `cacert.pem`, `keraunos_extract.py` ARE committed).
 
-```markdown
-# PythonRuntime resources
-
-`Python.xcframework/` is NOT committed (large prebuilt binary). To restore it:
-
-1. `gh release download --repo beeware/Python-Apple-support --pattern '*3.13*iOS*.tar.gz'`
-2. Extract and copy `Python.xcframework` into this folder.
-
-`python-stdlib/`, `site-packages/yt_dlp`, `keraunos_extract.py`, and `cacert.pem` ARE committed.
-```
-
-- [ ] **Step 8: Commit (resources only)**
+- [ ] **Step 8: Commit (resources only; xcframework is ignored)**
 
 ```bash
-git add app/Keraunos/Keraunos/PythonRuntime/Resources app/Keraunos/Keraunos/PythonRuntime/README.md
-git commit -m "chore(python): vendor stdlib, yt-dlp, and CA bundle for embedding"
+git add app/Keraunos/Keraunos/PythonRuntime/app app/Keraunos/Keraunos/PythonRuntime/app_packages app/Keraunos/Keraunos/PythonRuntime/README.md app/Keraunos/python-dev/test_extract.py
+git commit -m "chore(python): vendor yt-dlp + CA bundle for b14 embedding"
 ```
 
 ---
@@ -1153,11 +1160,18 @@ git commit -m "chore(python): vendor stdlib, yt-dlp, and CA bundle for embedding
 
 **Files:** `app/Keraunos/Keraunos.xcodeproj` (changed via Xcode UI)
 
-- [ ] **Step 1: Add the xcframework** — Keraunos target → **General → Frameworks, Libraries, and Embedded Content → + → Add Other… → Add Files…** → `app/Keraunos/Keraunos/PythonRuntime/Python.xcframework`. Set **Embed & Sign**.
+- [ ] **Step 1: Add the xcframework** — Keraunos target → **General → Frameworks, Libraries, and Embedded Content → + → Add Other… → Add Files…** → `app/Keraunos/PythonResources/Python.xcframework`. Set **Embed & Sign**.
 
-- [ ] **Step 2: Confirm resources are bundled** — Under **Build Phases → Copy Bundle Resources**, verify the `PythonRuntime/Resources` tree is present. If items appear as groups rather than a folder reference, re-add `Resources` as a **folder reference** (blue folder) to preserve the directory layout verbatim.
+- [ ] **Step 2: Add `app` and `app_packages` as folder references** — `PythonResources/` is outside the synchronized source root, so add each to **Build Phases → Copy Bundle Resources** as a **folder reference** (blue folder), named exactly `app` and `app_packages` (the bridge expects `<bundle>/app` and `<bundle>/app_packages`). (b14: there is no `python-stdlib` to bundle — the next step unpacks it.)
 
-- [ ] **Step 3: Add the "process Python libraries" run-script phase** — From the release's `USAGE.md`, paste the `install_python` run-script into a **New Run Script Phase** placed **after** "Embed Frameworks". This converts binary stdlib modules into the framework form iOS requires.
+- [ ] **Step 3: Add the "process Python libraries" run-script phase** — Add a **New Run Script Phase** placed **after** "Embed Frameworks" with (paths relative to `$PROJECT_DIR` = `app/Keraunos`):
+
+```sh
+set -e
+source "$PROJECT_DIR/PythonResources/Python.xcframework/build/utils.sh"
+install_python "PythonResources/Python.xcframework" "PythonResources/app" "PythonResources/app_packages"
+```
+This copies the stdlib out of the xcframework into `<bundle>/python/lib/python3.13` and processes binary modules into the form iOS requires. Uncheck "Based on dependency analysis".
 
 - [ ] **Step 4: Build settings** — **User Script Sandboxing = No**; **Enable Testability = Yes** (debug + release). Add the OpenSSL privacy manifest `app/Keraunos/Keraunos/PythonRuntime/Resources/openssl.xcprivacy` per the release's USAGE.
 
@@ -1192,10 +1206,11 @@ git commit -m "build(python): embed Python.xcframework and process-libraries pha
 #ifndef PythonBridge_h
 #define PythonBridge_h
 
-/// Initializes the embedded interpreter. `home` = python-stdlib's parent path;
-/// `modulePaths` = newline-separated sys.path entries; `caCertPath` = cacert.pem.
-/// Returns 0 on success.
-int keraunos_python_init(const char *home, const char *modulePaths, const char *caCertPath);
+/// Initializes the embedded interpreter (b14 layout). `resourcePath` = the app
+/// bundle's resource root; stdlib at <resourcePath>/python (PYTHONHOME), pip
+/// packages at <resourcePath>/app_packages, our module at <resourcePath>/app.
+/// `caCertPath` = cacert.pem. Returns 0 on success.
+int keraunos_python_init(const char *resourcePath, const char *caCertPath);
 
 /// Calls keraunos_extract.extract(url). Returns a malloc'd UTF-8 JSON string the
 /// caller must free(). Returns NULL only on catastrophic bridge failure.
@@ -1207,43 +1222,68 @@ char *keraunos_python_extract(const char *url);
 - [ ] **Step 2: Implementation**
 
 `app/Keraunos/Keraunos/PythonRuntime/PythonBridge.m`:
+> **b14 init** (see the committed `PythonBridge.m` for the source of truth). Follows
+> the release testbed: `PyPreConfig` (utf8) → `Py_PreInitialize` → home =
+> `<resources>/python` → `PyConfig_Read` → `Py_InitializeFromConfig` → append
+> `<resources>/app_packages` and `<resources>/app` to `sys.path`. Imports use
+> `#import <Python/Python.h>` (framework header), not `<Python.h>`.
+
 ```objc
 #import "PythonBridge.h"
-#import <Python.h>
+#import <Python/Python.h>
 #import <string.h>
 #import <stdlib.h>
 
 static int gInitialized = 0;
 
-int keraunos_python_init(const char *home, const char *modulePaths, const char *caCertPath) {
+static int append_sys_path(const char *path) {
+    PyObject *sys_path = PySys_GetObject("path");   // borrowed
+    if (!sys_path) return -1;
+    PyObject *entry = PyUnicode_FromString(path);
+    if (!entry) return -1;
+    int rc = PyList_Append(sys_path, entry);
+    Py_DECREF(entry);
+    return rc;
+}
+
+int keraunos_python_init(const char *resourcePath, const char *caCertPath) {
     if (gInitialized) return 0;
+    setenv("SSL_CERT_FILE", caCertPath, 1);   // embedded ssl has no system trust store
 
-    // Embedded urllib/ssl have no system trust store; point OpenSSL at the
-    // bundled CA bundle before the interpreter starts.
-    setenv("SSL_CERT_FILE", caCertPath, 1);
-
+    PyStatus status;
+    PyPreConfig preconfig;
     PyConfig config;
+
+    PyPreConfig_InitIsolatedConfig(&preconfig);
+    preconfig.utf8_mode = 1;
+    status = Py_PreInitialize(&preconfig);
+    if (PyStatus_Exception(status)) return -1;
+
     PyConfig_InitIsolatedConfig(&config);
     config.write_bytecode = 0;
 
+    char home[PATH_MAX];
+    snprintf(home, sizeof(home), "%s/python", resourcePath);
     wchar_t *whome = Py_DecodeLocale(home, NULL);
-    PyConfig_SetString(&config, &config.home, whome);
-
-    config.module_search_paths_set = 1;
-    char *paths = strdup(modulePaths);
-    char *line = strtok(paths, "\n");
-    while (line) {
-        wchar_t *wline = Py_DecodeLocale(line, NULL);
-        PyWideStringList_Append(&config.module_search_paths, wline);
-        PyMem_RawFree(wline);
-        line = strtok(NULL, "\n");
-    }
-    free(paths);
-
-    PyStatus status = Py_InitializeFromConfig(&config);
-    PyConfig_Clear(&config);
+    if (!whome) { PyConfig_Clear(&config); return -2; }
+    status = PyConfig_SetString(&config, &config.home, whome);
     PyMem_RawFree(whome);
-    if (PyStatus_Exception(status)) return -1;
+    if (PyStatus_Exception(status)) { PyConfig_Clear(&config); return -3; }
+
+    status = PyConfig_Read(&config);
+    if (PyStatus_Exception(status)) { PyConfig_Clear(&config); return -4; }
+
+    status = Py_InitializeFromConfig(&config);
+    PyConfig_Clear(&config);
+    if (PyStatus_Exception(status)) return -5;
+
+    char appPackages[PATH_MAX], app[PATH_MAX];
+    snprintf(appPackages, sizeof(appPackages), "%s/app_packages", resourcePath);
+    snprintf(app, sizeof(app), "%s/app", resourcePath);
+    if (append_sys_path(appPackages) != 0 || append_sys_path(app) != 0) {
+        if (PyErr_Occurred()) PyErr_Clear();
+        return -6;
+    }
 
     gInitialized = 1;
     return 0;
@@ -1340,20 +1380,18 @@ actor PythonExtractor: MediaExtracting {
         guard let resources = Bundle.main.resourceURL else {
             throw KeraunosError.runtime(detail: "no resource bundle")
         }
-        let stdlib = resources.appendingPathComponent("python-stdlib")
-        let sitePackages = resources.appendingPathComponent("site-packages")
-        let appModules = resources // keraunos_extract.py sits at the resources root
-        let caCert = resources.appendingPathComponent("cacert.pem")
-
-        let modulePaths = [stdlib.path, sitePackages.path, appModules.path].joined(separator: "\n")
-        let status = keraunos_python_init(resources.path, modulePaths, caCert.path)
+        // b14: stdlib at <resources>/python (PYTHONHOME), module at <resources>/app,
+        // packages at <resources>/app_packages, CA bundle at <resources>/app.
+        let caCert = resources.appendingPathComponent("app/cacert.pem")
+        let status = keraunos_python_init(resources.path, caCert.path)
         guard status == 0 else { throw KeraunosError.runtime(detail: "python init failed (\(status))") }
         initialized = true
     }
 }
 ```
 
-> Note: the `python-stdlib` path must match what Task 10 Step 2 recorded. If the support package nests it differently, adjust `stdlib`/`home`.
+> Note: the bridge derives `<resources>/python`, `/app`, `/app_packages` from the
+> single `resourcePath`. These must match the folder references added in Task 11.
 
 - [ ] **Step 2: Swap the mock for the real extractor** — in `app/Keraunos/Keraunos/ContentView.swift`:
 
