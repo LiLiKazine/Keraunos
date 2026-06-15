@@ -1,21 +1,13 @@
-//
-//  ContentView.swift
-//  Keraunos
-//
-//  Created by Leo Sheng on 2026/6/15.
-//
-
 import SwiftUI
+import KeraunosCore
 
 struct ContentView: View {
     var body: some View {
-        VStack {
-            Image(systemName: "globe")
-                .imageScale(.large)
-                .foregroundStyle(.tint)
-            Text("Hello, world!")
-        }
-        .padding()
+        // Milestone 1 uses the mock extractor until PythonExtractor is wired in (Task 13).
+        DownloadScreen(model: DownloadViewModel(
+            extractor: MockExtractor(),
+            downloader: Downloader(),
+            store: DownloadStore()))
     }
 }
 
