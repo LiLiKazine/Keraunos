@@ -6,7 +6,9 @@
 
 **Architecture:** Embedded CPython (BeeWare Python-Apple-support) runs yt-dlp for **extraction only** — it returns a direct media URL + metadata as JSON. Native Swift `URLSession` performs the file transfer. The whole app is built behind a `MediaExtracting` protocol so the UI, downloader, and storage are fully implemented and tested before the Python runtime is embedded; a `MockExtractor` stands in until the real `PythonExtractor` lands.
 
-**Tech Stack:** Swift 5 / SwiftUI / Swift Testing, Xcode 26.5 (file-system-synchronized groups), iOS 26.5 deployment target, embedded CPython 3.13 via Python-Apple-support, yt-dlp (pure-Python, vendored), certifi.
+**Tech Stack:** Swift 6 language mode (`SWIFT_VERSION = 6.0`, complete data-race safety enforced) with approachable concurrency + main-actor-by-default isolation / SwiftUI / Swift Testing, Xcode 26.5 (Swift 6.3.2 toolchain, file-system-synchronized groups), iOS 26.5 deployment target, embedded CPython 3.13 via Python-Apple-support, yt-dlp (pure-Python, vendored), certifi.
+
+> **Concurrency enforcement note:** the project builds in Swift 6 language mode, so data-race violations are compile **errors**, not warnings. Two consequences for the tasks below: (1) `StubURLProtocol`'s shared `static var handler` (Task 5) is a genuine race — keep it `nonisolated(unsafe)` *and* mark the suite `@Suite(.serialized)`, or inject the handler per-session; (2) `PythonExtractor` (Task 12) must not block a cooperative-pool thread on the synchronous Python C call — offload it via `@concurrent` or a dedicated serial `DispatchQueue` bridged with `withCheckedThrowingContinuation`.
 
 ---
 
@@ -23,6 +25,7 @@
   If `iPhone 17` is unavailable, pick one from `xcrun simctl list devices available | grep iPhone`.
 - **Commits:** use the `structured-commit` skill. The `git commit` lines below give the summary line; let the skill expand the body.
 - **TDD:** every code task is test-first. Run the test, see it fail, implement, see it pass, commit.
+- **Swift 6 isolation:** the app target is **main-actor-by-default** (`SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor`). UI types (`DownloadViewModel`, views) get `@MainActor` for free. Every **non-UI** type that runs off the main actor — `KeraunosError`, `ResolvedMedia`, `ExtractionResult`, `ExtractionDecoder`, `MediaExtracting`/`MockExtractor`, `FileDownloading`/`Downloader`, `DownloadStore` — is declared `nonisolated` so the `PythonExtractor` and URLSession callbacks can use it without a main-actor hop. Test targets are `nonisolated` by default, so a suite touching the main-actor view model (`DownloadViewModelTests`) must be `@MainActor`, and a suite mutating shared global state (`DownloaderTests`) must be `@Suite(.serialized)`.
 
 ---
 
@@ -158,7 +161,7 @@ import Foundation
 
 /// All failures surfaced to the UI. Python exceptions are mapped to these at the
 /// extraction boundary so nothing above the boundary sees a Python object.
-enum KeraunosError: Error, Equatable {
+nonisolated enum KeraunosError: Error, Equatable {
     case unsupported
     case needsFfmpeg
     case requiresAuth
@@ -167,7 +170,7 @@ enum KeraunosError: Error, Equatable {
     case cancelled
 }
 
-extension KeraunosError {
+nonisolated extension KeraunosError {
     /// Maps an `error_kind` string emitted by the Python extraction module.
     init(errorKind: String, detail: String = "") {
         switch errorKind {
@@ -180,7 +183,7 @@ extension KeraunosError {
     }
 }
 
-extension KeraunosError: LocalizedError {
+nonisolated extension KeraunosError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .unsupported:        return "This link isn't supported."
@@ -262,14 +265,14 @@ Expected: FAIL — `cannot find 'ResolvedMedia'` / `ExtractionDecoder`.
 import Foundation
 
 /// A resolved, directly-downloadable media file (a single progressive stream).
-struct ResolvedMedia: Equatable, Sendable {
+nonisolated struct ResolvedMedia: Equatable, Sendable {
     let directURL: URL
     let suggestedFilename: String
     let title: String
 }
 
 /// Wire format returned by the Python extraction module.
-private struct ExtractionResult: Decodable {
+private nonisolated struct ExtractionResult: Decodable {
     let ok: Bool
     let directURL: String?
     let filename: String?
@@ -286,7 +289,7 @@ private struct ExtractionResult: Decodable {
 
 /// Decodes the Python module's JSON into `ResolvedMedia`, throwing a mapped
 /// `KeraunosError` for failure payloads or malformed data.
-enum ExtractionDecoder {
+nonisolated enum ExtractionDecoder {
     static func decode(_ data: Data) throws -> ResolvedMedia {
         let result: ExtractionResult
         do {
@@ -331,12 +334,12 @@ import Foundation
 /// Resolves a page URL to a directly-downloadable media file.
 /// The real implementation (PythonExtractor) arrives in Phase 4; until then the
 /// app and tests use MockExtractor.
-protocol MediaExtracting: Sendable {
+nonisolated protocol MediaExtracting: Sendable {
     func resolve(_ url: URL) async throws -> ResolvedMedia
 }
 
 /// Deterministic test/preview double.
-struct MockExtractor: MediaExtracting {
+nonisolated struct MockExtractor: MediaExtracting {
     var result: Result<ResolvedMedia, KeraunosError>
 
     init(result: Result<ResolvedMedia, KeraunosError> = .success(
@@ -423,6 +426,7 @@ import Testing
 import Foundation
 @testable import Keraunos
 
+@Suite(.serialized)
 struct DownloaderTests {
     private func tempDir() -> URL {
         let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
@@ -487,13 +491,13 @@ Expected: FAIL — `cannot find 'Downloader'`.
 ```swift
 import Foundation
 
-protocol FileDownloading: Sendable {
+nonisolated protocol FileDownloading: Sendable {
     func download(_ media: ResolvedMedia, to destinationDirectory: URL) async throws -> URL
 }
 
 /// Downloads a resolved media file with URLSession and moves it into place.
 /// Milestone 1: simple await-to-completion. Background sessions come later.
-struct Downloader: FileDownloading {
+nonisolated struct Downloader: FileDownloading {
     private let session: URLSession
     init(session: URLSession = .shared) { self.session = session }
 
@@ -581,7 +585,7 @@ Expected: FAIL — `cannot find 'DownloadStore'`.
 import Foundation
 
 /// Owns the download destination and lists finished downloads.
-struct DownloadStore {
+nonisolated struct DownloadStore {
     let directory: URL
 
     init(directory: URL? = nil) {
@@ -1253,17 +1257,35 @@ git commit -m "feat(python): add C-API bridge for interpreter init and extract"
 - Create: `app/Keraunos/Keraunos/PythonRuntime/PythonExtractor.swift`
 - Modify: `app/Keraunos/Keraunos/ContentView.swift`
 
-- [ ] **Step 1: Implement the actor**
+- [ ] **Step 1: Implement the extractor**
 
 `app/Keraunos/Keraunos/PythonRuntime/PythonExtractor.swift`:
 ```swift
 import Foundation
 
-/// Runs yt-dlp extraction inside the embedded interpreter. All Python access is
-/// serialized through this actor (the GIL is process-wide), off the main thread.
-actor PythonExtractor: MediaExtracting {
-    private var initialized = false
+/// Runs yt-dlp extraction inside the embedded interpreter. The synchronous Python
+/// C calls are serialized onto a dedicated serial queue (the GIL is process-wide)
+/// and bridged to async, so they never block a Swift cooperative-pool thread.
+/// `@unchecked Sendable` is justified: all mutable state is confined to `queue`.
+nonisolated final class PythonExtractor: MediaExtracting, @unchecked Sendable {
+    private let queue = DispatchQueue(label: "io.github.lilikazine.Keraunos.python")
+    // Confined to `queue` — only read/written inside the queue.async block below.
+    nonisolated(unsafe) private var initialized = false
 
+    func resolve(_ url: URL) async throws -> ResolvedMedia {
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<ResolvedMedia, Error>) in
+            queue.async { [self] in
+                do {
+                    try ensureInitialized()
+                    continuation.resume(returning: try runExtract(url))
+                } catch {
+                    continuation.resume(throwing: error)
+                }
+            }
+        }
+    }
+
+    /// MUST run on `queue`.
     private func ensureInitialized() throws {
         guard !initialized else { return }
         guard let resources = Bundle.main.resourceURL else {
@@ -1280,8 +1302,8 @@ actor PythonExtractor: MediaExtracting {
         initialized = true
     }
 
-    func resolve(_ url: URL) async throws -> ResolvedMedia {
-        try ensureInitialized()
+    /// MUST run on `queue`.
+    private func runExtract(_ url: URL) throws -> ResolvedMedia {
         guard let cString = keraunos_python_extract(url.absoluteString) else {
             throw KeraunosError.runtime(detail: "null extraction result")
         }
