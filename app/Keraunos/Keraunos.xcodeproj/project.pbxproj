@@ -6,6 +6,10 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		B34032942FDFFAD400DB8BC1 /* KeraunosCore in Frameworks */ = {isa = PBXBuildFile; productRef = B34032932FDFFAD400DB8BC1 /* KeraunosCore */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		B340326A2FDFDC2100DB8BC1 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -52,6 +56,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				B34032942FDFFAD400DB8BC1 /* KeraunosCore in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -112,6 +117,7 @@
 			);
 			name = Keraunos;
 			packageProductDependencies = (
+				B34032932FDFFAD400DB8BC1 /* KeraunosCore */,
 			);
 			productName = Keraunos;
 			productReference = B340325C2FDFDC2000DB8BC1 /* Keraunos.app */;
@@ -195,6 +201,9 @@
 			);
 			mainGroup = B34032532FDFDC2000DB8BC1;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				B34032922FDFFAD400DB8BC1 /* XCLocalSwiftPackageReference "../KeraunosCore" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = B340325D2FDFDC2000DB8BC1 /* Products */;
 			projectDirPath = "";
@@ -615,6 +624,20 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		B34032922FDFFAD400DB8BC1 /* XCLocalSwiftPackageReference "../KeraunosCore" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = ../KeraunosCore;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		B34032932FDFFAD400DB8BC1 /* KeraunosCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = KeraunosCore;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = B34032542FDFDC2000DB8BC1 /* Project object */;
 }
