@@ -1,25 +1,23 @@
 import Foundation
 
 public protocol FileDownloading: Sendable {
-    func download(_ media: ResolvedMedia, to destinationDirectory: URL) async throws -> URL
+    /// Downloads one track to `destination` (a full file URL), replacing any existing file.
+    func download(_ track: MediaTrack, to destination: URL) async throws
 }
 
-/// Downloads a resolved media file with URLSession and moves it into place.
-/// Milestone 1: simple await-to-completion. Background sessions come later.
+/// Downloads a single track with URLSession and moves it into place.
 public struct Downloader: FileDownloading {
     private let session: URLSession
     public init(session: URLSession = .shared) { self.session = session }
 
-    public func download(_ media: ResolvedMedia, to destinationDirectory: URL) async throws -> URL {
+    public func download(_ track: MediaTrack, to destination: URL) async throws {
         do {
-            let (tempURL, response) = try await session.download(from: media.directURL)
+            let (tempURL, response) = try await session.download(from: track.url)
             guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
                 throw KeraunosError.network
             }
-            let destination = destinationDirectory.appendingPathComponent(media.suggestedFilename)
             try? FileManager.default.removeItem(at: destination)
             try FileManager.default.moveItem(at: tempURL, to: destination)
-            return destination
         } catch let error as KeraunosError {
             throw error
         } catch let urlError as URLError where urlError.code == .cancelled {
