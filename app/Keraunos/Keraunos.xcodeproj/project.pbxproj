@@ -8,6 +8,8 @@
 
 /* Begin PBXBuildFile section */
 		B34032942FDFFAD400DB8BC1 /* KeraunosCore in Frameworks */ = {isa = PBXBuildFile; productRef = B34032932FDFFAD400DB8BC1 /* KeraunosCore */; };
+		B3403B842FE0075D00DB8BC1 /* Python.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = B3403B832FE0075D00DB8BC1 /* Python.xcframework */; };
+		B3403B852FE0075D00DB8BC1 /* Python.xcframework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = B3403B832FE0075D00DB8BC1 /* Python.xcframework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -27,10 +29,25 @@
 		};
 /* End PBXContainerItemProxy section */
 
+/* Begin PBXCopyFilesBuildPhase section */
+		B3403B862FE0075D00DB8BC1 /* Embed Frameworks */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 10;
+			files = (
+				B3403B852FE0075D00DB8BC1 /* Python.xcframework in Embed Frameworks */,
+			);
+			name = "Embed Frameworks";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
 /* Begin PBXFileReference section */
 		B340325C2FDFDC2000DB8BC1 /* Keraunos.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Keraunos.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		B34032692FDFDC2100DB8BC1 /* KeraunosTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = KeraunosTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		B34032732FDFDC2100DB8BC1 /* KeraunosUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = KeraunosUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		B3403B832FE0075D00DB8BC1 /* Python.xcframework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcframework; name = Python.xcframework; path = PythonResources/Python.xcframework; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -57,6 +74,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				B34032942FDFFAD400DB8BC1 /* KeraunosCore in Frameworks */,
+				B3403B842FE0075D00DB8BC1 /* Python.xcframework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -83,6 +101,7 @@
 				B340325E2FDFDC2000DB8BC1 /* Keraunos */,
 				B340326C2FDFDC2100DB8BC1 /* KeraunosTests */,
 				B34032762FDFDC2100DB8BC1 /* KeraunosUITests */,
+				B3403B822FE0075D00DB8BC1 /* Frameworks */,
 				B340325D2FDFDC2000DB8BC1 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -97,6 +116,14 @@
 			name = Products;
 			sourceTree = "<group>";
 		};
+		B3403B822FE0075D00DB8BC1 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				B3403B832FE0075D00DB8BC1 /* Python.xcframework */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -107,6 +134,8 @@
 				B34032582FDFDC2000DB8BC1 /* Sources */,
 				B34032592FDFDC2000DB8BC1 /* Frameworks */,
 				B340325A2FDFDC2000DB8BC1 /* Resources */,
+				B3403B862FE0075D00DB8BC1 /* Embed Frameworks */,
+				B3403C012FE009AE00DB8BC1 /* Process Python libraries */,
 			);
 			buildRules = (
 			);
@@ -240,6 +269,33 @@
 		};
 /* End PBXResourcesBuildPhase section */
 
+/* Begin PBXShellScriptBuildPhase section */
+		B3403C012FE009AE00DB8BC1 /* Process Python libraries */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Process Python libraries";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "set -e
+source \"$PROJECT_DIR/PythonResources/Python.xcframework/build/utils.sh\"
+rsync -a --delete \"$PROJECT_DIR/PythonResources/app/\" \"$CODESIGNING_FOLDER_PATH/app/\"
+rsync -a --delete \"$PROJECT_DIR/PythonResources/app_packages/\" \"$CODESIGNING_FOLDER_PATH/app_packages/\"
+install_python \"PythonResources/Python.xcframework\" \"app\" \"app_packages\"
+";
+		};
+/* End PBXShellScriptBuildPhase section */
+
 /* Begin PBXSourcesBuildPhase section */
 		B34032582FDFDC2000DB8BC1 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
@@ -316,7 +372,7 @@
 				DEVELOPMENT_TEAM = PJBUF7JSHK;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
-				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				GCC_C_LANGUAGE_STANDARD = gnu17;
 				GCC_DYNAMIC_NO_PIC = NO;
 				GCC_NO_COMMON_BLOCKS = YES;
@@ -378,7 +434,7 @@
 				DEVELOPMENT_TEAM = PJBUF7JSHK;
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
-				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				GCC_C_LANGUAGE_STANDARD = gnu17;
 				GCC_NO_COMMON_BLOCKS = YES;
 				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
@@ -431,6 +487,7 @@
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_OBJC_BRIDGING_HEADER = "Keraunos/Keraunos-Bridging-Header.h";
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = "1,2,7";
@@ -475,6 +532,7 @@
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_OBJC_BRIDGING_HEADER = "Keraunos/Keraunos-Bridging-Header.h";
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = "1,2,7";
