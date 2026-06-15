@@ -21,3 +21,7 @@ DerivedData/
 # Bundled Python runtime (large prebuilt artifacts fetched at build time, not committed)
 Python.xcframework/
 *.xcframework.zip
+
+# Python dev venv
+app/Keraunos/python-dev/.venv/
+__pycache__/
