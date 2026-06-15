@@ -8,7 +8,7 @@
 
 **Tech Stack:** Swift 6 language mode (complete data-race safety), SwiftUI, Swift Testing, Xcode 26.5 (Swift 6.3 toolchain, file-system-synchronized groups), iOS 26.5 deployment target, a local SwiftPM package for the core, embedded CPython 3.13 via BeeWare Python-Apple-support, yt-dlp (pure-Python, vendored), certifi.
 
-> **Why a module:** the app target is **main-actor-by-default** (`SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor`) — ideal for UI. The non-UI logic must run off the main actor, which in a single target would mean marking each type `nonisolated`. Instead it lives in `KeraunosCore`, whose default isolation is `nonisolated`, so those types need **no isolation annotations at all**. The cost is `public` API markers on the package's surface (intentional API design, not isolation friction). The only `nonisolated` keyword in the whole project is on `PythonExtractor` (the genuine off-main exception, in the app target).
+> **Why a module:** the app target is **main-actor-by-default** (`SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor`) — ideal for UI. The non-UI logic must run off the main actor, which in a single target would mean marking each type `nonisolated`. Instead it lives in `KeraunosCore`, whose default isolation is `nonisolated`, so those types need **no isolation annotations at all**. The cost is `public` API markers on the package's surface (intentional API design, not isolation friction). The one off-main component is `PythonExtractor` — an `actor` with a custom serial executor (Task 13), in the app target.
 
 ---
 
@@ -29,8 +29,11 @@
   xcodebuild test -project app/Keraunos/Keraunos.xcodeproj -scheme Keraunos -destination "$DEST" -only-testing:KeraunosTests
   ```
   If `iPhone 17` is unavailable, pick one from `xcrun simctl list devices available | grep iPhone`.
-- **Isolation rule:** `KeraunosCore` is `nonisolated`-default — write plain declarations, add `public` for API and `Sendable` where values cross actors. The app target is main-actor-default — UI gets `@MainActor` for free; only `PythonExtractor` is `nonisolated`. Test suites touching the main-actor view model are `@MainActor` (`DownloadViewModelTests`); a suite mutating shared global state is `@Suite(.serialized)` (`DownloaderTests`).
-- **`nonisolated async` semantics (Swift 6.2):** a `nonisolated async` method *inherits the caller's isolation* — it does **not** automatically run on a background thread. So `nonisolated` on `PythonExtractor` only frees the *type* from the main actor; its off-main execution comes from the explicit `DispatchQueue` in `resolve` (Task 13), not from `nonisolated`. `Downloader.download` likewise runs its glue on the caller (the main-actor view model), which is fine because `await session.download(...)` suspends rather than blocking and `moveItem` is a fast rename. Tool choice for off-caller work: use a dedicated **serial `DispatchQueue`** for *blocking* and/or *serialized* work (the Python call — it blocks for seconds and needs one-at-a-time access to the single interpreter; `@concurrent` would block a cooperative-pool thread and run in parallel, racing the queue-confined `initialized` flag). Reserve **`@concurrent`** for *non-blocking, parallel-safe* CPU work. Plain `nonisolated` provides neither — it only inherits the caller's isolation.
+- **Isolation rule:** `KeraunosCore` is `nonisolated`-default — write plain declarations, add `public` for API and `Sendable` where values cross actors. The app target is main-actor-default — UI gets `@MainActor` for free; the one off-main component, `PythonExtractor`, is an `actor` with a custom serial executor. Test suites touching the main-actor view model are `@MainActor` (`DownloadViewModelTests`); a suite mutating shared global state is `@Suite(.serialized)` (`DownloaderTests`).
+- **Running blocking work off-actor (Swift 6.2):** a `nonisolated async` method *inherits the caller's isolation*, and a plain `actor` runs on the *cooperative pool* — neither is safe for a multi-second blocking call. Pick by the shape of the work:
+  - **Blocking and/or must be serialized** (the Python interpreter call): an `actor` with a **custom serial executor** backed by a `DispatchSerialQueue` (`PythonExtractor`, Task 13). Its jobs run on a dedicated thread (safe to block) and actor isolation serializes access + protects state — no `nonisolated(unsafe)`, continuations, or `@unchecked Sendable`.
+  - **Non-blocking, parallel-safe CPU work:** `@concurrent`.
+  - **Neither** — `Downloader.download`: `await session.download(...)` suspends rather than blocking and `moveItem` is a fast rename, so running its glue on the caller (the main-actor view model) is fine.
 - **Commits:** use the `structured-commit` skill. The `git commit` lines give the summary line; let the skill expand the body.
 - **TDD:** every code task is test-first. Run the test, see it fail, implement, see it pass, commit.
 
@@ -1302,7 +1305,7 @@ git commit -m "feat(python): add C-API bridge for interpreter init and extract"
 - Create: `app/Keraunos/Keraunos/PythonRuntime/PythonExtractor.swift`
 - Modify: `app/Keraunos/Keraunos/ContentView.swift`
 
-> This is the **only** `nonisolated` type in the project: it runs the blocking Python C calls off the main actor. It conforms to `KeraunosCore.MediaExtracting`.
+> `PythonExtractor` is an `actor` with a **custom serial executor** (a dedicated `DispatchSerialQueue`), so it runs the blocking Python C calls on its own thread — off both the main actor and the Swift cooperative pool — while actor isolation serializes access to the single interpreter. It conforms to `KeraunosCore.MediaExtracting`. (`DispatchSerialQueue`'s `SerialExecutor` conformance requires iOS 17+/macOS 14+; we target iOS 26.5.)
 
 - [ ] **Step 1: Implement the extractor**
 
@@ -1311,29 +1314,27 @@ git commit -m "feat(python): add C-API bridge for interpreter init and extract"
 import Foundation
 import KeraunosCore
 
-/// Runs yt-dlp extraction inside the embedded interpreter. The synchronous Python
-/// C calls are serialized onto a dedicated serial queue (the GIL is process-wide)
-/// and bridged to async, so they never block a Swift cooperative-pool thread.
-/// `@unchecked Sendable` is justified: all mutable state is confined to `queue`.
-nonisolated final class PythonExtractor: MediaExtracting, @unchecked Sendable {
-    private let queue = DispatchQueue(label: "io.github.lilikazine.Keraunos.python")
-    // Confined to `queue` — only read/written inside the queue.async block below.
-    nonisolated(unsafe) private var initialized = false
+/// Runs yt-dlp extraction inside the embedded interpreter. A custom serial
+/// executor backed by a dedicated DispatchSerialQueue means this actor's work
+/// runs on its own thread — NOT the Swift cooperative pool — so the blocking
+/// Python C call is safe to make, and actor isolation serializes access to the
+/// single (GIL-bound) interpreter and protects `initialized`. Actors are
+/// Sendable, so no @unchecked / nonisolated(unsafe) / continuation needed.
+actor PythonExtractor: MediaExtracting {
+    private let queue = DispatchSerialQueue(label: "io.github.lilikazine.Keraunos.python")
+    nonisolated var unownedExecutor: UnownedSerialExecutor { queue.asUnownedSerialExecutor() }
+
+    private var initialized = false   // ordinary actor-isolated state
 
     func resolve(_ url: URL) async throws -> ResolvedMedia {
-        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<ResolvedMedia, Error>) in
-            queue.async { [self] in
-                do {
-                    try ensureInitialized()
-                    continuation.resume(returning: try runExtract(url))
-                } catch {
-                    continuation.resume(throwing: error)
-                }
-            }
+        try ensureInitialized()
+        guard let cString = keraunos_python_extract(url.absoluteString) else {
+            throw KeraunosError.runtime(detail: "null extraction result")
         }
+        defer { free(cString) }
+        return try ExtractionDecoder.decode(Data(String(cString: cString).utf8))
     }
 
-    /// MUST run on `queue`.
     private func ensureInitialized() throws {
         guard !initialized else { return }
         guard let resources = Bundle.main.resourceURL else {
@@ -1348,16 +1349,6 @@ nonisolated final class PythonExtractor: MediaExtracting, @unchecked Sendable {
         let status = keraunos_python_init(resources.path, modulePaths, caCert.path)
         guard status == 0 else { throw KeraunosError.runtime(detail: "python init failed (\(status))") }
         initialized = true
-    }
-
-    /// MUST run on `queue`.
-    private func runExtract(_ url: URL) throws -> ResolvedMedia {
-        guard let cString = keraunos_python_extract(url.absoluteString) else {
-            throw KeraunosError.runtime(detail: "null extraction result")
-        }
-        defer { free(cString) }
-        let json = Data(String(cString: cString).utf8)
-        return try ExtractionDecoder.decode(json)
     }
 }
 ```
@@ -1434,7 +1425,7 @@ git commit -m "docs(log): record Milestone 1 acceptance results"
 
 ## Self-Review notes (for the executor)
 
-- **Module split:** `KeraunosCore` (nonisolated default, `public` API) holds `KeraunosError`, `ResolvedMedia`/`ExtractionDecoder`, `MediaExtracting`/`MockExtractor`, `Downloader`/`FileDownloading`, `DownloadStore` — none need isolation annotations. The app target (main-actor default) holds the UI + `PythonExtractor` (the sole `nonisolated` type) + Python embedding.
+- **Module split:** `KeraunosCore` (nonisolated default, `public` API) holds `KeraunosError`, `ResolvedMedia`/`ExtractionDecoder`, `MediaExtracting`/`MockExtractor`, `Downloader`/`FileDownloading`, `DownloadStore` — none need isolation annotations. The app target (main-actor default) holds the UI + `PythonExtractor` (an `actor` with a custom serial executor) + Python embedding.
 - **Spec coverage:** `PythonRuntime` (Tasks 10–13); `Extractor`/`PythonExtractor` (Tasks 5, 9, 13); `Downloader` (Task 6); `DownloadStore` (Task 7); UI (Task 8); data flow (Tasks 8+13); error mapping incl. `.needsFfmpeg`/`.requiresAuth` (Tasks 3, 9); testing — Core unit via `swift test` (Tasks 3–7), Python dev test against localhost (Task 9), app view-model test (Task 8), manual acceptance (Task 14); Milestone-1 done (Task 14 Step 5). The "extract in Python, download in Swift" split = `PythonExtractor` resolves only + `Downloader` transfers.
 - **Verification gates (not placeholders):** exact `python-stdlib` path inside the support package (Task 10 Step 2 → Task 13); the `install_python` run-script and `openssl.xcprivacy` taken verbatim from the release `USAGE.md` (Task 11); yt-dlp's `requested_formats` / "requested format is not available" behavior for X HLS posts (Task 9 maps both to `.needsFfmpeg`; confirm in Task 14 Step 3).
 - **Deferred (NOT Milestone 1):** ffmpeg/HLS merge, Share Sheet, format picker, queue/history, audio-only, cookies/auth.
