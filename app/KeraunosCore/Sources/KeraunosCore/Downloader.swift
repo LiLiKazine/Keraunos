@@ -12,7 +12,9 @@ public struct Downloader: FileDownloading {
 
     public func download(_ track: MediaTrack, to destination: URL) async throws {
         do {
-            let (tempURL, response) = try await session.download(from: track.url)
+            var request = URLRequest(url: track.url)
+            for (field, value) in track.httpHeaders { request.setValue(value, forHTTPHeaderField: field) }
+            let (tempURL, response) = try await session.download(for: request)
             guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
                 throw KeraunosError.network
             }

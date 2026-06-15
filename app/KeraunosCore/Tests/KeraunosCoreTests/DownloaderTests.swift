@@ -38,4 +38,17 @@ struct DownloaderTests {
             try await Downloader(session: StubURLProtocol.session()).download(track(), to: tempFile("clip.mp4"))
         }
     }
+
+    @Test func sendsTrackHTTPHeaders() async throws {
+        StubURLProtocol.lastRequest = nil
+        StubURLProtocol.handler = { req in
+            (HTTPURLResponse(url: req.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!, Data("x".utf8))
+        }
+        let t = MediaTrack(url: URL(string: "https://x.test/v.mp4")!,
+                           httpHeaders: ["X-Keraunos-Test": "yes", "Referer": "https://x.test/"],
+                           codec: "avc1", fileExtension: "mp4")
+        try await Downloader(session: StubURLProtocol.session()).download(t, to: tempFile("clip.mp4"))
+        #expect(StubURLProtocol.lastRequest?.value(forHTTPHeaderField: "X-Keraunos-Test") == "yes")
+        #expect(StubURLProtocol.lastRequest?.value(forHTTPHeaderField: "Referer") == "https://x.test/")
+    }
 }
