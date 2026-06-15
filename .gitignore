@@ -1,0 +1,23 @@
+# macOS
+.DS_Store
+
+# Xcode — user-specific state (never shared)
+xcuserdata/
+*.xcuserstate
+
+# Xcode — build output
+build/
+DerivedData/
+*.moved-aside
+*.hmap
+*.ipa
+*.dSYM
+*.dSYM.zip
+
+# Swift Package Manager (local checkouts/build; resolved file is kept)
+.build/
+.swiftpm/xcode/package.xcworkspace/contents.xcworkspacedata
+
+# Bundled Python runtime (large prebuilt artifacts fetched at build time, not committed)
+Python.xcframework/
+*.xcframework.zip
