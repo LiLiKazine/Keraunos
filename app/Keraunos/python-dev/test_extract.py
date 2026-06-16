@@ -140,7 +140,7 @@ def test_po_token_error_maps_to_requires_auth(monkeypatch):
         keraunos_extract.yt_dlp.YoutubeDL,
         "extract_info",
         lambda *a, **kw: (_ for _ in ()).throw(
-            DownloadError("Sign in to confirm you're not a bot: missing a GVS PO Token for video abc123")
+            DownloadError("Some web client https formats have been skipped as they are missing a GVS PO Token.")
         ),
     )
     out = json.loads(keraunos_extract.extract("https://www.youtube.com/watch?v=abc123"))
