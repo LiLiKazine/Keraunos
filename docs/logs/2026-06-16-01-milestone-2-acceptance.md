@@ -1,6 +1,8 @@
 # 2026-06-16-01: Milestone 2 (native DASH merge) acceptance results
 
-**Status:** Automated acceptance passed; manual GUI/real-URL acceptance **pending user**.
+**Status:** Automated acceptance passed; on-device progressive + auth paths
+confirmed; a live DASH-merge round-trip still **pending** (needs a non-auth-gated
+adaptive source).
 
 ## Environment
 
@@ -55,18 +57,28 @@ audio-only pair into one playable MP4 with both streams — done-criterion #1's
 core mechanism. The fixtures and throwaway test were removed (tree clean), per
 the design's choice to keep ffmpeg-fixture muxing out of the committed suite.
 
+## On-device acceptance (iPhone simulator, live network)
+
+| URL | Outcome | Interpretation |
+|-----|---------|----------------|
+| Public X video post | ✅ **Downloaded** — `Movez - Claude Code creator… [2066225283271708672].mp4` appears in the Downloads list | **Done-criterion #2 met**: progressive X resolves + downloads through the migrated model (M1 parity preserved). |
+| YouTube Shorts `…/shorts/SJp529flHbE…` | "This video requires sign-in (cookies), which isn't supported yet." (no crash) | YouTube's anti-bot wall ("sign in to confirm you're not a bot") matches `_AUTH_HINTS` → `.requiresAuth`. **Done-criterion #4 auth path met**; YouTube is best-effort, not a gate. |
+| A DASH source (separate video+audio) → single playable MP4 with audio | **pending** | Needs a non-auth-gated adaptive source; YouTube is currently blocked by anti-bot. Mux mechanism already proven on real fixtures (above). |
+
 ## Done-check (spec §"Done criteria")
 
 1. **DASH source → single playable MP4 with audio** — mux mechanism **proven**
    above on real H.264+AAC fixtures. End-to-end via the app on a live DASH URL is
    **pending user** (GUI + Files playback).
-2. **Progressive sources still work** — pending user (paste a public X post).
-   Preserved in code: the Python selector keeps a progressive `mp4` fallback so
-   M1's direct-file path still resolves (see commit `feat(python): emit
+2. **Progressive sources still work** — ✅ confirmed on-device (X video downloaded
+   to the list). The Python selector keeps a progressive `mp4` fallback so M1's
+   direct-file path still resolves (see commit `feat(python): emit
    progressive/adaptive contract`).
 3. **Per-format HTTP headers sent** — ✅ unit-tested (`sendsTrackHTTPHeaders`).
 4. **Non-muxable / HLS / auth fail with the correct KeraunosError** — ✅ for the
-   mapping (decoder/error unit tests); live HLS/exotic link is pending user.
+   mapping (decoder/error unit tests) **and** the auth path confirmed on-device
+   (YouTube Shorts → `.requiresAuth`, no crash); a live HLS/VP9-only link is the
+   only remaining unverified sub-case.
 5. **No temp-file leakage** — ✅ unit-tested (assembler cleans scratch on success
    and on merge failure).
 6. **All test tiers green** — ✅ (table above).
