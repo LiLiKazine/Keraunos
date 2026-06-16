@@ -58,3 +58,14 @@ scheme, set your development team under *Signing & Capabilities*, ▶ Run.
   out (ffmpeg) can't run; that's why HLS/merging is deferred and transfer is native.
 - Embedded Python has **no system CA store** — bundle `certifi` and point the SSL
   context at it, or all HTTPS extraction fails.
+- **Multi-threaded embedded Python needs `PyEval_SaveThread()` after init.**
+  `keraunos_python_init` releases the GIL once after `Py_InitializeFromConfig`; without
+  it any worker thread (e.g. the extraction watchdog) deadlocks in `PyGILState_Ensure`.
+- **`@_cdecl` entry points must be `nonisolated`.** The app target builds with
+  `-default-isolation=MainActor`, so even global functions default to MainActor; a C
+  entry point called off the main thread (e.g. `keraunos_js_eval` on the extraction
+  worker) traps in `dispatch_assert_queue` unless marked `nonisolated`.
+- **Clean-build after Swift/ObjC/bridge changes.** Incremental Xcode builds reliably
+  re-sync `PythonResources/` (the "Process Python libraries" phase is `alwaysOutOfDate`),
+  but can ship **stale compiled Swift/ObjC** — if on-device behavior contradicts the
+  source, suspect a stale binary first and ⇧⌘K (Clean Build Folder) before debugging.
