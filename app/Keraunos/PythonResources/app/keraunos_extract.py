@@ -159,3 +159,8 @@ try:
     install_youtube_js_runtime()
 except Exception:
     pass   # fail open: fall back to yt-dlp's default nsig path
+
+try:
+    import keraunos_youtube_pot  # noqa: F401  (registers the PO token provider on import)
+except Exception:
+    pass   # fail open: extraction proceeds without an on-device PO token provider
