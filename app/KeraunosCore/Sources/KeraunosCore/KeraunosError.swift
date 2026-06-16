@@ -10,6 +10,7 @@ public enum KeraunosError: Error, Equatable {
     case runtime(detail: String)
     case cancelled
     case mergeFailed
+    case timedOut
 }
 
 public extension KeraunosError {
@@ -35,6 +36,7 @@ extension KeraunosError: LocalizedError {
         case .runtime(let detail): return "Something went wrong: \(detail)"
         case .cancelled:          return "Download cancelled."
         case .mergeFailed:        return "Couldn't combine the video and audio tracks."
+        case .timedOut:           return "Extraction took too long and was stopped."
         }
     }
 }
