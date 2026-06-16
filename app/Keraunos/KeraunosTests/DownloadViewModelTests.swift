@@ -58,6 +58,44 @@ struct DownloadViewModelTests {
         await model.startDownload()
         #expect(model.errorMessage != nil)
     }
+
+    @Test func requiresAuthShowsSignInForHost() async {
+        let model = vm(extractor: MockExtractor(result: .failure(.requiresAuth)),
+                       merger: MockMerger(), dir: tempDir())
+        model.urlText = "https://www.instagram.com/reel/ABC/"
+        await model.startDownload()
+        #expect(model.requiresSignIn == true)
+        #expect(model.signInURL?.host == "www.instagram.com")
+        #expect(model.errorMessage == KeraunosError.requiresAuth.errorDescription)
+    }
+
+    @Test func retryAfterLoginSucceedsAndClearsSignIn() async {
+        let dir = tempDir()
+        let extractor = SequenceExtractor(results: [
+            .failure(.requiresAuth),
+            .success(progressive("clip.mp4")),
+        ])
+        let model = DownloadViewModel(
+            extractor: extractor,
+            assembler: MediaAssembler(downloader: SpyDownloader(), merger: MockMerger()),
+            store: DownloadStore(directory: dir))
+        model.urlText = "https://www.instagram.com/reel/ABC/"
+        await model.startDownload()
+        #expect(model.requiresSignIn == true)
+        await model.retry()
+        #expect(model.requiresSignIn == false)
+        #expect(model.lastSavedName == "clip.mp4")
+        #expect(model.errorMessage == nil)
+    }
+}
+
+/// Returns a queued sequence of results across successive resolve() calls.
+final class SequenceExtractor: MediaExtracting, @unchecked Sendable {
+    private var results: [Result<ResolvedMedia, KeraunosError>]
+    init(results: [Result<ResolvedMedia, KeraunosError>]) { self.results = results }
+    func resolve(_ url: URL) async throws -> ResolvedMedia {
+        try (results.isEmpty ? .failure(.runtime(detail: "no more results")) : results.removeFirst()).get()
+    }
 }
 
 /// Writes a marker to the destination so progressive assembly produces a file.

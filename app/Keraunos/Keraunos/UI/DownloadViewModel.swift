@@ -8,6 +8,8 @@ final class DownloadViewModel {   // main-actor by default (app target)
     private(set) var isWorking = false
     private(set) var statusText: String?
     private(set) var errorMessage: String?
+    private(set) var requiresSignIn = false
+    private(set) var signInURL: URL?
     private(set) var lastSavedName: String?
     private(set) var savedFiles: [URL] = []
 
@@ -30,6 +32,8 @@ final class DownloadViewModel {   // main-actor by default (app target)
         }
         isWorking = true
         errorMessage = nil
+        requiresSignIn = false
+        signInURL = nil
         statusText = "Resolving…"
         defer { isWorking = false; statusText = nil }
         do {
@@ -41,10 +45,16 @@ final class DownloadViewModel {   // main-actor by default (app target)
             savedFiles = store.savedFiles()
         } catch let error as KeraunosError {
             errorMessage = error.errorDescription
+            if error == .requiresAuth {
+                requiresSignIn = true
+                signInURL = URL(string: urlText.trimmingCharacters(in: .whitespacesAndNewlines))
+            }
         } catch {
             errorMessage = KeraunosError.runtime(detail: error.localizedDescription).errorDescription
         }
     }
+
+    func retry() async { await startDownload() }
 
     private static func label(for phase: MediaAssembler.Phase) -> String {
         switch phase {
