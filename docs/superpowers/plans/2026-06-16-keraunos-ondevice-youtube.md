@@ -880,13 +880,18 @@ Add the helper snippet builders and the HTTP helper at module scope (the exact
 `/tmp/bgutils/node_modules/bgutils-js/README.md`):
 
 ```python
+# NOTE: the vendored bundle exposes the library as the global `BG`
+# (the entry does `globalThis.BG = bg`); the esbuild `--global-name=BGBundle`
+# var is empty/undefined, so access `globalThis.BG.*`, NOT `BGBundle.BG.*`.
+# (Confirmed during Task 7 review.) The BG.* member names below are best-guess —
+# confirm them against /tmp/bgutils/node_modules/bgutils-js/README.md in Step 4.
 def _bg_run_snippet(challenge):
-    return ("console.log(JSON.stringify(BGBundle.BG.BotGuardClient.run(%s)));"
+    return ("console.log(JSON.stringify(globalThis.BG.BotGuardClient.run(%s)));"
             % json.dumps(challenge))
 
 
 def _mint_snippet(integrity, content_binding):
-    return ("console.log(BGBundle.BG.PoToken.generate(%s, %s));"
+    return ("console.log(globalThis.BG.PoToken.generate(%s, %s));"
             % (json.dumps(integrity), json.dumps(content_binding)))
 ```
 And implement `_download_json_via_request` on the provider using yt-dlp's request
