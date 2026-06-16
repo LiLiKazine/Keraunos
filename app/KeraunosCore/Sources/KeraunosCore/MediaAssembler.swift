@@ -16,6 +16,7 @@ public struct MediaAssembler {
 
     public func assemble(_ media: ResolvedMedia,
                          into store: DownloadStore,
+                         isolation: isolated (any Actor)? = #isolation,
                          onPhase: (Phase) -> Void = { _ in }) async throws -> URL {
         switch media.kind {
         case .progressive(let track):

@@ -5,7 +5,7 @@ struct ContentView: View {
     var body: some View {
         DownloadScreen(model: DownloadViewModel(
             extractor: PythonExtractor(),
-            downloader: Downloader(),
+            assembler: MediaAssembler(downloader: Downloader(), merger: AVFoundationMerger()),
             store: DownloadStore()))
     }
 }
@@ -14,6 +14,6 @@ struct ContentView: View {
     // Preview keeps the mock so the canvas needs no interpreter.
     DownloadScreen(model: DownloadViewModel(
         extractor: MockExtractor(),
-        downloader: Downloader(),
+        assembler: MediaAssembler(downloader: Downloader(), merger: AVFoundationMerger()),
         store: DownloadStore()))
 }

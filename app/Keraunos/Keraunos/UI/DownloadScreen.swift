@@ -18,7 +18,11 @@ struct DownloadScreen: View {
                     Button {
                         Task { await model.startDownload() }
                     } label: {
-                        if model.isWorking { ProgressView() } else { Text("Download") }
+                        if model.isWorking {
+                            HStack { ProgressView(); Text(model.statusText ?? "Working…") }
+                        } else {
+                            Text("Download")
+                        }
                     }
                     .disabled(model.isWorking || model.urlText.isEmpty)
                 }
