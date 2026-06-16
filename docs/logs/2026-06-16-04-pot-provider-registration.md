@@ -178,4 +178,4 @@ identified after Task 9 landed.
 | 27c0ef9 | feat(python): register a (stub) on-device PO token provider |
 | b2ce449 | feat(python): map PO-token-required failures to a clear auth error |
 | df747cb | feat(python): mint cold-start YouTube PO tokens via bgutils in JavaScriptCore |
-| TBD     | refactor(python): log cold-start PO token rejections and clarify identifier/SPS limits |
+| 5bb6fd8 | refactor(python): log cold-start PO token rejections and clarify identifier/SPS limits |
