@@ -78,4 +78,4 @@ The `try/except` around the import means a broken provider file never breaks ext
 
 | SHA | Description |
 |-----|-------------|
-| (see below) | feat(python): register a (stub) on-device PO token provider |
+| 27c0ef9 | feat(python): register a (stub) on-device PO token provider |
