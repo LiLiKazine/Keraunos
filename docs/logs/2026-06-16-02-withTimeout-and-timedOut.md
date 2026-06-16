@@ -43,6 +43,10 @@ constraint is documented in `Timeout.swift`'s docstring and will be enforced at
   `withTimeout<T: Sendable>(_:_:)` free function.
 - `KeraunosCore/Tests/KeraunosCoreTests/TimeoutTests.swift` — new file; 4 Swift
   Testing tests written before implementation (TDD).
+- `app/Keraunos/Keraunos/PythonRuntime/PythonExtractor.swift` — wrapped
+  `resolve(_:)` in `withTimeout(timeout)`; extracted the blocking C call to a
+  private actor-isolated `blockingExtract(_:cookiePath:)` method; added
+  `timeout: Duration` property (default 45 s, injectable via `init`).
 
 ## What Was Discovered
 
@@ -54,9 +58,19 @@ constraint is documented in `Timeout.swift`'s docstring and will be enforced at
   always added), but the guard-throw keeps the compiler and future readers happy.
 - CPython cooperative-cancellation gap is a known limitation; it must be
   addressed at `PythonExtractor` (dedicated executor), not here.
+- `blockingExtract` must remain actor-isolated (not `nonisolated`): calling
+  `await blockingExtract(...)` from inside the (non-isolated) `withTimeout`
+  task-group closure causes a hop onto the actor's serial `DispatchSerialQueue`
+  executor, which preserves single-interpreter serialization. Marking it
+  `nonisolated` would skip the hop and allow two callers to reach CPython
+  concurrently.
+- On timeout the C call is orphaned on the actor's serial executor until it
+  returns naturally; the next `resolve` queues behind it. This is acceptable
+  because the dedicated executor means no shared thread-pool starvation.
 
 ## Commits
 
 | SHA | Description |
 |-----|-------------|
 | 29eca8e | feat(core): add withTimeout helper and KeraunosError.timedOut |
+| (next) | feat(app): bound extraction with an overall wall-clock timeout |

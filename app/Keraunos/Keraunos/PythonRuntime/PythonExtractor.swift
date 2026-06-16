@@ -14,16 +14,29 @@ actor PythonExtractor: MediaExtracting {
     private var initialized = false   // ordinary actor-isolated state
 
     private let cookieProvider: (any CookieProviding)?
+    private let timeout: Duration
 
-    init(cookieProvider: (any CookieProviding)? = nil) {
+    init(cookieProvider: (any CookieProviding)? = nil, timeout: Duration = .seconds(45)) {
         self.cookieProvider = cookieProvider
+        self.timeout = timeout
     }
 
     func resolve(_ url: URL) async throws -> ResolvedMedia {
         try ensureInitialized()
         let cookieURL = await cookieProvider?.cookieFile()
         defer { if let cookieURL { try? FileManager.default.removeItem(at: cookieURL) } }
-        guard let cString = keraunos_python_extract(url.absoluteString, cookieURL?.path) else {
+        let cookiePath = cookieURL?.path
+        // The blocking C call runs on this actor's serial executor (via the
+        // actor-isolated blockingExtract); the timeout's timer runs on the
+        // cooperative pool. On timeout the C call is orphaned on the serial
+        // executor until it returns — the next resolve queues behind it.
+        return try await withTimeout(timeout) { [self] in
+            try await blockingExtract(url, cookiePath: cookiePath)
+        }
+    }
+
+    private func blockingExtract(_ url: URL, cookiePath: String?) throws -> ResolvedMedia {
+        guard let cString = keraunos_python_extract(url.absoluteString, cookiePath) else {
             throw KeraunosError.runtime(detail: "null extraction result")
         }
         defer { free(cString) }
