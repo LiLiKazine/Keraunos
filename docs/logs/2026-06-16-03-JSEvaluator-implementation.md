@@ -127,7 +127,16 @@ flags. The declaration in `PythonBridge.h` is sufficient.
 | (see HEAD~2) | feat(app): add JavaScriptCore-backed JSEvaluator with console.log capture |
 | (see HEAD~1) | feat(app): expose keraunos_native.eval_js to the embedded interpreter |
 | 51304b7 | feat(python): route YouTube nsig through JavaScriptCore, skip pure-Python |
-| (pending) | fix(python): raise ExtractorError from JS eval failures to avoid nsig cache poisoning |
+| (see git log) | fix(python): raise ExtractorError from JS eval failures to avoid nsig cache poisoning |
+| (pending) | chore(python): pin yt-dlp==2025.10.14 for the nsig monkeypatch |
+
+### venv and vendored copies already aligned at 2025.10.14
+
+When pinning `requirements.txt`, both the venv (`python-dev/.venv`) and the
+vendored `PythonResources/app_packages/yt_dlp/version.py` already reported
+`2025.10.14`. The drift-guard test (Task 5) is immediately meaningful — no
+manual copy-in step was required. This is the version the monkeypatch was
+developed and tested against; the pin freezes that contract.
 
 ### Code-review fixes (post-implementation)
 
