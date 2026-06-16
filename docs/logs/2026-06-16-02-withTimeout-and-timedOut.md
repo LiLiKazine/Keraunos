@@ -73,4 +73,4 @@ constraint is documented in `Timeout.swift`'s docstring and will be enforced at
 | SHA | Description |
 |-----|-------------|
 | 29eca8e | feat(core): add withTimeout helper and KeraunosError.timedOut |
-| (next) | feat(app): bound extraction with an overall wall-clock timeout |
+| 555bd87 | feat(app): bound extraction with an overall wall-clock timeout |
