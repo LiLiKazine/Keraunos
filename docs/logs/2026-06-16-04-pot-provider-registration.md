@@ -146,4 +146,4 @@ no network). The token is bound to `visitor_data` or `data_sync_id` from the
 |-----|-------------|
 | 27c0ef9 | feat(python): register a (stub) on-device PO token provider |
 | b2ce449 | feat(python): map PO-token-required failures to a clear auth error |
-| TBD | feat(python): mint cold-start YouTube PO tokens via bgutils in JavaScriptCore |
+| df747cb | feat(python): mint cold-start YouTube PO tokens via bgutils in JavaScriptCore |
