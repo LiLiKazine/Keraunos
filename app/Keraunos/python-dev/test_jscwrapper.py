@@ -28,3 +28,18 @@ def test_install_youtube_js_runtime_patches_decrypt_nsig():
     original = YoutubeIE._decrypt_nsig
     keraunos_extract.install_youtube_js_runtime()
     assert YoutubeIE._decrypt_nsig is not original  # patched
+
+
+def test_patched_decrypt_nsig_uses_injected_evaluator():
+    from yt_dlp.extractor.youtube._video import YoutubeIE
+    keraunos_extract.install_youtube_js_runtime()
+    keraunos_extract.set_js_evaluator(lambda script, timeout_ms: "DECODED")
+
+    class FakeIE:
+        def _extract_n_function_code(self, video_id, player_url):
+            return (None, "name", (["a"], "return a;"))
+        def _store_player_data_to_cache(self, *a, **k):
+            pass
+
+    out = YoutubeIE._decrypt_nsig(FakeIE(), "rawnsig", "vid", "/player.js")
+    assert out == "DECODED"

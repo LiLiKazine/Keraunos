@@ -66,7 +66,7 @@ class JavaScriptCoreWrapper:
     def execute(self, jscode, video_id=None, *, note='Executing JS'):
         out = _eval_js(jscode, self.timeout)
         if out.startswith("__KERAUNOS_JS_ERROR__"):
-            raise RuntimeError(f"JavaScriptCore eval failed: {out[len('__KERAUNOS_JS_ERROR__'):]}")
+            raise ExtractorError(f"JavaScriptCore eval failed: {out[len('__KERAUNOS_JS_ERROR__'):]}")
         return out.strip()
 
 
@@ -77,7 +77,6 @@ def install_youtube_js_runtime():
 
     def _decrypt_nsig_via_jsc(self, s, video_id, player_url):
         if player_url is None:
-            from yt_dlp.utils import ExtractorError
             raise ExtractorError('Cannot decrypt nsig without player_url')
         player_url = urljoin('https://www.youtube.com', player_url)
         _jsi, _name, func_code = self._extract_n_function_code(video_id, player_url)

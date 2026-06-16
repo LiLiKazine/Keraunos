@@ -127,3 +127,23 @@ flags. The declaration in `PythonBridge.h` is sufficient.
 | (see HEAD~2) | feat(app): add JavaScriptCore-backed JSEvaluator with console.log capture |
 | (see HEAD~1) | feat(app): expose keraunos_native.eval_js to the embedded interpreter |
 | 51304b7 | feat(python): route YouTube nsig through JavaScriptCore, skip pure-Python |
+| (pending) | fix(python): raise ExtractorError from JS eval failures to avoid nsig cache poisoning |
+
+### Code-review fixes (post-implementation)
+
+Two issues surfaced in review of `keraunos_extract.py`:
+
+1. **`RuntimeError` escaped `ExtractorError` catch in `_cached`** — `JavaScriptCoreWrapper.execute`
+   raised `RuntimeError` on eval failure. yt-dlp's `_cached` helper catches only `ExtractorError`
+   descendants; a bare `RuntimeError` would escape and be stored as a poisoned cache entry,
+   causing all subsequent nsig calls to fail. Fixed by raising `ExtractorError` directly (already
+   imported at module scope).
+
+2. **Redundant in-closure import** — `_decrypt_nsig_via_jsc` had a deferred
+   `from yt_dlp.utils import ExtractorError` inside the `player_url is None` branch, shadowing
+   the module-level import unnecessarily. Removed.
+
+3. **Test strengthened** — `test_install_youtube_js_runtime_patches_decrypt_nsig` previously only
+   checked function identity. A new `test_patched_decrypt_nsig_uses_injected_evaluator` test
+   exercises the full patched call path using a minimal `FakeIE` and the `set_js_evaluator` seam,
+   confirming the JSC evaluator's return value actually flows through to the caller.
