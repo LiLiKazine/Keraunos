@@ -37,6 +37,18 @@ wrapped in a `final class` singleton serialised by `NSLock`.
 
 ## What Changed
 
+- **Added** `app/Keraunos/PythonResources/app/bgutils/bgutils.bundle.js`
+  - bgutils-js 3.2.0 vendored as a 16KB esbuild IIFE bundle (`--global-name=BGBundle`)
+  - Exposes `BGBundle.BG` — the full bgutils-js export — for Task 9's BotGuard spike
+  - Built with: `esbuild entry.js --bundle --format=iife --global-name=BGBundle`
+- **Modified** `app/Keraunos/Keraunos/PythonRuntime/JSEvaluator.swift`
+  - `init` now calls `installEnvironment()` instead of `installConsole()` directly
+  - Added `installEnvironment()`: calls `installConsole()` then installs `globalThis`/`self`/`window` aliases, `atob`/`btoa`, a minimal `navigator`, and a synchronous `setTimeout` shim
+  - Fixed `installConsole()`: replaced single-`JSValue` block (silently dropped args 2+) with JS-side variadic wrapper that joins all arguments with spaces before calling back to Swift
+- **Modified** `app/Keraunos/KeraunosTests/JSEvaluatorTests.swift`
+  - Added `environmentShimsAreAvailable` test: verifies `atob`, `navigator.userAgent`, and `setTimeout` are correctly typed after shim installation
+  - All 4 JSEvaluatorTests now pass
+
 - **Modified** `app/Keraunos/PythonResources/app/keraunos_extract.py`
   - Added `_JS_EVALUATOR` test seam, `set_js_evaluator()`, `_eval_js()`, and `JavaScriptCoreWrapper`
   - Added `install_youtube_js_runtime()` — monkeypatches `YoutubeIE._decrypt_nsig` to use `JavaScriptCoreWrapper`
@@ -129,6 +141,7 @@ flags. The declaration in `PythonBridge.h` is sufficient.
 | 51304b7 | feat(python): route YouTube nsig through JavaScriptCore, skip pure-Python |
 | (see git log) | fix(python): raise ExtractorError from JS eval failures to avoid nsig cache poisoning |
 | (pending) | chore(python): pin yt-dlp==2025.10.14 for the nsig monkeypatch |
+| (this commit) | feat(app): vendor bgutils-js and add JSContext browser shims |
 
 ### venv and vendored copies already aligned at 2025.10.14
 
@@ -137,6 +150,38 @@ vendored `PythonResources/app_packages/yt_dlp/version.py` already reported
 `2025.10.14`. The drift-guard test (Task 5) is immediately meaningful — no
 manual copy-in step was required. This is the version the monkeypatch was
 developed and tested against; the pin freezes that contract.
+
+### console.log variadic truncation (silent bug)
+
+The original `installConsole` used `@convention(block) (JSValue) -> Void`, which received
+only the first argument of multi-arg `console.log(a, b, c)` calls — args 2+ were silently
+discarded. This was masked because all existing yt-dlp nsig snippets log a single value.
+The shim test (`console.log(typeof atob, typeof navigator.userAgent, typeof setTimeout)`)
+triggered the bug immediately.
+
+Fix: replaced the Swift block with a JS-side wrapper:
+```js
+var console = {
+  log: function() {
+    var parts = Array.prototype.slice.call(arguments).map(function(a){ return String(a); });
+    __keraunos_log_impl(parts.join(' '));
+  }
+};
+```
+`__keraunos_log_impl` is a `(String) -> Void` Swift block that appends to `buffer`.
+This approach is more robust: `arguments` captures all args regardless of count,
+and the join-with-space behaviour matches browser `console.log`.
+
+Tried: `@convention(block) (JSValue, JSValue, JSValue) -> Void` — works for fixed
+arities but not variadic. JavaScriptCore doesn't support `@convention(block)` with
+a variadic signature, so the JS-wrapper approach is the correct solution.
+
+### BotGuard bundle: no browser-API build errors
+
+`esbuild` bundled bgutils-js 3.2.0 cleanly (2ms, 15.7KB before copy). No unresolvable
+browser API warnings were emitted — the library does not reference DOM APIs at the
+module scope (only behind runtime guards). The shims we install (`atob`, `btoa`,
+`navigator`, `setTimeout`) are the globals bgutils-js actually calls at runtime.
 
 ### Code-review fixes (post-implementation)
 

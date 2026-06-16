@@ -44,7 +44,7 @@ final class JSEvaluator: @unchecked Sendable {
 
     nonisolated private init() {
         context = JSContext()!
-        installConsole()
+        installEnvironment()
     }
 
     /// Evaluates `script`, returning whatever it printed via console.log (trimmed),
@@ -63,13 +63,37 @@ final class JSEvaluator: @unchecked Sendable {
         return buffer.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
+    nonisolated private func installEnvironment() {
+        installConsole()
+        // globalThis / self / window aliases
+        context.evaluateScript("var self = this; var window = this; var globalThis = this;")
+        // atob / btoa
+        let atob: @convention(block) (String) -> String = { Data(base64Encoded: $0).flatMap { String(data: $0, encoding: .isoLatin1) } ?? "" }
+        let btoa: @convention(block) (String) -> String = { ($0.data(using: .isoLatin1) ?? Data()).base64EncodedString() }
+        context.setObject(atob, forKeyedSubscript: "atob" as NSString)
+        context.setObject(btoa, forKeyedSubscript: "btoa" as NSString)
+        // minimal navigator
+        context.evaluateScript("var navigator = { userAgent: 'Mozilla/5.0', languages: ['en-US'] };")
+        // setTimeout: run the callback immediately (no real timers in this context)
+        let setTimeout: @convention(block) (JSValue, Double) -> Void = { fn, _ in fn.call(withArguments: []) }
+        context.setObject(setTimeout, forKeyedSubscript: "setTimeout" as NSString)
+    }
+
     nonisolated private func installConsole() {
-        let console = JSValue(newObjectIn: context)
-        let log: @convention(block) (JSValue) -> Void = { [weak self] value in
-            self?.buffer += (value.toString() ?? "") + "\n"
+        // Use a JS wrapper so `arguments` captures all variadic args, then
+        // calls back into a Swift block with a pre-joined string.
+        let logImpl: @convention(block) (String) -> Void = { [weak self] joined in
+            self?.buffer += joined + "\n"
         }
-        console?.setValue(log, forProperty: "log")
-        context.setObject(console, forKeyedSubscript: "console" as NSString)
+        context.setObject(logImpl, forKeyedSubscript: "__keraunos_log_impl" as NSString)
+        context.evaluateScript("""
+            var console = {
+              log: function() {
+                var parts = Array.prototype.slice.call(arguments).map(function(a){ return String(a); });
+                __keraunos_log_impl(parts.join(' '));
+              }
+            };
+            """)
     }
 
     /// No-op: `JSContextGroupSetExecutionTimeLimit` is not exported in the iOS SDK
