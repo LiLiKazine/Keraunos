@@ -14,4 +14,9 @@ int keraunos_python_init(const char *resourcePath, const char *caCertPath);
 // cookieFilePath may be NULL or "" for "no cookies".
 char *keraunos_python_extract(const char *url, const char *cookieFilePath);
 
+// Implemented in Swift (@_cdecl). Evaluates JS via JavaScriptCore and returns a
+// malloc'd UTF-8 string the caller must free(). On JS error the string is prefixed
+// "__KERAUNOS_JS_ERROR__".
+char *keraunos_js_eval(const char *script, double timeoutMs);
+
 #endif

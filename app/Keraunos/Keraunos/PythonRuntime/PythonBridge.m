@@ -5,6 +5,34 @@
 
 static int gInitialized = 0;
 
+// keraunos_native.eval_js(script: str, timeout_ms: float) -> str
+static PyObject *keraunos_native_eval_js(PyObject *self, PyObject *args) {
+    const char *script = NULL;
+    double timeout_ms = 5000.0;
+    if (!PyArg_ParseTuple(args, "s|d", &script, &timeout_ms)) return NULL;
+    char *out;
+    Py_BEGIN_ALLOW_THREADS
+    out = keraunos_js_eval(script, timeout_ms);
+    Py_END_ALLOW_THREADS
+    PyObject *result = PyUnicode_FromString(out ? out : "__KERAUNOS_JS_ERROR__null");
+    if (out) free(out);
+    return result;
+}
+
+static PyMethodDef keraunos_native_methods[] = {
+    {"eval_js", keraunos_native_eval_js, METH_VARARGS, "Evaluate JS via JavaScriptCore; returns console.log output, or a string prefixed __KERAUNOS_JS_ERROR__ on failure."},
+    {NULL, NULL, 0, NULL},
+};
+
+static struct PyModuleDef keraunos_native_module = {
+    PyModuleDef_HEAD_INIT, "keraunos_native", NULL, -1, keraunos_native_methods,
+    NULL, NULL, NULL, NULL,
+};
+
+static PyObject *PyInit_keraunos_native(void) {
+    return PyModule_Create(&keraunos_native_module);
+}
+
 // Appends `path` to sys.path. Returns 0 on success.
 static int append_sys_path(const char *path) {
     PyObject *sys_path = PySys_GetObject("path");   // borrowed
@@ -26,6 +54,8 @@ int keraunos_python_init(const char *resourcePath, const char *caCertPath) {
     PyStatus status;
     PyPreConfig preconfig;
     PyConfig config;
+
+    PyImport_AppendInittab("keraunos_native", PyInit_keraunos_native);
 
     // Pre-initialize in UTF-8 mode (matches the Python-Apple-support testbed).
     PyPreConfig_InitIsolatedConfig(&preconfig);

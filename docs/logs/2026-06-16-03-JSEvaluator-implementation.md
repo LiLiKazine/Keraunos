@@ -43,6 +43,11 @@ wrapped in a `final class` singleton serialised by `NSLock`.
   - `@_cdecl("keraunos_js_eval")` C entry point returning `strdup`'d UTF-8
 - **Added** `app/Keraunos/KeraunosTests/JSEvaluatorTests.swift`
   - 3 Swift Testing `@Test` functions: console.log capture, function execution, syntax error sentinel
+- **Modified** `app/Keraunos/Keraunos/PythonRuntime/PythonBridge.h`
+  - Added `keraunos_js_eval(const char *script, double timeoutMs)` declaration so ObjC `.m` can call the Swift `@_cdecl` symbol
+- **Modified** `app/Keraunos/Keraunos/PythonRuntime/PythonBridge.m`
+  - Added `keraunos_native` Python C extension module with `eval_js` method that calls `keraunos_js_eval`
+  - Registered it via `PyImport_AppendInittab("keraunos_native", PyInit_keraunos_native)` immediately before `Py_PreInitialize`
 
 ## What Was Discovered
 
@@ -86,8 +91,24 @@ functions. This works because `shared` is declared `nonisolated` on the type. Th
 test target also sets `-default-isolation=MainActor`, but since `shared` is explicitly
 `nonisolated`, no cross-actor call is generated.
 
+### `PyImport_AppendInittab` placement is stricter than the docs imply
+
+The CPython docs say AppendInittab must be called "before `Py_Initialize`", but the
+stricter requirement is **before `Py_PreInitialize`**. The pre-init phase configures
+memory allocators that affect how the interpreter loads built-in modules; registering
+after pre-init is silently ignored. The correct placement in `keraunos_python_init`
+is between `setenv("SSL_CERT_FILE", …)` and `PyPreConfig_InitIsolatedConfig(…)`.
+
+### `keraunos_js_eval` is a bare C symbol — no import needed in ObjC
+
+Because `keraunos_js_eval` is declared `@_cdecl` in Swift, it emits a C-linkage
+symbol directly into the app binary. The ObjC `.m` file only needs a forward
+declaration in the shared header — no `@import`, no bridging header, no extra linker
+flags. The declaration in `PythonBridge.h` is sufficient.
+
 ## Commits
 
 | SHA | Description |
 |-----|-------------|
-| (see HEAD) | feat(app): add JavaScriptCore-backed JSEvaluator with console.log capture |
+| (see HEAD~1) | feat(app): add JavaScriptCore-backed JSEvaluator with console.log capture |
+| (see HEAD) | feat(app): expose keraunos_native.eval_js to the embedded interpreter |
