@@ -23,6 +23,12 @@ _FORMAT = (
     "best[protocol^=http][ext=mp4]"
 )
 
+# Bound every network read so a stalled or bot-gated host (e.g. Reddit gating its
+# post JSON / DASH manifest) surfaces a .network error in seconds instead of
+# hanging the "Resolving…" spinner forever. There is otherwise no timeout: yt-dlp
+# defaults socket_timeout to None and so does Python's global socket timeout.
+_SOCKET_TIMEOUT = 15
+
 _AUTH_HINTS = ("log in", "sign in", "logged in", "cookies", "nsfw",
                "age-restricted", "age restricted", "confirm your age", "sensitive")
 
@@ -62,8 +68,11 @@ def _payload_for_info(info, prepare_filename):
     return _err("needs_ffmpeg", "no AVFoundation-muxable formats available")
 
 
-def extract(url):
-    opts = {"quiet": True, "no_warnings": True, "skip_download": True, "format": _FORMAT}
+def extract(url, socket_timeout=_SOCKET_TIMEOUT):
+    opts = {
+        "quiet": True, "no_warnings": True, "skip_download": True, "format": _FORMAT,
+        "socket_timeout": socket_timeout, "extractor_retries": 2,
+    }
     try:
         with yt_dlp.YoutubeDL(opts) as ydl:
             info = ydl.extract_info(url, download=False)

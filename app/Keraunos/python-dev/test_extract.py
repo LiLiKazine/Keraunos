@@ -1,5 +1,7 @@
 import json
 import sys
+import time
+import socket
 import threading
 import http.server
 import functools
@@ -47,6 +49,42 @@ def test_adaptive_payload_shape():
     assert out["video"]["vcodec"] == "hvc1"
     assert out["audio"]["url"] == "https://x.test/a.m4a"
     assert out["audio"]["headers"]["Referer"] == "r"
+
+
+def test_extraction_times_out_instead_of_hanging():
+    # Server accepts the connection but never sends a response, so the read
+    # stalls — the real-world "stuck on Resolving…" case (a bot-gated/slow host).
+    srv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    srv.bind(("127.0.0.1", 0))
+    srv.listen(8)
+    port = srv.getsockname()[1]
+
+    def _hold():
+        conns = []
+        try:
+            while True:
+                conn, _ = srv.accept()
+                conns.append(conn)  # hold open, never reply
+        except OSError:
+            pass
+
+    threading.Thread(target=_hold, daemon=True).start()
+
+    result = {}
+
+    def _run():
+        result["out"] = keraunos_extract.extract(
+            f"http://127.0.0.1:{port}/x", socket_timeout=1)
+
+    worker = threading.Thread(target=_run, daemon=True)
+    worker.start()
+    worker.join(timeout=25)
+    srv.close()
+
+    assert not worker.is_alive(), "extraction hung past the socket timeout"
+    out = json.loads(result["out"])
+    assert out["ok"] is False
+    assert out["error_kind"] == "network"
 
 
 def test_resolves_local_progressive_file(tmp_path):
