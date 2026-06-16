@@ -95,6 +95,13 @@ int keraunos_python_init(const char *resourcePath, const char *caCertPath) {
     }
 
     gInitialized = 1;
+    // Release the GIL held by this initializing thread, leaving the runtime in the
+    // standard "no thread holds the GIL" state. Required for multi-threaded use: the
+    // extraction watchdog runs yt-dlp on a worker thread, and every entry point
+    // (keraunos_python_extract, keraunos_native.eval_js) acquires via
+    // PyGILState_Ensure. Without this, the first worker-thread extraction deadlocks
+    // in PyGILState_Ensure because the init thread never relinquishes the GIL.
+    PyEval_SaveThread();
     return 0;
 }
 
