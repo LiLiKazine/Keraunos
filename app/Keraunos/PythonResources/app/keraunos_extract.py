@@ -7,6 +7,7 @@ and WITHOUT ffmpeg. Restricts adaptive selection to AVFoundation-muxable codecs
 """
 import json
 import os
+import threading
 
 import yt_dlp
 from yt_dlp.utils import DownloadError, ExtractorError, UnsupportedError
@@ -29,6 +30,12 @@ _FORMAT = (
 # hanging the "Resolving…" spinner forever. There is otherwise no timeout: yt-dlp
 # defaults socket_timeout to None and so does Python's global socket timeout.
 _SOCKET_TIMEOUT = 15
+
+# Overall wall-clock bound on a single extraction. socket_timeout bounds individual
+# socket reads, but some hangs (DNS/SSL stalls, retry loops, a wedged JS eval) are not
+# a single socket read — this watchdog bounds the whole extraction so the bridge always
+# returns. Set below the Swift-side backstop (45s) so this fires first with a clear error.
+_OVERALL_TIMEOUT = 30
 
 _AUTH_HINTS = ("log in", "sign in", "logged in", "cookies", "nsfw",
                "age-restricted", "age restricted", "confirm your age", "sensitive",
@@ -127,7 +134,7 @@ def _payload_for_info(info, prepare_filename):
     return _err("needs_ffmpeg", "no AVFoundation-muxable formats available")
 
 
-def extract(url, socket_timeout=_SOCKET_TIMEOUT, cookiefile=None):
+def _extract_impl(url, socket_timeout, cookiefile):
     opts = {
         "quiet": True, "no_warnings": True, "skip_download": True, "format": _FORMAT,
         "socket_timeout": socket_timeout, "extractor_retries": 2,
@@ -156,6 +163,26 @@ def extract(url, socket_timeout=_SOCKET_TIMEOUT, cookiefile=None):
         return _err("unsupported", str(e))
     except Exception as e:  # never raise into the bridge
         return _err("runtime", str(e))
+
+
+def extract(url, socket_timeout=_SOCKET_TIMEOUT, cookiefile=None, overall_timeout=_OVERALL_TIMEOUT):
+    """Runs _extract_impl under an overall wall-clock bound. If it exceeds
+    overall_timeout, returns a timeout error and abandons the worker thread (it keeps
+    running until it finishes; the next extraction is serialized by the caller)."""
+    box = {}
+
+    def _work():
+        try:
+            box["result"] = _extract_impl(url, socket_timeout, cookiefile)
+        except Exception as e:  # _extract_impl shouldn't raise, but never let the thread die silently
+            box["result"] = _err("runtime", str(e))
+
+    worker = threading.Thread(target=_work, daemon=True)
+    worker.start()
+    worker.join(overall_timeout)
+    if worker.is_alive():
+        return _err("timeout", f"extraction exceeded {overall_timeout}s")
+    return box.get("result", _err("runtime", "extraction produced no result"))
 
 
 try:

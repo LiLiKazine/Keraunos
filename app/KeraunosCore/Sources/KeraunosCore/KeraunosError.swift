@@ -21,6 +21,7 @@ public extension KeraunosError {
         case "needs_ffmpeg":  self = .needsFfmpeg
         case "requires_auth": self = .requiresAuth
         case "network":       self = .network
+        case "timeout":       self = .timedOut
         default:              self = .runtime(detail: detail.isEmpty ? errorKind : detail)
         }
     }

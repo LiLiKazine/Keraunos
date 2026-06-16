@@ -131,6 +131,31 @@ def test_missing_cookiefile_path_does_not_crash(tmp_path):
     assert out["ok"] is True   # extraction still works; bad path is ignored
 
 
+def test_overall_timeout_bounds_a_nonresponsive_host():
+    srv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    srv.bind(("127.0.0.1", 0)); srv.listen(8)
+    port = srv.getsockname()[1]
+
+    def _hold():
+        conns = []
+        try:
+            while True:
+                conn, _ = srv.accept(); conns.append(conn)
+        except OSError:
+            pass
+    threading.Thread(target=_hold, daemon=True).start()
+
+    t0 = time.time()
+    # Long socket_timeout so ONLY the overall watchdog can bound this.
+    out = json.loads(keraunos_extract.extract(
+        f"http://127.0.0.1:{port}/x", socket_timeout=30, overall_timeout=1))
+    elapsed = time.time() - t0
+    srv.close()
+    assert out["ok"] is False
+    assert out["error_kind"] == "timeout"
+    assert elapsed < 10, f"watchdog did not bound the call (took {elapsed:.1f}s)"
+
+
 def test_po_token_error_maps_to_requires_auth(monkeypatch):
     # yt-dlp emits "... missing a GVS PO Token ..." for bot-gated videos.
     # extract() lowercases the message and checks _AUTH_HINTS — verify the

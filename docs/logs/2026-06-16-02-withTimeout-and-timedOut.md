@@ -1,6 +1,6 @@
 # 2026-06-16-02: withTimeout helper and KeraunosError.timedOut
 
-**Status:** Implemented
+**Status:** Implemented (gap closed — see Python watchdog follow-up below)
 
 ## Context
 
@@ -68,9 +68,48 @@ constraint is documented in `Timeout.swift`'s docstring and will be enforced at
   returns naturally; the next `resolve` queues behind it. This is acceptable
   because the dedicated executor means no shared thread-pool starvation.
 
+## Python Watchdog Follow-up (branch feat/authenticated-extraction)
+
+The cooperative-cancellation gap described above was confirmed on-device:
+Instagram reels and YouTube hangs bypass `socket_timeout` (DNS stalls, retry
+loops, JS eval chains are not individual socket reads). `withTimeout` never
+fires because `withThrowingTaskGroup` awaits all children — a blocked C call
+in the non-cancellable child means the timeout task wins the race but the
+`group.cancelAll()` defer still blocks waiting for the C child to return.
+
+**Fix:** Moved the body of `extract()` to `_extract_impl()` (verbatim, no
+behaviour change). The new `extract()` runs `_extract_impl` in a daemon
+thread and `Thread.join(overall_timeout=30)`. `Thread.join` releases the GIL
+while waiting, so it always returns at the deadline regardless of what the
+worker thread is doing — even if the worker holds the GIL or is blocked in a
+native network call. On timeout, `_err("timeout", ...)` is returned
+immediately; the worker is abandoned (daemon thread). The Swift actor
+serializes calls, so abandoned threads don't pile up. The `"timeout"` error
+kind is now mapped to `KeraunosError.timedOut` in the Swift bridge.
+
+**Why `Thread.join` not `signal`/`asyncio`:** iOS sandbox has no
+`fork`/`SIGALRM`; asyncio conflicts with yt-dlp's synchronous API.
+
+**Why the worker is abandoned, not killed:** Python has no safe
+`Thread.kill` API. Daemon flag ensures the thread doesn't prevent process
+exit. Single-interpreter serialization via the Swift actor means the next
+extraction queues behind any orphan, bounding the practical worst case.
+
+## What Changed (updated)
+
+- `keraunos_extract.py` — added `import threading`, `_OVERALL_TIMEOUT = 30`;
+  renamed `extract` body to `_extract_impl(url, socket_timeout, cookiefile)`;
+  new `extract()` wraps it with a daemon-thread watchdog.
+- `KeraunosCore/Sources/KeraunosCore/KeraunosError.swift` — added
+  `case "timeout": self = .timedOut` in `init(errorKind:)`.
+- `test_extract.py` — added `test_overall_timeout_bounds_a_nonresponsive_host`
+  (socket_timeout=30 so only watchdog can fire; asserts elapsed < 10s).
+- `KeraunosErrorTests.swift` — added `"timeout"` assertion to `mapsKnownErrorKinds`.
+
 ## Commits
 
 | SHA | Description |
 |-----|-------------|
 | 29eca8e | feat(core): add withTimeout helper and KeraunosError.timedOut |
 | 555bd87 | feat(app): bound extraction with an overall wall-clock timeout |
+| TBD | fix(python): bound extraction with an overall watchdog timeout so the bridge never hangs |

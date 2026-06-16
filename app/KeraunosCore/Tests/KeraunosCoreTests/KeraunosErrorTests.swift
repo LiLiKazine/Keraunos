@@ -8,6 +8,7 @@ struct KeraunosErrorTests {
         #expect(KeraunosError(errorKind: "needs_ffmpeg") == .needsFfmpeg)
         #expect(KeraunosError(errorKind: "requires_auth") == .requiresAuth)
         #expect(KeraunosError(errorKind: "network") == .network)
+        #expect(KeraunosError(errorKind: "timeout") == .timedOut)
     }
 
     @Test func mapsUnknownKindToRuntimeWithDetail() {
