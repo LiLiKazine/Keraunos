@@ -37,6 +37,12 @@ wrapped in a `final class` singleton serialised by `NSLock`.
 
 ## What Changed
 
+- **Modified** `app/Keraunos/PythonResources/app/keraunos_extract.py`
+  - Added `_JS_EVALUATOR` test seam, `set_js_evaluator()`, `_eval_js()`, and `JavaScriptCoreWrapper`
+  - Added `install_youtube_js_runtime()` — monkeypatches `YoutubeIE._decrypt_nsig` to use `JavaScriptCoreWrapper`
+  - Module-level `install_youtube_js_runtime()` call with fail-open semantics
+- **Added** `app/Keraunos/python-dev/test_jscwrapper.py`
+  - Three tests: eval backend injection, drift guard for monkeypatched symbols, patch-installation verification
 - **Added** `app/Keraunos/Keraunos/PythonRuntime/JSEvaluator.swift`
   - `JSEvaluator` singleton: `JSContext`, `NSLock`, `console.log` shim, `evaluate(_:timeoutMs:) -> String`
   - `applyExecutionTimeLimit` no-op (see discoveries below)
@@ -99,6 +105,14 @@ memory allocators that affect how the interpreter loads built-in modules; regist
 after pre-init is silently ignored. The correct placement in `keraunos_python_init`
 is between `setenv("SSL_CERT_FILE", …)` and `PyPreConfig_InitIsolatedConfig(…)`.
 
+### `_extract_n_function_code` return shape confirmed
+
+The function returns `(jsi, player_id, func_code)` where `func_code = (args_list, body_str)` — exactly matching the plan. The inner `func_code` tuple is passed as `*func_code` to `extract_function_from_code`, so the shape must be preserved when caching.
+
+### `from yt_dlp.jsinterp import JSInterpreter` omitted from keraunos_extract
+
+The plan included this import speculatively, but the final Python patch never references `JSInterpreter` directly (the monkeypatched `_decrypt_nsig_via_jsc` replaces the call site that used it). It was omitted to avoid an unused-import smell. The venv's `_video.py` still imports and uses `JSInterpreter` in the paths our patch doesn't take.
+
 ### `keraunos_js_eval` is a bare C symbol — no import needed in ObjC
 
 Because `keraunos_js_eval` is declared `@_cdecl` in Swift, it emits a C-linkage
@@ -110,5 +124,6 @@ flags. The declaration in `PythonBridge.h` is sufficient.
 
 | SHA | Description |
 |-----|-------------|
-| (see HEAD~1) | feat(app): add JavaScriptCore-backed JSEvaluator with console.log capture |
-| (see HEAD) | feat(app): expose keraunos_native.eval_js to the embedded interpreter |
+| (see HEAD~2) | feat(app): add JavaScriptCore-backed JSEvaluator with console.log capture |
+| (see HEAD~1) | feat(app): expose keraunos_native.eval_js to the embedded interpreter |
+| (pending) | feat(python): route YouTube nsig through JavaScriptCore, skip pure-Python |

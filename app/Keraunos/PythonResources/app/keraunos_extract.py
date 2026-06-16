@@ -33,6 +33,62 @@ _SOCKET_TIMEOUT = 15
 _AUTH_HINTS = ("log in", "sign in", "logged in", "cookies", "nsfw",
                "age-restricted", "age restricted", "confirm your age", "sensitive")
 
+# --- JavaScript runtime (JavaScriptCore) -----------------------------------------
+# yt-dlp solves YouTube's nsig challenge with a JS runtime. The embedded interpreter
+# has no subprocess, so we route nsig through the app's in-process JavaScriptCore via
+# keraunos_native.eval_js. The pure-Python JSInterpreter path is skipped entirely —
+# on-device it is pathologically slow (the original "stuck on Resolving…" hang).
+
+_JS_EVALUATOR = None   # test seam; when None, the real keraunos_native is used.
+
+
+def set_js_evaluator(fn):
+    """Inject a fake eval backend `fn(script, timeout_ms) -> str` for tests."""
+    global _JS_EVALUATOR
+    _JS_EVALUATOR = fn
+
+
+def _eval_js(script, timeout_ms=5000):
+    if _JS_EVALUATOR is not None:
+        return _JS_EVALUATOR(script, timeout_ms)
+    import keraunos_native
+    return keraunos_native.eval_js(script, timeout_ms)
+
+
+class JavaScriptCoreWrapper:
+    """Drop-in for yt-dlp's PhantomJSwrapper: runs a self-contained JS snippet that
+    prints its result via console.log and returns that output."""
+
+    def __init__(self, extractor, required_version=None, timeout=5000):
+        self.extractor = extractor
+        self.timeout = timeout
+
+    def execute(self, jscode, video_id=None, *, note='Executing JS'):
+        out = _eval_js(jscode, self.timeout)
+        if out.startswith("__KERAUNOS_JS_ERROR__"):
+            raise RuntimeError(f"JavaScriptCore eval failed: {out[len('__KERAUNOS_JS_ERROR__'):]}")
+        return out.strip()
+
+
+def install_youtube_js_runtime():
+    """Patch YoutubeIE so nsig is computed via JavaScriptCore, never pure-Python."""
+    from yt_dlp.extractor.youtube import _video
+    from yt_dlp.utils import urljoin
+
+    def _decrypt_nsig_via_jsc(self, s, video_id, player_url):
+        if player_url is None:
+            from yt_dlp.utils import ExtractorError
+            raise ExtractorError('Cannot decrypt nsig without player_url')
+        player_url = urljoin('https://www.youtube.com', player_url)
+        _jsi, _name, func_code = self._extract_n_function_code(video_id, player_url)
+        args, func_body = func_code
+        snippet = 'console.log(function(%s) { %s }(%r));' % (", ".join(args), func_body, s)
+        ret = JavaScriptCoreWrapper(self).execute(snippet, video_id=video_id)
+        self._store_player_data_to_cache('nsig', player_url, func_code)
+        return ret
+
+    _video.YoutubeIE._decrypt_nsig = _decrypt_nsig_via_jsc
+
 
 def _err(kind, detail=""):
     return json.dumps({"ok": False, "error_kind": kind, "detail": detail})
@@ -98,3 +154,9 @@ def extract(url, socket_timeout=_SOCKET_TIMEOUT, cookiefile=None):
         return _err("unsupported", str(e))
     except Exception as e:  # never raise into the bridge
         return _err("runtime", str(e))
+
+
+try:
+    install_youtube_js_runtime()
+except Exception:
+    pass   # fail open: fall back to yt-dlp's default nsig path
