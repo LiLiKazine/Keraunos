@@ -129,3 +129,20 @@ def test_missing_cookiefile_path_does_not_crash(tmp_path):
         f"http://127.0.0.1:{port}/sample.mp4", cookiefile="/no/such/cookies.txt"))
     ready[0].shutdown()
     assert out["ok"] is True   # extraction still works; bad path is ignored
+
+
+def test_po_token_error_maps_to_requires_auth(monkeypatch):
+    # yt-dlp emits "... missing a GVS PO Token ..." for bot-gated videos.
+    # extract() lowercases the message and checks _AUTH_HINTS — verify the
+    # mapping fires and the caller gets requires_auth instead of unsupported.
+    from yt_dlp.utils import DownloadError
+    monkeypatch.setattr(
+        keraunos_extract.yt_dlp.YoutubeDL,
+        "extract_info",
+        lambda *a, **kw: (_ for _ in ()).throw(
+            DownloadError("Sign in to confirm you're not a bot: missing a GVS PO Token for video abc123")
+        ),
+    )
+    out = json.loads(keraunos_extract.extract("https://www.youtube.com/watch?v=abc123"))
+    assert out["ok"] is False
+    assert out["error_kind"] == "requires_auth"

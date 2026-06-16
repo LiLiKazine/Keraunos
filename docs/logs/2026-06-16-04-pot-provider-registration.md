@@ -47,6 +47,36 @@ The `try/except` around the import means a broken provider file never breaks ext
   structure (subclass of `PoTokenProvider`, name ends with `PTP`) and registry
   presence (`_pot_providers.value.values()`).
 
+## Task 10: Graceful-degradation safety net (added 2026-06-16)
+
+If Task 9 (BotGuard minting) ultimately can't supply a PO token, yt-dlp raises
+`DownloadError` with a message like "… missing a GVS PO Token for video …". Without
+the mapping, that falls through to `error_kind: unsupported` — confusing to the user.
+The fix adds three PO-token hint strings to `_AUTH_HINTS` so the existing lowercase-match
+handler maps the failure to `requires_auth` (user sees the Sign-in button).
+
+### What changed (Task 10)
+
+- **Modified** `app/Keraunos/PythonResources/app/keraunos_extract.py` — appended
+  `"po token"`, `"po_token"`, `"missing a gvs po token"` to `_AUTH_HINTS`.
+- **Modified** `app/Keraunos/python-dev/test_extract.py` — added
+  `test_po_token_error_maps_to_requires_auth`: monkeypatches `extract_info` to raise
+  `DownloadError("Sign in to confirm you're not a bot: missing a GVS PO Token for
+  video abc123")` and asserts `error_kind == "requires_auth"`. 13/13 tests pass.
+
+### What was discovered (Task 10)
+
+- **The lowercase-match path was already correct.** `extract()` does
+  `msg = str(e).lower()` before the hint check (line 146); only the hint strings were
+  missing. No structural change to the exception handler needed.
+- **Monkeypatching `YoutubeDL.extract_info` is the cleanest behavioral test.** The
+  pure-helper path (`_payload_for_info`) doesn't exercise the exception handler, so
+  testing at the `extract()` level via monkeypatch is the right layer. No network
+  required; test is deterministic.
+- **Generator-throw idiom for lambda raise.** CPython lambdas can't contain `raise`
+  statements; used `(_ for _ in ()).throw(exc)` — a standard workaround that raises
+  inline without a named helper.
+
 ## What Was Discovered
 
 - **`PROVIDER_NAME` is a `classproperty`, not an overridable attribute.** The task
@@ -79,3 +109,4 @@ The `try/except` around the import means a broken provider file never breaks ext
 | SHA | Description |
 |-----|-------------|
 | 27c0ef9 | feat(python): register a (stub) on-device PO token provider |
+| TBD     | feat(python): map PO-token-required failures to a clear auth error |

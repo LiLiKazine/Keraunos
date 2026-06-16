@@ -31,7 +31,8 @@ _FORMAT = (
 _SOCKET_TIMEOUT = 15
 
 _AUTH_HINTS = ("log in", "sign in", "logged in", "cookies", "nsfw",
-               "age-restricted", "age restricted", "confirm your age", "sensitive")
+               "age-restricted", "age restricted", "confirm your age", "sensitive",
+               "po token", "po_token", "missing a gvs po token")
 
 # --- JavaScript runtime (JavaScriptCore) -----------------------------------------
 # yt-dlp solves YouTube's nsig challenge with a JS runtime. The embedded interpreter
