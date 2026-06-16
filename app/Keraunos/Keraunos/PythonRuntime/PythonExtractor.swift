@@ -26,7 +26,9 @@ actor PythonExtractor: MediaExtracting {
         let cookieURL = await cookieProvider?.cookieFile()
         defer { if let cookieURL { try? FileManager.default.removeItem(at: cookieURL) } }
         let cookiePath = cookieURL?.path
-        // The blocking C call runs on this actor's serial executor (via the
+        // Only the extraction call is bounded: ensureInitialized() (first-call
+        // Python init) and the cookieProvider hop above run before the timeout
+        // window. The blocking C call runs on this actor's serial executor (via the
         // actor-isolated blockingExtract); the timeout's timer runs on the
         // cooperative pool. On timeout the C call is orphaned on the serial
         // executor until it returns — the next resolve queues behind it.
