@@ -104,8 +104,14 @@ final class JSEvaluator: @unchecked Sendable {
 
 /// C-callable entry point for the Python bridge (Task 4). Returns a malloc'd UTF-8
 /// string the caller must free().
+///
+/// `nonisolated` is REQUIRED: under the app target's `-default-isolation=MainActor`,
+/// even a global `@_cdecl` function defaults to MainActor isolation. This is called
+/// from C on the Python extraction worker thread, so a MainActor executor check would
+/// trap (dispatch_assert_queue) off the main thread. `JSEvaluator` serializes its own
+/// access with a lock, so running on the caller's thread is safe.
 @_cdecl("keraunos_js_eval")
-public func keraunos_js_eval(_ script: UnsafePointer<CChar>?, _ timeoutMs: Double) -> UnsafeMutablePointer<CChar>? {
+public nonisolated func keraunos_js_eval(_ script: UnsafePointer<CChar>?, _ timeoutMs: Double) -> UnsafeMutablePointer<CChar>? {
     let source = script.map { String(cString: $0) } ?? ""
     let result = JSEvaluator.shared.evaluate(source, timeoutMs: timeoutMs)
     return strdup(result)
