@@ -1,6 +1,6 @@
 # 2026-06-16-04: PO Token Provider — stub registration with yt-dlp's pot framework
 
-**Status:** Implemented (stub; minting deferred to Task 9)
+**Status:** Implemented (Tier 1 cold-start minting live; full BotGuard attestation deferred to Tier 2)
 
 ## Context
 
@@ -104,9 +104,46 @@ handler maps the failure to `requires_auth` (user sees the Sign-in button).
   fine (Python doesn't enforce parameter type annotations), but noted for Task 9 when
   the implementation will need the typed fields.
 
+## Task 9: Tier 1 cold-start PO token minting (added 2026-06-16)
+
+`_real_request_pot` is now implemented: it generates a cold-start PO token
+synchronously via bgutils-js 3.2.0 evaluated in JavaScriptCore (no BotGuard VM,
+no network). The token is bound to `visitor_data` or `data_sync_id` from the
+`PoTokenRequest`. Full BotGuard attestation (Tier 2) is deferred.
+
+### What changed (Task 9)
+
+- **Modified** `app/Keraunos/PythonResources/app/keraunos_youtube_pot.py` — replaced
+  stub `_real_request_pot` with Tier 1 implementation; added `_bundle_js()` (lazy-cached
+  bundle reader) and `_cold_start_snippet(identifier)` module-level helpers; added
+  `import json` and `from pathlib import Path`.
+- **Modified** `app/Keraunos/python-dev/test_pot_provider.py` — added two tests:
+  `test_cold_start_snippet_includes_bundle_and_identifier` (pure snippet, no provider
+  construction) and `test_cold_start_returns_po_token_response` (wiring test using
+  `object.__new__` + monkeypatched `_eval_js`). 15/15 pass.
+
+### What was discovered (Task 9)
+
+- **`PoTokenRequest` required fields are `context` and `innertube_context`** (positional);
+  `visitor_data` and `data_sync_id` are optional `str | None`. `PoTokenResponse` only
+  requires `po_token: str`; `expires_at` is optional.
+- **`IEContentProviderLogger` is abstract with 5 required methods** (`trace`, `debug`,
+  `info`, `warning`, `error`). Constructing the provider in tests would require either a
+  full concrete implementation or a `MagicMock`. Used `object.__new__` to bypass
+  `__init__` entirely — cleaner and no dependency on `unittest.mock`.
+- **Circular import must be broken lazily.** `keraunos_extract` imports
+  `keraunos_youtube_pot` at its bottom (line 165); importing `keraunos_extract` at
+  module-top in `keraunos_youtube_pot` causes a circular import at import time. Resolved
+  by importing `keraunos_extract` inside `_real_request_pot` (deferred to first call).
+- **Cold-start validity.** The cold-start token works while YouTube's
+  `StreamProtectionStatus` is 2. It does not require BotGuard attestation and is
+  generated entirely offline. This is expected to work for most public content but may
+  be rejected for content requiring a full attested token (StreamProtectionStatus ≥ 3).
+
 ## Commits
 
 | SHA | Description |
 |-----|-------------|
 | 27c0ef9 | feat(python): register a (stub) on-device PO token provider |
 | b2ce449 | feat(python): map PO-token-required failures to a clear auth error |
+| TBD | feat(python): mint cold-start YouTube PO tokens via bgutils in JavaScriptCore |
