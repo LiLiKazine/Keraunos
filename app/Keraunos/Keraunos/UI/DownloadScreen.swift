@@ -71,6 +71,15 @@ struct DownloadScreen: View {
                     }
                 }
             }
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    NavigationLink {
+                        AccountsView(cookieStore: cookieStore)
+                    } label: {
+                        Image(systemName: "person.circle")
+                    }
+                }
+            }
         }
     }
 }
