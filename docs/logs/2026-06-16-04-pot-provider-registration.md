@@ -109,4 +109,4 @@ handler maps the failure to `requires_auth` (user sees the Sign-in button).
 | SHA | Description |
 |-----|-------------|
 | 27c0ef9 | feat(python): register a (stub) on-device PO token provider |
-| TBD     | feat(python): map PO-token-required failures to a clear auth error |
+| b2ce449 | feat(python): map PO-token-required failures to a clear auth error |
