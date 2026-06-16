@@ -140,6 +140,37 @@ no network). The token is bound to `visitor_data` or `data_sync_id` from the
   generated entirely offline. This is expected to work for most public content but may
   be rejected for content requiring a full attested token (StreamProtectionStatus ≥ 3).
 
+## Task 9 polish: observability + clarity (added 2026-06-16)
+
+Code-review pass on `keraunos_youtube_pot.py` to close observability and clarity gaps
+identified after Task 9 landed.
+
+### What changed (Task 9 polish)
+
+- **Modified** `app/Keraunos/PythonResources/app/keraunos_youtube_pot.py`:
+  - Both `PoTokenProviderRejectedRequest` raise sites now call `self.logger.warning()`
+    first, so failures appear in the yt-dlp/Xcode console (previously silent).
+  - Split the combined `not token or token.startswith(…)` guard into two separate
+    branches: JS-error path (extracts the detail string) and empty-token path. Makes
+    each failure mode individually diagnosable.
+  - Added comment documenting why `video_id` is not a valid cold-start identifier and
+    what happens when `StreamProtectionStatus != 2` (token rejected, degrades to
+    no-token — Tier 2 attestation is not implemented).
+  - Added comment in `_cold_start_snippet` noting bundle re-evaluation is safe because
+    defining `globalThis.BG` is idempotent.
+
+### What was discovered (Task 9 polish)
+
+- **`token` from `_eval_js` is always a `str`** (console.log output, possibly `""`).
+  This means `.startswith()` before the `not token` emptiness check is safe — an empty
+  string returns `False` for `.startswith` and falls through to the `if not token` branch
+  correctly. Order matters: check for JS-error prefix first, then empty.
+- **Existing tests stay green without modification.** The success-path test uses
+  `object.__new__` to bypass `__init__` (so `self.logger` is never set on the mock
+  object) but never reaches either rejection branch — `_eval_js` is monkeypatched to
+  return a valid token. No test exercises the rejection paths, so `self.logger` being
+  absent on the test object is not a problem.
+
 ## Commits
 
 | SHA | Description |
@@ -147,3 +178,4 @@ no network). The token is bound to `visitor_data` or `data_sync_id` from the
 | 27c0ef9 | feat(python): register a (stub) on-device PO token provider |
 | b2ce449 | feat(python): map PO-token-required failures to a clear auth error |
 | df747cb | feat(python): mint cold-start YouTube PO tokens via bgutils in JavaScriptCore |
+| TBD     | refactor(python): log cold-start PO token rejections and clarify identifier/SPS limits |
