@@ -68,7 +68,7 @@ int keraunos_python_init(const char *resourcePath, const char *caCertPath) {
     return 0;
 }
 
-char *keraunos_python_extract(const char *url) {
+char *keraunos_python_extract(const char *url, const char *cookieFilePath) {
     PyGILState_STATE gil = PyGILState_Ensure();
     char *out = NULL;
 
@@ -76,12 +76,22 @@ char *keraunos_python_extract(const char *url) {
     if (module) {
         PyObject *func = PyObject_GetAttrString(module, "extract");
         if (func && PyCallable_Check(func)) {
-            PyObject *result = PyObject_CallFunction(func, "s", url);
-            if (result) {
-                const char *utf8 = PyUnicode_AsUTF8(result);
-                if (utf8) out = strdup(utf8);
-                Py_DECREF(result);
+            PyObject *args = Py_BuildValue("(s)", url);                 // (url,)
+            PyObject *kwargs = PyDict_New();
+            if (cookieFilePath && cookieFilePath[0] != '\0') {
+                PyObject *cf = PyUnicode_FromString(cookieFilePath);
+                if (cf) { PyDict_SetItemString(kwargs, "cookiefile", cf); Py_DECREF(cf); }
             }
+            if (args && kwargs) {
+                PyObject *result = PyObject_Call(func, args, kwargs);   // extract(url, cookiefile=...)
+                if (result) {
+                    const char *utf8 = PyUnicode_AsUTF8(result);
+                    if (utf8) out = strdup(utf8);
+                    Py_DECREF(result);
+                }
+            }
+            Py_XDECREF(args);
+            Py_XDECREF(kwargs);
         }
         Py_XDECREF(func);
         Py_DECREF(module);

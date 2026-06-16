@@ -11,6 +11,7 @@ int keraunos_python_init(const char *resourcePath, const char *caCertPath);
 
 /// Calls keraunos_extract.extract(url). Returns a malloc'd UTF-8 JSON string the
 /// caller must free(). Returns NULL only on catastrophic bridge failure.
-char *keraunos_python_extract(const char *url);
+// cookieFilePath may be NULL or "" for "no cookies".
+char *keraunos_python_extract(const char *url, const char *cookieFilePath);
 
 #endif

@@ -13,9 +13,17 @@ actor PythonExtractor: MediaExtracting {
 
     private var initialized = false   // ordinary actor-isolated state
 
+    private let cookieProvider: (any CookieProviding)?
+
+    init(cookieProvider: (any CookieProviding)? = nil) {
+        self.cookieProvider = cookieProvider
+    }
+
     func resolve(_ url: URL) async throws -> ResolvedMedia {
         try ensureInitialized()
-        guard let cString = keraunos_python_extract(url.absoluteString) else {
+        let cookieURL = await cookieProvider?.cookieFile()
+        defer { if let cookieURL { try? FileManager.default.removeItem(at: cookieURL) } }
+        guard let cString = keraunos_python_extract(url.absoluteString, cookieURL?.path) else {
             throw KeraunosError.runtime(detail: "null extraction result")
         }
         defer { free(cString) }
