@@ -2,9 +2,12 @@ import SwiftUI
 
 struct DownloadScreen: View {
     @State private var model: DownloadViewModel
+    @State private var showLogin = false
+    let cookieStore: CookieStore
 
-    init(model: DownloadViewModel) {
+    init(model: DownloadViewModel, cookieStore: CookieStore) {
         _model = State(initialValue: model)
+        self.cookieStore = cookieStore
     }
 
     var body: some View {
@@ -28,7 +31,12 @@ struct DownloadScreen: View {
                 }
 
                 if let error = model.errorMessage {
-                    Section { Text(error).foregroundStyle(.red) }
+                    Section {
+                        Text(error).foregroundStyle(.red)
+                        if model.requiresSignIn, let host = model.signInURL?.host {
+                            Button("Sign in to \(host)") { showLogin = true }
+                        }
+                    }
                 }
 
                 Section("Downloads") {
@@ -42,6 +50,27 @@ struct DownloadScreen: View {
                 }
             }
             .navigationTitle("Keraunos")
+            .sheet(isPresented: $showLogin) {
+                NavigationStack {
+                    if let url = model.signInURL {
+                        LoginWebView(url: url, dataStore: cookieStore.dataStore)
+                            .ignoresSafeArea()
+                            .navigationTitle(url.host ?? "Sign in")
+                            .navigationBarTitleDisplayMode(.inline)
+                            .toolbar {
+                                ToolbarItem(placement: .cancellationAction) {
+                                    Button("Cancel") { showLogin = false }
+                                }
+                                ToolbarItem(placement: .confirmationAction) {
+                                    Button("Done") {
+                                        showLogin = false
+                                        Task { await model.retry() }
+                                    }
+                                }
+                            }
+                    }
+                }
+            }
         }
     }
 }
