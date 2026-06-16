@@ -9,6 +9,7 @@ Note: PROVIDER_NAME is a classproperty computed from the class name minus the "P
 suffix, yielding "KeraunosPoTokenProvider". It is not set explicitly here.
 """
 import json
+import sys
 from pathlib import Path
 
 from yt_dlp.extractor.youtube.pot.provider import (
@@ -17,6 +18,11 @@ from yt_dlp.extractor.youtube.pot.provider import (
     PoTokenResponse,
     register_provider,
 )
+
+def _spike_log(msg):
+    # Spike instrumentation: stderr reaches the Xcode console even under yt-dlp quiet=True.
+    print(f"[keraunos-pot] {msg}", file=sys.stderr)
+
 
 _BUNDLE_CACHE = None
 
@@ -57,6 +63,7 @@ class KeraunosPoTokenProviderPTP(PoTokenProvider):
         identifier = request.visitor_data or request.data_sync_id
         if not identifier:
             self.logger.warning("Keraunos PO token: no visitor_data/data_sync_id to bind a cold-start token")
+            _spike_log("rejected: no visitor_data/data_sync_id to bind a cold-start token")
             raise PoTokenProviderRejectedRequest(
                 "no visitor_data/data_sync_id to bind a cold-start PO token")
         import keraunos_extract  # lazy: avoid circular import
@@ -64,8 +71,11 @@ class KeraunosPoTokenProviderPTP(PoTokenProvider):
         if token.startswith("__KERAUNOS_JS_ERROR__"):
             detail = token[len("__KERAUNOS_JS_ERROR__"):]
             self.logger.warning(f"Keraunos PO token: cold-start JS error: {detail}")
+            _spike_log(f"rejected: cold-start JS error: {detail}")
             raise PoTokenProviderRejectedRequest(f"cold-start JS error: {detail}")
         if not token:
             self.logger.warning("Keraunos PO token: cold-start produced an empty token")
+            _spike_log("rejected: cold-start produced an empty token")
             raise PoTokenProviderRejectedRequest("cold-start produced an empty token")
+        _spike_log(f"minted cold-start PO token (len={len(token)}) for identifier len={len(identifier)}")
         return PoTokenResponse(po_token=token)

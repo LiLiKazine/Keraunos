@@ -67,6 +67,8 @@ class JavaScriptCoreWrapper:
     def execute(self, jscode, video_id=None, *, note='Executing JS'):
         out = _eval_js(jscode, self.timeout)
         if out.startswith("__KERAUNOS_JS_ERROR__"):
+            import sys
+            print(f"[keraunos-nsig] JavaScriptCore eval failed: {out[len('__KERAUNOS_JS_ERROR__'):]}", file=sys.stderr)
             raise ExtractorError(f"JavaScriptCore eval failed: {out[len('__KERAUNOS_JS_ERROR__'):]}")
         return out.strip()
 
