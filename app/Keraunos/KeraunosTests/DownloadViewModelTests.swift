@@ -10,58 +10,59 @@ struct DownloadViewModelTests {
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         return dir
     }
+    private func progressive(_ name: String) -> ResolvedMedia {
+        ResolvedMedia(kind: .progressive(MediaTrack(url: URL(string: "https://x.test/v.mp4")!,
+                      httpHeaders: [:], codec: "avc1", fileExtension: "mp4")),
+                      title: "t", suggestedFilename: name)
+    }
+    private func vm(extractor: any MediaExtracting, merger: MediaMerging, dir: URL) -> DownloadViewModel {
+        DownloadViewModel(extractor: extractor,
+                          assembler: MediaAssembler(downloader: SpyDownloader(), merger: merger),
+                          store: DownloadStore(directory: dir))
+    }
 
-    @Test func successfulDownloadAddsFileAndClearsError() async {
+    @Test func successfulProgressiveDownloadAddsFile() async {
         let dir = tempDir()
-        let media = ResolvedMedia(directURL: URL(string: "https://x.test/v.mp4")!,
-                                  suggestedFilename: "clip.mp4", title: "t")
-        let vm = DownloadViewModel(
-            extractor: MockExtractor(result: .success(media)),
-            downloader: SpyDownloader(behavior: .succeed(dir.appendingPathComponent("clip.mp4"))),
-            store: DownloadStore(directory: dir))
-        vm.urlText = "https://x.test/post/1"
+        let model = vm(extractor: MockExtractor(result: .success(progressive("clip.mp4"))),
+                       merger: MockMerger(), dir: dir)
+        model.urlText = "https://x.test/post/1"
+        await model.startDownload()
+        #expect(model.errorMessage == nil)
+        #expect(model.lastSavedName == "clip.mp4")
+        #expect(model.isWorking == false)
+    }
 
-        await vm.startDownload()
-
-        #expect(vm.errorMessage == nil)
-        #expect(vm.lastSavedName == "clip.mp4")
-        #expect(vm.isWorking == false)
+    @Test func mergeFailureShowsMessage() async {
+        let merger = MockMerger(); merger.shouldFail = true
+        let media = ResolvedMedia(kind: .adaptive(
+            video: MediaTrack(url: URL(string: "https://x.test/v.m4v")!, httpHeaders: [:], codec: "hvc1", fileExtension: "mp4"),
+            audio: MediaTrack(url: URL(string: "https://x.test/a.m4a")!, httpHeaders: [:], codec: "mp4a", fileExtension: "m4a")),
+            title: "t", suggestedFilename: "clip.mp4")
+        let model = vm(extractor: MockExtractor(result: .success(media)), merger: merger, dir: tempDir())
+        model.urlText = "https://x.test/post/1"
+        await model.startDownload()
+        #expect(model.errorMessage == KeraunosError.mergeFailed.errorDescription)
+        #expect(model.isWorking == false)
     }
 
     @Test func extractionErrorShowsMessage() async {
-        let vm = DownloadViewModel(
-            extractor: MockExtractor(result: .failure(.needsFfmpeg)),
-            downloader: SpyDownloader(behavior: .succeed(URL(fileURLWithPath: "/x"))),
-            store: DownloadStore(directory: tempDir()))
-        vm.urlText = "https://x.test/post/1"
-
-        await vm.startDownload()
-
-        #expect(vm.errorMessage == KeraunosError.needsFfmpeg.errorDescription)
-        #expect(vm.isWorking == false)
+        let model = vm(extractor: MockExtractor(result: .failure(.needsFfmpeg)), merger: MockMerger(), dir: tempDir())
+        model.urlText = "https://x.test/post/1"
+        await model.startDownload()
+        #expect(model.errorMessage == KeraunosError.needsFfmpeg.errorDescription)
     }
 
     @Test func rejectsInvalidURL() async {
-        let vm = DownloadViewModel(
-            extractor: MockExtractor(),
-            downloader: SpyDownloader(behavior: .succeed(URL(fileURLWithPath: "/x"))),
-            store: DownloadStore(directory: tempDir()))
-        vm.urlText = "not a url"
-
-        await vm.startDownload()
-
-        #expect(vm.errorMessage != nil)
+        let model = vm(extractor: MockExtractor(), merger: MockMerger(), dir: tempDir())
+        model.urlText = "not a url"
+        await model.startDownload()
+        #expect(model.errorMessage != nil)
     }
 }
 
-/// Minimal downloader double for view-model tests.
+/// Writes a marker to the destination so progressive assembly produces a file.
 struct SpyDownloader: FileDownloading {
-    enum Behavior: Sendable { case succeed(URL); case fail(KeraunosError) }
-    let behavior: Behavior
-    func download(_ media: ResolvedMedia, to destinationDirectory: URL) async throws -> URL {
-        switch behavior {
-        case .succeed(let url): return url
-        case .fail(let error): throw error
-        }
+    func download(_ track: MediaTrack, to destination: URL) async throws {
+        try Data("x".utf8).write(to: destination)
     }
 }

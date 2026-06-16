@@ -12,9 +12,11 @@ public struct MockExtractor: MediaExtracting {
     public var result: Result<ResolvedMedia, KeraunosError>
 
     public init(result: Result<ResolvedMedia, KeraunosError> = .success(
-        ResolvedMedia(directURL: URL(string: "https://example.com/sample.mp4")!,
-                      suggestedFilename: "sample.mp4",
-                      title: "Sample"))) {
+        ResolvedMedia(
+            kind: .progressive(MediaTrack(url: URL(string: "https://example.com/sample.mp4")!,
+                                          httpHeaders: [:], codec: "avc1", fileExtension: "mp4")),
+            title: "Sample",
+            suggestedFilename: "sample.mp4"))) {
         self.result = result
     }
 

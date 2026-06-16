@@ -2,45 +2,54 @@ import Testing
 import Foundation
 import KeraunosCore
 
-@Suite(.serialized)   // mutates the shared StubURLProtocol.handler; tests run in parallel by default
+extension StubNetworkSuite {
 struct DownloaderTests {
-    private func tempDir() -> URL {
+    private func tempFile(_ name: String) -> URL {
         let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        return dir
+        return dir.appendingPathComponent(name)
+    }
+    private func track(_ s: String = "https://x.test/v.mp4") -> MediaTrack {
+        MediaTrack(url: URL(string: s)!, httpHeaders: [:], codec: "avc1", fileExtension: "mp4")
     }
 
-    @Test func savesFileToDestinationWithSuggestedName() async throws {
+    @Test func savesFileToDestination() async throws {
         let payload = Data("fake mp4 bytes".utf8)
-        StubURLProtocol.handler = { request in
-            (HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!, payload)
+        StubURLProtocol.handler = { req in
+            (HTTPURLResponse(url: req.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!, payload)
         }
-        let media = ResolvedMedia(directURL: URL(string: "https://x.test/v.mp4")!,
-                                  suggestedFilename: "clip.mp4", title: "t")
-        let dir = tempDir()
-        let saved = try await Downloader(session: StubURLProtocol.session()).download(media, to: dir)
-
-        #expect(saved.lastPathComponent == "clip.mp4")
-        #expect(try Data(contentsOf: saved) == payload)
+        let dest = tempFile("clip.mp4")
+        try await Downloader(session: StubURLProtocol.session()).download(track(), to: dest)
+        #expect(try Data(contentsOf: dest) == payload)
     }
 
     @Test func mapsHTTPErrorToNetwork() async throws {
-        StubURLProtocol.handler = { request in
-            (HTTPURLResponse(url: request.url!, statusCode: 500, httpVersion: nil, headerFields: nil)!, Data())
+        StubURLProtocol.handler = { req in
+            (HTTPURLResponse(url: req.url!, statusCode: 500, httpVersion: nil, headerFields: nil)!, Data())
         }
-        let media = ResolvedMedia(directURL: URL(string: "https://x.test/v.mp4")!,
-                                  suggestedFilename: "clip.mp4", title: "t")
         await #expect(throws: KeraunosError.network) {
-            try await Downloader(session: StubURLProtocol.session()).download(media, to: tempDir())
+            try await Downloader(session: StubURLProtocol.session()).download(track(), to: tempFile("clip.mp4"))
         }
     }
 
     @Test func mapsCancellationToCancelled() async throws {
         StubURLProtocol.handler = { _ in throw URLError(.cancelled) }
-        let media = ResolvedMedia(directURL: URL(string: "https://x.test/v.mp4")!,
-                                  suggestedFilename: "clip.mp4", title: "t")
         await #expect(throws: KeraunosError.cancelled) {
-            try await Downloader(session: StubURLProtocol.session()).download(media, to: tempDir())
+            try await Downloader(session: StubURLProtocol.session()).download(track(), to: tempFile("clip.mp4"))
         }
     }
+
+    @Test func sendsTrackHTTPHeaders() async throws {
+        StubURLProtocol.lastRequest = nil
+        StubURLProtocol.handler = { req in
+            (HTTPURLResponse(url: req.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!, Data("x".utf8))
+        }
+        let t = MediaTrack(url: URL(string: "https://x.test/v.mp4")!,
+                           httpHeaders: ["X-Keraunos-Test": "yes", "Referer": "https://x.test/"],
+                           codec: "avc1", fileExtension: "mp4")
+        try await Downloader(session: StubURLProtocol.session()).download(t, to: tempFile("clip.mp4"))
+        #expect(StubURLProtocol.lastRequest?.value(forHTTPHeaderField: "X-Keraunos-Test") == "yes")
+        #expect(StubURLProtocol.lastRequest?.value(forHTTPHeaderField: "Referer") == "https://x.test/")
+    }
+}
 }

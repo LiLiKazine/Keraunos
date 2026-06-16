@@ -6,17 +6,18 @@ import KeraunosCore
 final class DownloadViewModel {   // main-actor by default (app target)
     var urlText: String = ""
     private(set) var isWorking = false
+    private(set) var statusText: String?
     private(set) var errorMessage: String?
     private(set) var lastSavedName: String?
     private(set) var savedFiles: [URL] = []
 
     private let extractor: any MediaExtracting
-    private let downloader: any FileDownloading
+    private let assembler: MediaAssembler
     private let store: DownloadStore
 
-    init(extractor: any MediaExtracting, downloader: any FileDownloading, store: DownloadStore) {
+    init(extractor: any MediaExtracting, assembler: MediaAssembler, store: DownloadStore) {
         self.extractor = extractor
-        self.downloader = downloader
+        self.assembler = assembler
         self.store = store
         self.savedFiles = store.savedFiles()
     }
@@ -29,16 +30,28 @@ final class DownloadViewModel {   // main-actor by default (app target)
         }
         isWorking = true
         errorMessage = nil
-        defer { isWorking = false }
+        statusText = "Resolving…"
+        defer { isWorking = false; statusText = nil }
         do {
             let media = try await extractor.resolve(url)
-            let saved = try await downloader.download(media, to: store.directory)
+            let saved = try await assembler.assemble(media, into: store) { phase in
+                self.statusText = Self.label(for: phase)
+            }
             lastSavedName = saved.lastPathComponent
             savedFiles = store.savedFiles()
         } catch let error as KeraunosError {
             errorMessage = error.errorDescription
         } catch {
             errorMessage = KeraunosError.runtime(detail: error.localizedDescription).errorDescription
+        }
+    }
+
+    private static func label(for phase: MediaAssembler.Phase) -> String {
+        switch phase {
+        case .downloading:      return "Downloading…"
+        case .downloadingVideo: return "Downloading video…"
+        case .downloadingAudio: return "Downloading audio…"
+        case .merging:          return "Combining…"
         }
     }
 }

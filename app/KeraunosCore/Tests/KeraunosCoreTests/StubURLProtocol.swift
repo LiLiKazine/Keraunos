@@ -3,11 +3,13 @@ import Foundation
 /// Intercepts requests in tests. Set `handler` to control the response.
 final class StubURLProtocol: URLProtocol {
     nonisolated(unsafe) static var handler: ((URLRequest) throws -> (HTTPURLResponse, Data))?
+    nonisolated(unsafe) static var lastRequest: URLRequest?
 
     override class func canInit(with request: URLRequest) -> Bool { true }
     override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
 
     override func startLoading() {
+        StubURLProtocol.lastRequest = request
         guard let handler = StubURLProtocol.handler else {
             client?.urlProtocol(self, didFailWithError: URLError(.badServerResponse))
             return
