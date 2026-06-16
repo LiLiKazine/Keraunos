@@ -126,4 +126,4 @@ flags. The declaration in `PythonBridge.h` is sufficient.
 |-----|-------------|
 | (see HEAD~2) | feat(app): add JavaScriptCore-backed JSEvaluator with console.log capture |
 | (see HEAD~1) | feat(app): expose keraunos_native.eval_js to the embedded interpreter |
-| (pending) | feat(python): route YouTube nsig through JavaScriptCore, skip pure-Python |
+| 51304b7 | feat(python): route YouTube nsig through JavaScriptCore, skip pure-Python |
