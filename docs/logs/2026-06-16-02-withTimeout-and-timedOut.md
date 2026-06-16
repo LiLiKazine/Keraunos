@@ -112,4 +112,4 @@ extraction queues behind any orphan, bounding the practical worst case.
 |-----|-------------|
 | 29eca8e | feat(core): add withTimeout helper and KeraunosError.timedOut |
 | 555bd87 | feat(app): bound extraction with an overall wall-clock timeout |
-| TBD | fix(python): bound extraction with an overall watchdog timeout so the bridge never hangs |
+| 8100fb0 | fix(python): bound extraction with an overall watchdog timeout so the bridge never hangs |
