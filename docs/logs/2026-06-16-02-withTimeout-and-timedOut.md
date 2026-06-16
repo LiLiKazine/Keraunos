@@ -59,4 +59,4 @@ constraint is documented in `Timeout.swift`'s docstring and will be enforced at
 
 | SHA | Description |
 |-----|-------------|
-| TBD | feat(core): add withTimeout helper and KeraunosError.timedOut |
+| 29eca8e | feat(core): add withTimeout helper and KeraunosError.timedOut |

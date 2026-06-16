@@ -10,7 +10,7 @@ struct TimeoutTests {
 
     @Test func throwsTimedOutWhenOperationIsTooSlow() async {
         await #expect(throws: KeraunosError.timedOut) {
-            try await withTimeout(.milliseconds(50)) {
+            try await withTimeout(.milliseconds(200)) {
                 try await Task.sleep(for: .seconds(10))
                 return 1
             }
