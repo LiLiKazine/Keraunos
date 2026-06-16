@@ -6,6 +6,7 @@ and WITHOUT ffmpeg. Restricts adaptive selection to AVFoundation-muxable codecs
 (HEVC/H.264 video + AAC audio). Always returns a JSON string; never raises.
 """
 import json
+import os
 
 import yt_dlp
 from yt_dlp.utils import DownloadError, ExtractorError, UnsupportedError
@@ -68,11 +69,13 @@ def _payload_for_info(info, prepare_filename):
     return _err("needs_ffmpeg", "no AVFoundation-muxable formats available")
 
 
-def extract(url, socket_timeout=_SOCKET_TIMEOUT):
+def extract(url, socket_timeout=_SOCKET_TIMEOUT, cookiefile=None):
     opts = {
         "quiet": True, "no_warnings": True, "skip_download": True, "format": _FORMAT,
         "socket_timeout": socket_timeout, "extractor_retries": 2,
     }
+    if cookiefile and os.path.exists(cookiefile):
+        opts["cookiefile"] = cookiefile
     try:
         with yt_dlp.YoutubeDL(opts) as ydl:
             info = ydl.extract_info(url, download=False)

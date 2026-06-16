@@ -99,3 +99,33 @@ def test_resolves_local_progressive_file(tmp_path):
     assert out["ok"] is True
     assert out["kind"] == "progressive"
     assert out["media"]["url"].endswith("/sample.mp4")
+
+
+def test_cookiefile_present_is_accepted(tmp_path):
+    # A header-only cookies.txt is valid and must not break extraction.
+    cookies = tmp_path / "cookies.txt"
+    cookies.write_text("# Netscape HTTP Cookie File\n")
+    (tmp_path / "sample.mp4").write_bytes(b"\x00\x00\x00\x18ftypmp42fakebytes")
+    ready = []
+    threading.Thread(target=_serve, args=(tmp_path, ready), daemon=True).start()
+    while not ready:
+        pass
+    port = ready[0].server_address[1]
+    out = json.loads(keraunos_extract.extract(
+        f"http://127.0.0.1:{port}/sample.mp4", cookiefile=str(cookies)))
+    ready[0].shutdown()
+    assert out["ok"] is True
+    assert out["kind"] == "progressive"
+
+
+def test_missing_cookiefile_path_does_not_crash(tmp_path):
+    (tmp_path / "sample.mp4").write_bytes(b"\x00\x00\x00\x18ftypmp42fakebytes")
+    ready = []
+    threading.Thread(target=_serve, args=(tmp_path, ready), daemon=True).start()
+    while not ready:
+        pass
+    port = ready[0].server_address[1]
+    out = json.loads(keraunos_extract.extract(
+        f"http://127.0.0.1:{port}/sample.mp4", cookiefile="/no/such/cookies.txt"))
+    ready[0].shutdown()
+    assert out["ok"] is True   # extraction still works; bad path is ignored
