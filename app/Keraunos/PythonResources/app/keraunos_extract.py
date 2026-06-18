@@ -138,6 +138,14 @@ def _extract_impl(url, socket_timeout, cookiefile):
     opts = {
         "quiet": True, "no_warnings": True, "skip_download": True, "format": _FORMAT,
         "socket_timeout": socket_timeout, "extractor_retries": 2,
+        # iOS sandbox: only Documents/Library/tmp are writable, not ~/.cache. Point
+        # yt-dlp's cache (nsig functions etc.) at tmp so it stops failing and can reuse.
+        "cachedir": os.path.join(__import__("tempfile").gettempdir(), "yt-dlp-cache"),
+        # YouTube: use non-web clients that need NO GVS PO token and aren't SABR/HLS-only,
+        # so extraction yields direct, AVFoundation-muxable (H.264+AAC) URLs. A *set* (not
+        # tv-only) lets yt-dlp skip a client that throws "page needs to be reloaded" and
+        # merge formats from the rest. Excludes web/web_safari/mweb (SABR / HLS / PO-gated).
+        "extractor_args": {"youtube": {"player_client": ["tv", "tv_embedded", "android_vr"]}},
     }
     if cookiefile and os.path.exists(cookiefile):
         opts["cookiefile"] = cookiefile

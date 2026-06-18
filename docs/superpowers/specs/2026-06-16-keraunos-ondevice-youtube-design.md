@@ -212,3 +212,136 @@ Implemented as phases within one plan, layered: **A** (independent safety net) �
 (JSC bridge + nsig, the foundation) → **C** (PO tokens, builds on B's bridge). Each
 phase leaves the app green and shippable; C degrades gracefully if the spike falls
 short.
+
+---
+
+# Addendum (2026-06-18): Phase C Tier 2 — full BotGuard PO-token flow
+
+**Status:** Decided — implement approach **A** first as a de-risking spike; reassess
+**C** afterward.
+
+Phases A and B and a Tier 1 cold-start PO token (`BG.PoToken.generateColdStartToken`,
+synchronous, no network, valid only while YouTube's `StreamProtectionStatus == 2`) are
+merged to `main`. This addendum makes Phase C's Task 9 concrete now that `bgutils-js`
+**3.2.0** is vendored at `app/Keraunos/PythonResources/app/bgutils/bgutils.bundle.js`
+and its real API is known.
+
+## What the vendored bundle actually exposes
+
+The bundle defines `globalThis.BG` with `BotGuardClient`, `WebPoMinter`,
+`PoToken`, and `Challenge`. The all-in-one `BG.PoToken.generate(args)` is the recipe to
+mirror; the discrete pieces are:
+
+- `BG.Challenge.create(bgConfig)` — fetches `Create` (via `bgConfig.fetch`) and parses;
+  `BG.Challenge.parseChallengeData(raw)` is the parse step alone, yielding
+  `{ interpreterJavascript, program, globalName, … }`.
+- Eval `interpreterJavascript.privateDoNotAccessOrElseSafeScriptWrappedValue` to install
+  the VM as `globalThis[globalName]`.
+- `BG.BotGuardClient.create({ program, globalName, globalObj })` →
+  `snapshot({ webPoSignalOutput })` **or** `snapshotSynchronous({ webPoSignalOutput })`
+  → `botguardResponse`, with `webPoSignalOutput[0]` populated as the minter factory.
+- `BG.WebPoMinter.create(integrityTokenData, webPoSignalOutput)` →
+  `mintAsWebsafeString(identifier)` → PO token.
+
+Endpoints (`jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/{Create,GenerateIT}`)
+authenticate via `x-goog-api-key` only — **no YouTube cookies required**. `requestKey`
+is the constant `O43z0dpjhgX20SCx4KAo`; `identifier` is `visitor_data || data_sync_id`.
+
+## Core constraint: the `JSContext` has no event loop
+
+`evaluateScript` runs the script, drains the **microtask** (Promise-reaction) queue, and
+returns. It never fires **timers** (`setTimeout`), and nothing keeps the program alive to
+resume an `await` after it returns. Every approach decision below follows from this.
+
+## Approaches considered
+
+- **A — decompose + Python HTTP + `snapshotSynchronous`.** Python does the two HTTP calls
+  (urllib) *between* two short JS evals; `webPoSignalOutput` is stashed in a global across
+  them. `snapshotSynchronous` is a direct call (no `setTimeout`, no `Promise.race`), so
+  each eval is microtask-only and JSC auto-drains it — **no event-loop pump**.
+- **C — single eval + `BG.PoToken.generate()` + blocking native fetch.** Most
+  library-faithful and reusable, smallest rot surface. But `generate()` hardcodes the
+  **async `snapshot()`** path, which forces a `setTimeout`-defer fix and a Swift
+  **event-loop pump**, moves HTTP into Swift (`URLSession`, blocking the worker thread),
+  and bets on the async snapshot settling within the pumped window.
+
+**Decision: A first, then reassess C.** A retires the empirical unknowns cheaply (it is
+almost entirely Python + the already-vendored bundle, with likely **zero** native
+changes) and gives per-step device telemetry, which is decisive under a ≤3-round device
+spike. If A works and the long-term, reusable, library-faithful shape is still wanted, C
+is a clean follow-up that reuses A's learnings.
+
+## The pivotal unknown
+
+Does the VM populate `syncSnapshotFunction` (`this.vm.a(program, cb, true, …)[0]`,
+bundle line 199) on-device?
+
+- **Yes** → A is simple (no pump, no timer semantics).
+- **No** → A falls back to async `snapshot()` + the `setTimeout`-defer fix + a pump,
+  converging toward C's machinery. This single device probe also decides whether C is
+  worth its added complexity.
+
+## A→C fallback ladder
+
+1. Full BotGuard flow (A).
+2. On any failure → existing **cold-start** token (preserves today's behavior).
+3. On failure → `PoTokenProviderRejectedRequest` → maps to `requires_auth`; never hangs
+   (still bounded by the Python watchdog and Phase A's `withTimeout`).
+
+## Probes the spike must answer on a real device (simulator shares the bot-flagged Mac IP)
+
+1. Does `syncSnapshotFunction` exist (A-simple vs A-degrades-to-pump)?
+2. Does JSC fully drain the deep `await` chain inside `evaluateScript`?
+3. Does the VM interpreter reference an unshimmed browser global (→ add shim)?
+4. Do `Create`/`GenerateIT` behave from the device IP while signed in?
+
+Async-IIFE rejections do **not** set `context.exception`, so JS errors must be caught in
+the snippet and printed as the `__KERAUNOS_JS_ERROR__` sentinel for the Python layer to
+detect.
+
+---
+
+# On-device outcome (2026-06-18) — the real blocker was NOT the PO token
+
+The approach-A full BotGuard flow was implemented (`keraunos_youtube_pot.py`) and is
+unit-tested. But on-device debugging of an actual signed-in YouTube Short revealed the
+PO token was a **red herring** for the failure we were chasing:
+
+- Extraction *succeeded* and returned a format; the failure was in the **download**: the
+  resolved `googlevideo` URL returned **HTTP 403**, surfaced as the generic
+  `.network` ("check your connection") because the Swift downloader maps every non-2xx to
+  `.network`.
+- yt-dlp's own logs (surfaced by temporarily routing them onto the result JSON, since
+  embedded Python stderr is invisible on-device) showed the cause:
+  **"YouTube is forcing SABR streaming for this client"** (yt-dlp issue #12482). For the
+  **web** client, YouTube removed the plain URLs from adaptive formats (SABR-only), and
+  the lone remaining progressive `itag 18` URL is 403-gated.
+- The **PO provider was never even invoked** (no `pot:` log lines) for the returned
+  format — so finishing/perfecting the BotGuard flow would not have fixed this download.
+
+**Root cause:** the app's "Python resolves a direct URL → Swift downloads it" design
+collides with YouTube's SABR enforcement *on the web client*, and our format selector
+preferred the web client's 403-gated progressive `itag 18`.
+
+**Fix (mirrors yt-dlp's own strategy):** restrict YouTube to **non-web player clients
+that need no GVS PO token and aren't SABR/HLS-only** — `tv`, `tv_embedded`, `android_vr`
+— via `extractor_args={'youtube': {'player_client': [...]}}`. A *set* (not `tv`-only) lets
+yt-dlp skip a client that throws *"The page needs to be reloaded"* and merge formats from
+the rest. These clients return direct, AVFoundation-muxable H.264+AAC streams. **Confirmed
+downloading a signed-in YouTube Short on a real device.**
+
+**Secondary fix:** yt-dlp could not write its nsig cache (`~/.cache` is not writable in
+the iOS sandbox — only `Documents/`, `Library/`, `tmp/`), so nsig was recomputed every
+run, contributing to intermittent 30s watchdog timeouts. Set
+`cachedir` → `tmp/yt-dlp-cache`.
+
+**Status of the BotGuard PO flow:** kept as registered, unit-tested, graceful-degrading
+scaffolding (full → cold-start → reject). It activates only if a future client/context
+makes yt-dlp request a GVS PO token; it is not on the path for the `tv`-family clients,
+which need none. The A-vs-C decision above is therefore **deferred** — not needed for
+current YouTube support.
+
+**Files-app visibility (unrelated, verified fine):** downloads save to the app's
+`Documents/`, and `Info.plist` already sets `UIFileSharingEnabled` +
+`LSSupportsOpeningDocumentsInPlace`, so they appear under *Files → On My iPhone →
+Keraunos* (the folder shows once `Documents/` is non-empty).

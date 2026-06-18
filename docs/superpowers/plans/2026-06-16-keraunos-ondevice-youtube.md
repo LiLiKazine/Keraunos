@@ -827,111 +827,240 @@ git commit -m "feat(python): register a (stub) on-device PO token provider"
 
 ---
 
-## Task 9: SPIKE — mint a PO token via BotGuard in JavaScriptCore
+## Task 9: SPIKE — mint a PO token via the full BotGuard flow (approach A)
+
+> **On-device outcome (2026-06-18): the PO token was NOT the blocker.** Device debugging
+> showed YouTube downloads fail because the **web** client is SABR-only (yt-dlp #12482) and
+> its leftover progressive `itag 18` URL is HTTP 403 — the PO provider was never even
+> invoked. **Fix:** restrict YouTube to non-web, no-PO clients
+> (`player_client=['tv','tv_embedded','android_vr']`) + point yt-dlp `cachedir` at `tmp`;
+> signed-in YouTube now downloads on a real device. The approach-A BotGuard flow below is
+> implemented + unit-tested and kept as graceful scaffolding (full → cold-start → reject),
+> but is off-path for the `tv`-family clients. See the spec's "On-device outcome" section.
+> The steps below remain the record of the BotGuard spike.
 
 **Files:**
 - Modify: `app/Keraunos/PythonResources/app/keraunos_youtube_pot.py`
-- Reference: `app/Keraunos/PythonResources/app/bgutils/bgutils.bundle.js`
+- Modify (only if a probe demands a shim): `app/Keraunos/Keraunos/PythonRuntime/JSEvaluator.swift`
+- Modify: `app/Keraunos/python-dev/test_pot_provider.py`
+- Reference: `app/Keraunos/PythonResources/app/bgutils/bgutils.bundle.js` (bgutils-js **3.2.0**)
 
-> This is the research step. It is structured as build → observe on device → adapt.
-> The `bgutils-js` README documents the exact call sequence; mirror its
-> `BG.BotGuardClient` / `BG.PoToken` usage. Network calls go through Python (`urllib`,
-> with the request's cookiejar) — NOT through JS fetch — because the JSContext has no
-> networking.
+> **Approach decided in the 2026-06-18 spec addendum: A (decompose + Python HTTP +
+> `snapshotSynchronous`), as a de-risking spike; reassess C afterward.** Python does the
+> two HTTP calls (urllib) *between* two short JS evals; `webPoSignalOutput` is stashed in
+> a global across them. Because `snapshotSynchronous` is a direct call (no `setTimeout`,
+> no `Promise.race`), each eval is microtask-only and JSC drains it before
+> `evaluateScript` returns — **no event-loop pump, and likely zero native changes**.
+>
+> The `BG.*` names below are confirmed against the vendored bundle (not guesses): the
+> real API is `BG.Challenge.parseChallengeData`, `BG.BotGuardClient.create` +
+> `snapshotSynchronous`, `BG.WebPoMinter.create` + `mintAsWebsafeString`. There is **no**
+> `BotGuardClient.run` and **no** two-arg `PoToken.generate(token, binding)` — the prior
+> sketch was wrong. Mirror the bundle's own `generate()` (lines 331–354), split across
+> the Python/JS boundary.
 
-- [ ] **Step 1: Implement the mint flow** — replace `_real_request_pot` in `keraunos_youtube_pot.py` with the BotGuard sequence. The provider does the HTTP in Python and uses JavaScriptCore only to run the BotGuard VM:
+### Step 1: Write the failing test — extend `test_pot_provider.py`
+
+Inject a fake `_eval_js` (returns a canned `botguardResponse` then a canned token) and a
+fake HTTP poster, then assert the flow builds the right payloads and walks the
+degradation ladder. Add to `test_pot_provider.py`:
+
+```python
+def test_full_flow_builds_payloads_and_returns_token(monkeypatch):
+    import keraunos_youtube_pot as m
+    import keraunos_extract
+
+    posts = []
+    monkeypatch.setattr(m, "_waa_post", lambda endpoint, payload: posts.append((endpoint, payload)) or (
+        ["RAW_CHALLENGE"] if endpoint.endswith("Create") else ["INTEGRITY_TOKEN", 3600, 0, "fallback"]))
+    evals = []
+    keraunos_extract.set_js_evaluator(
+        lambda script, t: evals.append(script) or ("BOTGUARD_RESPONSE" if "snapshotSynchronous" in script else "PO_TOKEN_123"))
+
+    provider = m.KeraunosPoTokenProviderPTP(...)   # construct per the framework's signature
+    resp = provider._real_request_pot(_FakeRequest(visitor_data="VISITOR"))
+
+    assert resp.po_token == "PO_TOKEN_123"
+    assert posts[0][0].endswith("Create")     and posts[0][1] == ["O43z0dpjhgX20SCx4KAo"]
+    assert posts[1][0].endswith("GenerateIT") and posts[1][1] == ["O43z0dpjhgX20SCx4KAo", "BOTGUARD_RESPONSE"]
+    assert "snapshotSynchronous" in evals[0] and "mintAsWebsafeString" in evals[1]
+```
+
+(Keep the existing registration + well-formedness tests. `_FakeRequest` is a tiny stub
+exposing `visitor_data`/`data_sync_id`. Adjust the provider construction to the
+framework's required ctor args — inspect `PoTokenProvider.__init__` in the pinned
+yt-dlp.) Run, expect failure (`_waa_post` / new flow missing):
+
+```bash
+cd app/Keraunos/python-dev && .venv/bin/pytest -q test_pot_provider.py ; cd /Users/leo/Developer/Keraunos
+```
+
+### Step 2: Implement the A flow in `keraunos_youtube_pot.py`
+
+Replace `_real_request_pot` and add the module-scope helpers. Keep the existing
+`_cold_start_snippet`/cold-start logic as the fallback rung.
 
 ```python
 import json
-from pathlib import Path
-from yt_dlp.extractor.youtube.pot.provider import PoTokenResponse, PoTokenProviderRejectedRequest
+import urllib.request
 
-_REQUESTKEY = "O43z0dpjhgX20SCx4KAo"   # BotGuard requestKey used by the reference provider
-_BG_ENDPOINT = "https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/Create"
-_IT_ENDPOINT = "https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/GenerateIT"
+_REQUESTKEY = "O43z0dpjhgX20SCx4KAo"
+_GOOG = "https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa"
+_GOOG_API_KEY = "AIzaSyDyT5W0Jh49F30Pqqtyfdf7pDLFKLJoAnw"
+_USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36(KHTML, like Gecko)"
 
 
-def _real_request_pot(self, request) -> PoTokenResponse:
-    try:
-        import keraunos_extract  # reuse the JS eval seam
-        bundle = (Path(__file__).resolve().parent / "bgutils" / "bgutils.bundle.js").read_text()
+def _waa_post(endpoint, payload):
+    """POST a protobuf-JSON array to a WAA endpoint; return the parsed JSON array.
+    These endpoints authenticate via x-goog-api-key only (no YouTube cookies)."""
+    data = json.dumps(payload).encode()
+    req = urllib.request.Request(f"{_GOOG}/{endpoint}", data=data, headers={
+        "content-type": "application/json+protobuf",
+        "x-goog-api-key": _GOOG_API_KEY,
+        "x-user-agent": "grpc-web-javascript/0.1",
+        "user-agent": _USER_AGENT,
+    })
+    with urllib.request.urlopen(req, timeout=10) as resp:   # tight, stays under the 30s watchdog
+        return json.loads(resp.read().decode())
 
-        # 1. Fetch the BotGuard challenge program (POST, via Python urllib).
-        challenge = self._download_json_via_request(request, _BG_ENDPOINT, _REQUESTKEY)
-        # 2. Run the BotGuard VM in JSContext to produce the bot-guard response.
-        bg_script = bundle + "\n" + _bg_run_snippet(challenge)
-        bg_response = keraunos_extract._eval_js(bg_script, 10000)
-        # 3. Exchange for an integrity token (POST, via Python urllib).
-        integrity = self._download_json_via_request(request, _IT_ENDPOINT, bg_response)
-        # 4. Mint the PO token bound to the request's content binding.
-        content_binding = request.visitor_data or request.data_sync_id or request.video_id
-        mint_script = bundle + "\n" + _mint_snippet(integrity, content_binding)
-        po_token = keraunos_extract._eval_js(mint_script, 10000)
-        if not po_token or po_token.startswith("__KERAUNOS_JS_ERROR__"):
-            raise PoTokenProviderRejectedRequest(f"mint failed: {po_token!r}")
-        return PoTokenResponse(po_token=po_token)
-    except PoTokenProviderRejectedRequest:
-        raise
-    except Exception as e:
-        raise PoTokenProviderRejectedRequest(f"BotGuard flow failed: {e}")
+
+def _snapshot_snippet(raw_challenge):
+    # J1: parse challenge -> install VM -> create client -> SYNCHRONOUS snapshot.
+    # Stash webPoSignalOutput (holds the VM minter-factory closure) in a global for J2;
+    # the shared JSContext is long-lived so it survives to the next eval. Errors are
+    # caught and printed as the sentinel (async-IIFE rejections don't set context.exception).
+    return _bundle_js() + ("""
+(async () => {
+  const ch = globalThis.BG.Challenge.parseChallengeData(%s);
+  (0, eval)(ch.interpreterJavascript.privateDoNotAccessOrElseSafeScriptWrappedValue);
+  const bg = await globalThis.BG.BotGuardClient.create(
+      { program: ch.program, globalName: ch.globalName, globalObj: globalThis });
+  const sig = [];
+  const botguardResponse = await bg.snapshotSynchronous({ webPoSignalOutput: sig });
+  globalThis.__keraunos_sig = sig;
+  console.log(botguardResponse);
+})().catch(e => console.log("__KERAUNOS_JS_ERROR__" + (e && e.stack || e)));
+""" % json.dumps(raw_challenge))
+
+
+def _mint_snippet(integrity_response, identifier):
+    # J2: rebuild integrityTokenData from the GenerateIT array, mint against the stashed
+    # webPoSignalOutput. Positional order per bundle line 344.
+    integrity_data = {
+        "integrityToken": integrity_response[0],
+        "estimatedTtlSecs": integrity_response[1] if len(integrity_response) > 1 else None,
+        "mintRefreshThreshold": integrity_response[2] if len(integrity_response) > 2 else None,
+        "websafeFallbackToken": integrity_response[3] if len(integrity_response) > 3 else None,
+    }
+    return _bundle_js() + ("""
+(async () => {
+  const minter = await globalThis.BG.WebPoMinter.create(%s, globalThis.__keraunos_sig);
+  console.log(await minter.mintAsWebsafeString(%s));
+})().catch(e => console.log("__KERAUNOS_JS_ERROR__" + (e && e.stack || e)));
+""" % (json.dumps(integrity_data), json.dumps(identifier)))
+
+
+def _full_botguard_token(self, identifier):
+    import keraunos_extract  # lazy: reuse the JS eval seam
+    raw = _waa_post("Create", [_REQUESTKEY])                                  # P1
+    botguard_response = keraunos_extract._eval_js(_snapshot_snippet(raw), 10000)  # J1
+    if not botguard_response or botguard_response.startswith("__KERAUNOS_JS_ERROR__"):
+        raise RuntimeError(f"snapshot failed: {botguard_response!r}")
+    integrity = _waa_post("GenerateIT", [_REQUESTKEY, botguard_response])     # P2
+    token = keraunos_extract._eval_js(_mint_snippet(integrity, identifier), 10000)  # J2
+    if not token or token.startswith("__KERAUNOS_JS_ERROR__"):
+        raise RuntimeError(f"mint failed: {token!r}")
+    return token
 ```
-Add the helper snippet builders and the HTTP helper at module scope (the exact
-`BG.*` API names come from the vendored bundle's README — confirm against
-`/tmp/bgutils/node_modules/bgutils-js/README.md`):
+
+Rewrite `_real_request_pot` to walk the ladder (full → cold-start → reject):
 
 ```python
-# NOTE: the vendored bundle exposes the library as the global `BG`
-# (the entry does `globalThis.BG = bg`); the esbuild `--global-name=BGBundle`
-# var is empty/undefined, so access `globalThis.BG.*`, NOT `BGBundle.BG.*`.
-# (Confirmed during Task 7 review.) The BG.* member names below are best-guess —
-# confirm them against /tmp/bgutils/node_modules/bgutils-js/README.md in Step 4.
-def _bg_run_snippet(challenge):
-    return ("console.log(JSON.stringify(globalThis.BG.BotGuardClient.run(%s)));"
-            % json.dumps(challenge))
-
-
-def _mint_snippet(integrity, content_binding):
-    return ("console.log(globalThis.BG.PoToken.generate(%s, %s));"
-            % (json.dumps(integrity), json.dumps(content_binding)))
-```
-And implement `_download_json_via_request` on the provider using yt-dlp's request
-machinery so cookies/headers/proxy are honored:
-```python
-    def _download_json_via_request(self, request, url, payload):
-        import urllib.request
-        data = json.dumps([payload]).encode()
-        req = urllib.request.Request(url, data=data, headers={
-            "Content-Type": "application/json+protobuf",
-            "User-Agent": request.innertube_context.get("client", {}).get("userAgent", "Mozilla/5.0"),
-        })
-        with urllib.request.urlopen(req, timeout=15) as resp:
-            return json.loads(resp.read().decode())
+    def _real_request_pot(self, request) -> PoTokenResponse:
+        identifier = request.visitor_data or request.data_sync_id
+        if not identifier:
+            _spike_log("rejected: no visitor_data/data_sync_id")
+            raise PoTokenProviderRejectedRequest("no visitor_data/data_sync_id to bind a PO token")
+        # Tier 2: full BotGuard flow.
+        try:
+            token = _full_botguard_token(self, identifier)
+            _spike_log(f"minted full BotGuard PO token (len={len(token)})")
+            return PoTokenResponse(po_token=token)
+        except Exception as e:
+            _spike_log(f"full BotGuard flow failed, falling back to cold-start: {e}")
+        # Tier 1: cold-start fallback (preserves prior behavior).
+        import keraunos_extract
+        token = keraunos_extract._eval_js(_cold_start_snippet(identifier), 5000)
+        if token and not token.startswith("__KERAUNOS_JS_ERROR__"):
+            _spike_log(f"minted cold-start PO token (len={len(token)})")
+            return PoTokenResponse(po_token=token)
+        _spike_log(f"rejected: cold-start also failed: {token!r}")
+        raise PoTokenProviderRejectedRequest(f"PO token minting failed: {token!r}")
 ```
 
-- [ ] **Step 2: Build + install to a physical device** (BotGuard behaves differently from the simulator; use a real device):
+Run the test, expect pass:
 
 ```bash
-DEST='platform=iOS Simulator,name=iPhone 17 Pro Max'   # for the build check only
+cd app/Keraunos/python-dev && .venv/bin/pytest -q ; cd /Users/leo/Developer/Keraunos
+```
+
+### Step 3: Build + run on a physical device
+
+The simulator shares the Mac's bot-flagged IP; the spike's probes are only meaningful on
+a real device signed into YouTube. **Clean-build (⇧⌘K)** first — PythonResources changes
+re-sync, but suspect a stale binary if device behavior contradicts source.
+
+```bash
+DEST='platform=iOS Simulator,name=iPhone 17 Pro Max'   # build check only
 xcodebuild build -project app/Keraunos/Keraunos.xcodeproj -scheme Keraunos -destination "$DEST" 2>&1 | grep -iE "error:|BUILD SUCCEEDED|BUILD FAILED"
 ```
-Then run on a connected device from Xcode (▶). Expected build: `BUILD SUCCEEDED`.
 
-- [ ] **Step 3: OBSERVE** — sign into YouTube in-app, then download a regular YouTube video that previously failed with a PO-token requirement. Watch the Xcode console. Record which step fails (challenge fetch, BG run, integrity exchange, mint) and the exact error.
+Then ▶ on a connected device from Xcode.
 
-- [ ] **Step 4: ADAPT** — fix the first failing step using the observed error and the `bgutils-js` README (typically: a wrong `BG.*` symbol name, a missing browser shim surfaced as a `ReferenceError`, or a changed endpoint/payload shape). Add any missing shim to `JSEvaluator.installEnvironment()`. Rebuild and re-observe. Iterate **at most 3 rounds**.
+### Step 4: OBSERVE — answer the spike's probes
 
-- [ ] **Step 5: DECISION GATE.**
-  - **If a PO token mints and the video downloads:** commit and proceed.
-    ```bash
-    git add app/Keraunos/PythonResources/app/keraunos_youtube_pot.py \
-            app/Keraunos/Keraunos/PythonRuntime/JSEvaluator.swift
-    git commit -m "feat(python): mint YouTube PO tokens via BotGuard in JavaScriptCore"
-    ```
-  - **If it does not mint after 3 rounds:** STOP. Commit the work-in-progress behind the existing `PoTokenProviderRejectedRequest` fallback (so it degrades cleanly), and record the blocker in the Task 11 acceptance log. Phase C is deferred; A+B ship.
-    ```bash
-    git add app/Keraunos/PythonResources/app/keraunos_youtube_pot.py
-    git commit -m "wip(python): BotGuard PO token spike — blocked, degrades to no-PO-token"
-    ```
+Sign into YouTube in-app, download a video that previously failed PO-token-required, and
+read the `[keraunos-pot]` stderr lines in the Xcode console. Record, in order:
+
+1. **Does `Create` return** (P1)? If not → endpoint/headers/device-IP issue.
+2. **Does J1 print a `botguardResponse`**, or a `__KERAUNOS_JS_ERROR__`? Key probes:
+   - `"Synchronous snapshot function not found"` → `syncSnapshotFunction` absent → A must
+     fall back to async `snapshot()` (see Step 5b).
+   - `ReferenceError: <X> is not defined` → the VM needs a browser-global shim.
+   - empty output → JSC did not drain the await chain (pump needed).
+3. **Does `GenerateIT` return** (P2)?
+4. **Does J2 print a token**, or a `BGError` (`PMD:Undefined` = `webPoSignalOutput[0]`
+   missing; `INTEGRITY_ERROR`; `APF:/YNJ:/ODM:` = mint internals)?
+
+### Step 5: ADAPT — at most 3 rounds
+
+- **5a (shim):** add any missing global to `JSEvaluator.installEnvironment()` (and a
+  `JSEvaluatorTests` assertion), rebuild, re-observe.
+- **5b (sync→async fallback):** if `syncSnapshotFunction` is absent, switch J1 to async
+  `snapshot()` **and** change the `setTimeout` shim to *defer* (e.g. `queueMicrotask`)
+  instead of firing immediately — otherwise `snapshot()`'s `Promise.race(real,
+  setTimeout(reject))` self-rejects. If the chain still won't settle in one
+  `evaluateScript`, the pump is unavoidable → this is the signal to escalate to the C
+  design rather than spend more rounds here.
+
+### Step 6: DECISION GATE
+
+- **Token mints + video downloads:** commit. Then revisit C (port the now-understood,
+  working flow onto `BG.PoToken.generate()` + a real event-loop pump for the long-term,
+  reusable shape) as a separate, optional follow-up.
+  ```bash
+  git add app/Keraunos/PythonResources/app/keraunos_youtube_pot.py \
+          app/Keraunos/python-dev/test_pot_provider.py \
+          app/Keraunos/Keraunos/PythonRuntime/JSEvaluator.swift   # only if a shim was added
+  git commit -m "feat(python): mint YouTube PO tokens via the full BotGuard flow in JavaScriptCore"
+  ```
+- **No token after 3 rounds:** STOP. The ladder already degrades cleanly (full →
+  cold-start → reject → `requires_auth`, never a hang). Record the blocker in the Task 11
+  acceptance log; Phase C Tier 2 is deferred.
+  ```bash
+  git add app/Keraunos/PythonResources/app/keraunos_youtube_pot.py app/Keraunos/python-dev/test_pot_provider.py
+  git commit -m "wip(python): full BotGuard PO token spike — blocked, degrades to cold-start/no-PO-token"
+  ```
 
 ---
 
