@@ -4,9 +4,9 @@
 
 **A video downloader for iOS, powered by [yt-dlp](https://github.com/yt-dlp/yt-dlp).**
 
-Save videos from X (Twitter) and hundreds of other sites, straight to your iPhone or iPad.
+Save videos from X (Twitter), YouTube, and hundreds of other sites, straight to your iPhone or iPad — extracted entirely **on-device**, no server.
 
-[![Platform](https://img.shields.io/badge/platform-iOS-blue.svg)](https://www.apple.com/ios/)
+[![Platform](https://img.shields.io/badge/platform-iOS%2026.5%2B-blue.svg)](https://www.apple.com/ios/)
 [![Status](https://img.shields.io/badge/status-early%20development-orange.svg)](#project-status)
 [![License](https://img.shields.io/badge/license-GPLv3-blue.svg)](#license)
 
@@ -18,38 +18,50 @@ Save videos from X (Twitter) and hundreds of other sites, straight to your iPhon
 
 *Keraunos* (κεραυνός) is the thunderbolt of Zeus — the weapon that strikes from the sky and brings things down to earth. The app does the same for video: point it at a link, and it pulls the video down onto your device.
 
-Under the hood, Keraunos builds on **yt-dlp**, the open-source extractor that knows how to find and download media from [a thousand-plus sites](https://github.com/yt-dlp/yt-dlp/blob/master/supported-sites.md). Keraunos wraps that capability in a native iOS experience.
+Under the hood, Keraunos builds on **yt-dlp**, the open-source extractor that knows how to find media on [a thousand-plus sites](https://github.com/yt-dlp/yt-dlp/blob/master/supported-sites.md). Keraunos runs that extraction logic on the phone itself — nothing is sent to a backend — and downloads with native iOS networking.
 
-> **⚠️ Project status:** Keraunos is in **early development**. There is no installable release yet — this repository is for people who want to build it themselves, follow along, or contribute. See [Project Status](#project-status).
+> **⚠️ Project status:** Keraunos is in **early development**. There is no installable release — this repository is for people who want to build it themselves, follow along, or contribute. Pasting an X video link and getting an `.mp4` in Files works end-to-end today; see [Status](#project-status).
 
 ## Features
 
-> Planned. Tracking what's built in the [Roadmap](#roadmap).
+**Working today**
 
-- 📥 **Paste a link, get a video** — share or paste a URL from X and other supported sites.
-- 🎞️ **Quality selection** — choose resolution and format before downloading.
-- 🔊 **Audio-only extraction** — pull just the audio when that's all you need.
-- 📂 **Files app integration** — downloads land somewhere you can actually use them.
-- 🔗 **Share Sheet support** — send a link to Keraunos directly from another app.
-- 🌑 **Native, offline-friendly UI** — built for iOS, no ads, no accounts.
+- 📥 **Paste a link, get a video** — resolve a URL with embedded yt-dlp and download it to your device.
+- 🧩 **Automatic stream merging** — when a site serves video and audio separately (adaptive), both tracks download and are muxed into a single `.mp4` natively (AVFoundation, no ffmpeg).
+- 📂 **Files app integration** — downloads land in the app's Documents folder, visible and usable in the Files app.
+- 🔐 **Account sign-in** — log in to a site in an in-app web view; cookies are reused for extraction so signed-in/age-gated content resolves.
+
+**In progress**
+
+- ▶️ **YouTube** — on-device extraction needs a Proof-of-Origin (PO) token; Keraunos mints one via [bgutils](https://github.com/Brainicism/bgutil-ytdlp-pot-provider) inside JavaScriptCore. Actively being hardened.
+
+**Planned**
+
+- 🎞️ Quality / format selection before downloading.
+- 🔊 Audio-only extraction.
+- 🔗 Share Sheet extension (send a link to Keraunos from another app).
+- 🗂️ Download queue and history.
 
 ## Supported sites
 
-Keraunos inherits its reach from yt-dlp. That includes **X (Twitter)** and many others — see the full, always-current list in the [yt-dlp supported sites](https://github.com/yt-dlp/yt-dlp/blob/master/supported-sites.md) document.
+Keraunos inherits its reach from yt-dlp — see the full, always-current list in the [yt-dlp supported sites](https://github.com/yt-dlp/yt-dlp/blob/master/supported-sites.md) document. In practice, support depends on what each extractor needs at runtime: extractors that resolve to a **progressive or adaptive** stream work well, while anything that requires **HLS remuxing or shelling out to ffmpeg** is not supported on-device (see [How it works](#how-it-works)). **X (Twitter)** is verified end-to-end; **YouTube** is in progress.
 
-Actual support in Keraunos depends on how the yt-dlp integration is wired up (see below) and may be a subset during early development.
+## How it works
 
-## How it works (open design question)
+The central question for an iOS yt-dlp app is *how* to run yt-dlp, which is Python. Keraunos's answer:
 
-yt-dlp is a **Python** program. iOS apps don't run Python out of the box, so the central architectural decision for Keraunos is *how* to run yt-dlp's extraction logic. This is **not yet decided**, and the README will be updated once it is. The candidates:
+> **Python extracts; Swift downloads.**
 
-| Approach | Summary | Trade-offs |
-| --- | --- | --- |
-| **Backend service** | The app sends a URL to a server (self-hostable) that runs yt-dlp and returns the media. | Simplest to ship; keeps yt-dlp up to date easily. Requires hosting; not fully on-device. |
-| **On-device Python** | Bundle a Python runtime (e.g. [python-apple-support](https://github.com/beeware/Python-Apple-support)) and yt-dlp into the app. | Fully private and offline. Larger binary, more fragile to maintain and update. |
-| **Native Swift port** | Reimplement extraction in Swift, using yt-dlp as the reference. | No Python dependency. By far the most work; hard to keep pace with yt-dlp. |
+- An **embedded CPython 3.13** runtime ([BeeWare Python-Apple-support](https://github.com/beeware/Python-Apple-support)) runs yt-dlp to resolve a URL into direct media URL(s) — this is the only thing Python does.
+- Native **`URLSession`** performs the actual transfer.
+- If the result is adaptive (separate video + audio), Swift muxes the tracks into one MP4 with **AVFoundation**.
 
-If you have opinions or experience here, this is the best place to [contribute](#contributing) — open a discussion or issue.
+This keeps everything **on-device and private** — no backend service. It also imposes real constraints, which is why the feature set is shaped the way it is:
+
+- Embedded Python has **no `subprocess`/`fork`**, so yt-dlp post-processors that shell out (ffmpeg) can't run — hence native download + AVFoundation merge, and no HLS remuxing.
+- Embedded Python has **no system CA store**, so a bundled `certifi` CA bundle is wired into the SSL context.
+
+The detailed, evolving design lives under [`docs/superpowers/specs/`](docs/superpowers/specs/).
 
 ## Getting started
 
@@ -58,15 +70,32 @@ There is **no App Store release**, and one is unlikely: Apple does not approve v
 ### Requirements
 
 - macOS with **Xcode** (latest stable recommended)
+- iOS **26.5+** target — a device or the iOS Simulator
 - An Apple ID for local code signing (a free account works for building to your own device)
-- An iPhone or iPad, or the iOS Simulator
+- [`gh`](https://cli.github.com) or `curl` (to fetch the Python runtime, below)
 
 ### Build from source
 
 ```bash
 git clone https://github.com/<your-org>/Keraunos.git
 cd Keraunos
-open Keraunos.xcodeproj   # or Keraunos.xcworkspace
+```
+
+**1. Restore the Python runtime.** `Python.xcframework` (~115 MB) is a prebuilt binary and is **not** committed — you must fetch it before building, or the app won't link:
+
+```bash
+gh release download 3.13-b14 --repo beeware/Python-Apple-support \
+  --pattern 'Python-3.13-iOS-support.b14.tar.gz'
+tar -xzf Python-3.13-iOS-support.b14.tar.gz -C /tmp
+cp -R /tmp/Python.xcframework app/Keraunos/PythonResources/
+```
+
+(See [`app/Keraunos/PythonResources/README.md`](app/Keraunos/PythonResources/README.md) for what else lives there and how it's wired. On Xcode Cloud this restore is automatic via `app/Keraunos/ci_scripts/ci_post_clone.sh`.)
+
+**2. Open and run:**
+
+```bash
+open app/Keraunos/Keraunos.xcodeproj
 ```
 
 Then in Xcode:
@@ -76,21 +105,21 @@ Then in Xcode:
 3. Set your **development team** under *Signing & Capabilities*.
 4. Press **▶ Run**.
 
-> Detailed setup — including how the yt-dlp integration is configured — will be documented here once the [architecture](#how-it-works-open-design-question) is settled.
-
 ## Roadmap
 
-- [ ] Decide the yt-dlp integration approach
-- [ ] Core: resolve a URL → list available formats
-- [ ] Download a selected format to local storage
-- [ ] Files app / Photos export
-- [ ] Share Sheet extension
+- [x] Decide the yt-dlp integration approach (on-device embedded Python)
+- [x] Core: resolve a URL → direct media stream(s)
+- [x] Download a selected stream to local storage (progressive + adaptive merge)
+- [x] Files app export
+- [x] Account sign-in / cookie reuse for gated content
+- [ ] YouTube extraction (PO tokens) — *in progress*
 - [ ] Quality and audio-only options
+- [ ] Share Sheet extension
 - [ ] Download queue and history
 
 ## Contributing
 
-Contributions are welcome — especially input on the [core architecture question](#how-it-works-open-design-question). For now:
+Contributions are welcome. For now:
 
 - Open an **issue** to report bugs or propose features.
 - Open a **discussion** for architecture and design.
@@ -104,12 +133,13 @@ Keraunos is a tool. **You are responsible for how you use it.**
 
 - Only download content you have the right to download. Respect copyright and the terms of service of any site you use.
 - Downloading some content may violate a platform's terms of service or local law in your jurisdiction.
-- Keraunos is not affiliated with X Corp., yt-dlp, or any site it can access.
+- Keraunos is not affiliated with X Corp., Google/YouTube, yt-dlp, or any site it can access.
 - The software is provided "as is", without warranty of any kind.
 
 ## Acknowledgements
 
 - [**yt-dlp**](https://github.com/yt-dlp/yt-dlp) — the engine that makes this possible.
+- [**Python-Apple-support**](https://github.com/beeware/Python-Apple-support) — the embeddable CPython that runs it on iOS.
 - Everyone who has contributed to the long lineage of open-source media tools that came before it.
 
 ## License
