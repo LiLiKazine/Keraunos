@@ -23,6 +23,9 @@ compiled sources. The C/Swift bridge that drives the interpreter lives under
 2. `tar -xzf Python-3.13-iOS-support.b14.tar.gz -C <tmp>`
 3. `cp -R <tmp>/Python.xcframework app/Keraunos/PythonResources/`
 
+On **Xcode Cloud** this restore happens automatically: `app/Keraunos/ci_scripts/ci_post_clone.sh`
+fetches the same release after the clean checkout, before the build links the framework.
+
 ## How it is wired (Xcode)
 
 - `Python.xcframework` → Keraunos target **General → Frameworks, Libraries, and
