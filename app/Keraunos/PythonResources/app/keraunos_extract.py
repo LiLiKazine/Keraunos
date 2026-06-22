@@ -178,7 +178,10 @@ def _extract_impl(url, socket_timeout, cookiefile):
         if any(hint in msg for hint in _AUTH_HINTS):
             return _err("requires_auth", str(e))
         if "unable to download" in msg or "timed out" in msg or "connection" in msg:
-            return _err("network", str(e))
+            # Extraction-side network failure. The download half (native URLSession,
+            # Swift Downloader) emits download_network — keeping them distinct lets a
+            # local failure log attribute which side broke without telemetry.
+            return _err("extract_network", str(e))
         return _err("unsupported", str(e))
     except Exception as e:  # never raise into the bridge
         return _err("runtime", str(e))

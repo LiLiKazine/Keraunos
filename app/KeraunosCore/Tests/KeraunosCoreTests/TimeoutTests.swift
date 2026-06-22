@@ -18,9 +18,9 @@ struct TimeoutTests {
     }
 
     @Test func propagatesOperationError() async {
-        await #expect(throws: KeraunosError.network) {
+        await #expect(throws: KeraunosError.downloadNetwork) {
             try await withTimeout(.seconds(10)) {
-                throw KeraunosError.network
+                throw KeraunosError.downloadNetwork
             }
         }
     }

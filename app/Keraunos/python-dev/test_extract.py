@@ -164,7 +164,9 @@ def test_extraction_times_out_instead_of_hanging():
     assert not worker.is_alive(), "extraction hung past the socket timeout"
     out = json.loads(result["out"])
     assert out["ok"] is False
-    assert out["error_kind"] == "network"
+    # Extraction-side network failure: distinct kind from a download-side one so a
+    # local failure log can tell which half broke (Phase 3).
+    assert out["error_kind"] == "extract_network"
 
 
 def test_resolves_local_progressive_file(tmp_path):

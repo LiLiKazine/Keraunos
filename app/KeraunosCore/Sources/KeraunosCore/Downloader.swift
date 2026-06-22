@@ -16,7 +16,7 @@ public struct Downloader: FileDownloading {
             for (field, value) in track.httpHeaders { request.setValue(value, forHTTPHeaderField: field) }
             let (tempURL, response) = try await session.download(for: request)
             guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
-                throw KeraunosError.network
+                throw KeraunosError.downloadNetwork
             }
             try? FileManager.default.removeItem(at: destination)
             try FileManager.default.moveItem(at: tempURL, to: destination)
@@ -27,7 +27,7 @@ public struct Downloader: FileDownloading {
         } catch is CancellationError {
             throw KeraunosError.cancelled
         } catch {
-            throw KeraunosError.network
+            throw KeraunosError.downloadNetwork
         }
     }
 }

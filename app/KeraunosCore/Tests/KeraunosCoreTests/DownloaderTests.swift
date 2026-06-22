@@ -23,11 +23,11 @@ struct DownloaderTests {
         #expect(try Data(contentsOf: dest) == payload)
     }
 
-    @Test func mapsHTTPErrorToNetwork() async throws {
+    @Test func mapsHTTPErrorToDownloadNetwork() async throws {
         StubURLProtocol.handler = { req in
             (HTTPURLResponse(url: req.url!, statusCode: 500, httpVersion: nil, headerFields: nil)!, Data())
         }
-        await #expect(throws: KeraunosError.network) {
+        await #expect(throws: KeraunosError.downloadNetwork) {
             try await Downloader(session: StubURLProtocol.session()).download(track(), to: tempFile("clip.mp4"))
         }
     }
