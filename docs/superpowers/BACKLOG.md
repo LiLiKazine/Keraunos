@@ -7,7 +7,7 @@
 > Source-of-truth for *strategy* remains the coverage-roadmap memory + the plans in
 > `docs/superpowers/plans/`. This file tracks *executable state* against them.
 
-Last updated: 2026-06-22 (cycle 5). Git policy: commit verified increments straight to
+Last updated: 2026-06-22 (cycle 6). Git policy: commit verified increments straight to
 `main`. Verify gate: full build + Swift Testing suite on the iPhone 17 simulator.
 
 ---
@@ -95,7 +95,31 @@ ordered by leverage for a 7-site personal tool:
    non-RFC-conformant and near-impossible from WebKit's `HTTPCookie`. Only worth a cycle
    if a concrete cookie-auth failure is observed; defensive value is low relative to cost.
 9. **SwiftUI polish (lower priority).** Accessibility labels, dynamic-type, empty/error
-   states. Verifiable via build + UI test target.
+   states. Verifiable via build + UI test target. NOTE (cycle-6 scout): the UI is already
+   mature — `DownloadScreen` ships `ShareLink` per file + on the failure log,
+   `.quickLookPreview` in-app playback, swipe-to-Share/Delete, privacy-safe `PasteButton`,
+   kind-specific error messages with context-correct actions (Sign-in/Try-again), and
+   `UIFileSharingEnabled`/`LSSupportsOpeningDocumentsInPlace` (Files works). Little
+   genuine polish left.
+10. **List all playable downloads, not just .mp4.** ✅ DONE (cycle 6, `80fbb11`):
+   `savedFiles()` now uses a video-extension allow-set (mp4/m4v/mov/mkv/webm) so non-mp4
+   progressive output and the future libav .mkv aren't orphaned from the share/preview/
+   delete UX. Exclusion of sidecars (failures.log/cookies) is now an explicit test.
+
+### Owner-manual / blocked high-value items (NOT loop-doable — for the owner)
+- **Save-to-Photos export**: the one genuinely-missing net-new UX item, but adding to the
+  camera roll needs `NSPhotoLibraryAddUsageDescription` (Info.plist entitlement) →
+  owner-manual. `ShareLink`→"Save Video" already covers most of it without the entitlement.
+- **Share Extension + `keraunos://` URL-scheme registration**: app-side receiving logic is
+  done + tested; remaining is target/entitlement surgery (owner-manual).
+- **Phase 3.5 SABR spike / Phase 4 libav >1080p**: on-device/live + cross-compile (blocked).
+
+### Loop status: hardening backlog is DRAINED
+Cycles 2-6 cleared the clean code-level items. What remains is owner-manual, blocked, or
+sprawl (download queue #5 — rejected as wrong for a single-user paste-one-URL tool). Next
+cycles should think hard about genuine value; if nothing clears the bar, do the smallest
+genuinely-useful thing (e.g. a found correctness gap, a missing test for an untested
+invariant) and SAY SO rather than manufacture work.
 
 ---
 
