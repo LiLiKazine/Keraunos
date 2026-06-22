@@ -52,6 +52,23 @@ struct DownloadViewModelTests {
         #expect(model.errorMessage == KeraunosError.needsFfmpeg.errorDescription)
     }
 
+    @Test func transientFailureOffersRetryButNotSignIn() async {
+        let model = vm(extractor: MockExtractor(result: .failure(.downloadNetwork)),
+                       merger: MockMerger(), dir: tempDir())
+        model.urlText = "https://x.test/post/1"
+        await model.startDownload()
+        #expect(model.canRetry == true)
+        #expect(model.requiresSignIn == false)
+    }
+
+    @Test func terminalFailureDoesNotOfferRetry() async {
+        let model = vm(extractor: MockExtractor(result: .failure(.unsupported)),
+                       merger: MockMerger(), dir: tempDir())
+        model.urlText = "https://x.test/post/1"
+        await model.startDownload()
+        #expect(model.canRetry == false)
+    }
+
     @Test func rejectsInvalidURL() async {
         let model = vm(extractor: MockExtractor(), merger: MockMerger(), dir: tempDir())
         model.urlText = "not a url"

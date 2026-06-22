@@ -53,6 +53,8 @@ struct DownloadScreen: View {
                         Text(error).foregroundStyle(.red)
                         if model.requiresSignIn, let host = model.signInURL?.host {
                             Button("Sign in to \(host)") { showLogin = true }
+                        } else if model.canRetry {
+                            Button("Try again") { model.start() }
                         }
                     }
                 }

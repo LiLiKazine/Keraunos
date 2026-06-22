@@ -29,6 +29,21 @@ struct KeraunosErrorTests {
         }
     }
 
+    @Test func transientFailuresAreRetryable() {
+        // Network blips, timeouts, and unknown runtime faults can succeed on a second try.
+        for error in [KeraunosError.extractNetwork, .downloadNetwork, .timedOut, .runtime(detail: "x")] {
+            #expect(error.isRetryable, "\(error) should be retryable")
+        }
+    }
+
+    @Test func deterministicAndUserDrivenFailuresAreNotRetryable() {
+        // Re-running won't change an unsupported site, a missing-ffmpeg need, a failed
+        // mux, a user cancel, or an auth wall (that one is handled by the sign-in flow).
+        for error in [KeraunosError.unsupported, .needsFfmpeg, .mergeFailed, .cancelled, .requiresAuth] {
+            #expect(!error.isRetryable, "\(error) should not be retryable")
+        }
+    }
+
     @Test func mergeFailedHasAMessage() {
         #expect(KeraunosError.mergeFailed.errorDescription?.isEmpty == false)
         #expect(KeraunosError.mergeFailed.errorDescription == "Couldn't combine the video and audio tracks.")

@@ -10,6 +10,8 @@ final class DownloadViewModel {   // main-actor by default (app target)
     private(set) var errorMessage: String?
     private(set) var requiresSignIn = false
     private(set) var signInURL: URL?
+    /// True when the last failure was transient, so a plain "Try again" may succeed.
+    private(set) var canRetry = false
     private(set) var lastSavedName: String?
     private(set) var savedFiles: [URL] = []
     /// 0...1 transfer progress while downloading; nil when not downloading or size unknown.
@@ -38,6 +40,7 @@ final class DownloadViewModel {   // main-actor by default (app target)
         errorMessage = nil
         requiresSignIn = false
         signInURL = nil
+        canRetry = false
         downloadProgress = nil
         statusText = "Resolving…"
         defer { isWorking = false; statusText = nil; downloadProgress = nil }
@@ -56,12 +59,14 @@ final class DownloadViewModel {   // main-actor by default (app target)
         } catch let error as KeraunosError {
             guard error != .cancelled else { return }   // also a user-initiated cancel
             errorMessage = error.errorDescription
+            canRetry = error.isRetryable
             if error == .requiresAuth {
                 requiresSignIn = true
                 signInURL = url
             }
         } catch {
             errorMessage = KeraunosError.runtime(detail: error.localizedDescription).errorDescription
+            canRetry = true   // unknown runtime fault — a retry may clear it
         }
     }
 

@@ -33,6 +33,20 @@ public extension KeraunosError {
     }
 }
 
+public extension KeraunosError {
+    /// Whether retrying the same URL could plausibly succeed. True for transient faults
+    /// (network, timeout, unknown runtime); false for deterministic outcomes and for
+    /// auth (which is recovered via sign-in, not a plain retry) and user cancellation.
+    var isRetryable: Bool {
+        switch self {
+        case .extractNetwork, .downloadNetwork, .timedOut, .runtime:
+            return true
+        case .unsupported, .needsFfmpeg, .requiresAuth, .cancelled, .mergeFailed:
+            return false
+        }
+    }
+}
+
 extension KeraunosError: LocalizedError {
     public var errorDescription: String? {
         switch self {
