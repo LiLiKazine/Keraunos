@@ -137,7 +137,8 @@ final class HangingExtractor: MediaExtracting, @unchecked Sendable {
 
 /// Writes a marker to the destination so progressive assembly produces a file.
 struct SpyDownloader: FileDownloading {
-    func download(_ track: MediaTrack, to destination: URL) async throws {
+    func download(_ track: MediaTrack, to destination: URL,
+                  onProgress: @escaping @Sendable (Double) -> Void) async throws {
         try Data("x".utf8).write(to: destination)
     }
 }

@@ -12,6 +12,8 @@ final class DownloadViewModel {   // main-actor by default (app target)
     private(set) var signInURL: URL?
     private(set) var lastSavedName: String?
     private(set) var savedFiles: [URL] = []
+    /// 0...1 transfer progress while downloading; nil when not downloading or size unknown.
+    private(set) var downloadProgress: Double?
 
     /// The in-flight download task, retained so the UI can cancel it. Readable in tests.
     private(set) var currentTask: Task<Void, Never>?
@@ -36,13 +38,17 @@ final class DownloadViewModel {   // main-actor by default (app target)
         errorMessage = nil
         requiresSignIn = false
         signInURL = nil
+        downloadProgress = nil
         statusText = "Resolving…"
-        defer { isWorking = false; statusText = nil }
+        defer { isWorking = false; statusText = nil; downloadProgress = nil }
         do {
             let media = try await extractor.resolve(url)
-            let saved = try await assembler.assemble(media, into: store) { phase in
+            let saved = try await assembler.assemble(media, into: store, onPhase: { phase in
                 self.statusText = Self.label(for: phase)
-            }
+            }, onProgress: { fraction in
+                // The download delegate fires off the main actor; hop back to mutate state.
+                Task { @MainActor in self.downloadProgress = fraction }
+            })
             lastSavedName = saved.lastPathComponent
             savedFiles = store.savedFiles()
         } catch is CancellationError {

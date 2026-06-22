@@ -30,11 +30,17 @@ struct DownloadScreen: View {
                         .buttonBorderShape(.capsule)
                     }
                     if model.isWorking {
-                        HStack {
-                            ProgressView()
-                            Text(model.statusText ?? "Working…")
-                            Spacer()
-                            Button("Cancel", role: .cancel) { model.cancel() }
+                        VStack(alignment: .leading, spacing: 8) {
+                            HStack {
+                                Text(model.statusText ?? "Working…")
+                                Spacer()
+                                Button("Cancel", role: .cancel) { model.cancel() }
+                            }
+                            if let progress = model.downloadProgress {
+                                ProgressView(value: progress)
+                            } else {
+                                ProgressView()
+                            }
                         }
                     } else {
                         Button("Download") { model.start() }

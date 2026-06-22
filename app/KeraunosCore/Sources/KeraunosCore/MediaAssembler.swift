@@ -17,12 +17,13 @@ public struct MediaAssembler {
     public func assemble(_ media: ResolvedMedia,
                          into store: DownloadStore,
                          isolation: isolated (any Actor)? = #isolation,
-                         onPhase: (Phase) -> Void = { _ in }) async throws -> URL {
+                         onPhase: (Phase) -> Void = { _ in },
+                         onProgress: @escaping @Sendable (Double) -> Void = { _ in }) async throws -> URL {
         switch media.kind {
         case .progressive(let track):
             onPhase(.downloading)
             let destination = store.uniqueDestination(for: media.suggestedFilename)
-            try await downloader.download(track, to: destination)
+            try await downloader.download(track, to: destination, onProgress: onProgress)
             return destination
 
         case .adaptive(let video, let audio):
@@ -32,10 +33,11 @@ public struct MediaAssembler {
 
             let videoURL = scratch.appendingPathComponent("video.\(video.fileExtension)")
             let audioURL = scratch.appendingPathComponent("audio.\(audio.fileExtension)")
+            // Two transfers share one bar: video fills 0...0.5, audio 0.5...1.0.
             onPhase(.downloadingVideo)
-            try await downloader.download(video, to: videoURL)
+            try await downloader.download(video, to: videoURL) { onProgress($0 * 0.5) }
             onPhase(.downloadingAudio)
-            try await downloader.download(audio, to: audioURL)
+            try await downloader.download(audio, to: audioURL) { onProgress(0.5 + $0 * 0.5) }
 
             onPhase(.merging)
             let base = (media.suggestedFilename as NSString).deletingPathExtension
