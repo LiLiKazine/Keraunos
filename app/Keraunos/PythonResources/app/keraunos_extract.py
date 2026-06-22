@@ -114,6 +114,12 @@ def _payload_for_info(info, prepare_filename):
                 "video": _track(video), "audio": _track(audio),
             })
     if info.get("url"):
+        # Reject a single format that explicitly lacks a track, else we'd save a silent
+        # (or video-less) file and report success. Only the literal string "none" means
+        # the track is genuinely absent; None/missing is the already-muxed direct-file
+        # path (M1) whose codecs yt-dlp can't probe under skip_download — that stays valid.
+        if info.get("vcodec") == "none" or info.get("acodec") == "none":
+            return _err("needs_ffmpeg", "progressive stream is missing audio or video")
         return json.dumps({
             "ok": True, "kind": "progressive", "title": title, "filename": filename,
             "media": _track(info),

@@ -99,6 +99,97 @@ def _serve(directory, ready):
     httpd.serve_forever()
 
 
+# --- Progressive guard: reject explicit-"none" codec single files -----------------
+# A single resolved format can legitimately carry both tracks (progressive muxed) OR
+# carry only one (a video-only/audio-only stream the selector's trailing fallback
+# happened to grab). Emitting a progressive payload for the latter saves a silent,
+# audio-less (or video-less) file and reports success — the worst failure for a
+# hand-run tool. The guard rejects ONLY the explicit string "none"; None/missing is
+# the legitimate already-muxed direct-file path (codecs unprobed under skip_download).
+
+def test_videoonly_progressive_with_explicit_none_audio_is_needs_ffmpeg():
+    # Video-only mp4 (acodec literally "none") with a direct url — emitting this
+    # progressive would save a silent file and report success.
+    info = {
+        "title": "Clip", "ext": "mp4", "url": "https://x.test/v.mp4",
+        "vcodec": "avc1.4d401e", "acodec": "none",
+    }
+    out = json.loads(keraunos_extract._payload_for_info(info, lambda i: "Clip.mp4"))
+    assert out["ok"] is False
+    assert out["error_kind"] == "needs_ffmpeg"
+
+
+def test_audioonly_progressive_with_explicit_none_video_is_needs_ffmpeg():
+    # Audio-only stream (vcodec literally "none") with a direct url — a video-less file.
+    info = {
+        "title": "Clip", "ext": "m4a", "url": "https://x.test/a.m4a",
+        "vcodec": "none", "acodec": "mp4a.40.2",
+    }
+    out = json.loads(keraunos_extract._payload_for_info(info, lambda i: "Clip.m4a"))
+    assert out["ok"] is False
+    assert out["error_kind"] == "needs_ffmpeg"
+
+
+def test_directfile_progressive_with_unprobed_codecs_still_succeeds():
+    # Invariant guard: the M1 already-muxed direct-file path resolves formats yt-dlp
+    # can't probe under skip_download, so vcodec/acodec are MISSING (or None). That
+    # progressive payload is correct and must keep working — the guard must trigger
+    # ONLY on the explicit string "none", never on None/missing.
+    info = {
+        "title": "Clip", "ext": "mp4", "url": "https://x.test/v.mp4",
+        "http_headers": {"User-Agent": "yt"},
+    }
+    out = json.loads(keraunos_extract._payload_for_info(info, lambda i: "Clip.mp4"))
+    assert out["ok"] is True
+    assert out["kind"] == "progressive"
+
+
+# --- Format-selector regression fixtures (no network) ----------------------------
+
+def test_selector_videoonly_mp4_with_none_audio():
+    # A lone video-only mp4 (acodec "none"). yt-dlp's `best` (the trailing
+    # best[protocol^=http][ext=mp4] fallback) treats acodec "none" as NOT a complete
+    # format, so it does NOT pick it — the selector returns [] here. So at the SELECTOR
+    # layer this particular case is already safe. The _payload_for_info "none" guard is
+    # still the real safety net: it catches any single format with an explicit-"none"
+    # track that reaches _payload_for_info via a different path (e.g. an extractor that
+    # set info["url"] directly), where the selector never had a chance to reject it.
+    picked = _select([{
+        "format_id": "vonly", "url": "https://x/v.mp4", "protocol": "https",
+        "vcodec": "avc1.4d401e", "acodec": "none", "ext": "mp4",
+        "height": 1080, "tbr": 3000,
+    }])
+    assert [f.get("format_id") for f in picked] == []
+
+
+def test_selector_tiebreaks_same_height_by_tbr():
+    # Two muxable progressive formats, same height, different tbr → best[] picks the
+    # higher-bitrate one.
+    picked = _select([
+        {"format_id": "lo", "url": "https://x/lo.mp4", "protocol": "https",
+         "vcodec": "avc1.4d401e", "acodec": "mp4a.40.2", "ext": "mp4",
+         "height": 720, "tbr": 1000},
+        {"format_id": "hi", "url": "https://x/hi.mp4", "protocol": "https",
+         "vcodec": "avc1.4d401e", "acodec": "mp4a.40.2", "ext": "mp4",
+         "height": 720, "tbr": 2500},
+    ])
+    assert [f.get("format_id") for f in picked] == ["hi"]
+
+
+def test_selector_tolerates_missing_height_and_tbr():
+    # A degenerate format (height None, no tbr) mixed with a valid muxable progressive:
+    # the selector must not crash and must pick the valid one.
+    picked = _select([
+        {"format_id": "junk", "url": "https://x/j.mp4", "protocol": "https",
+         "vcodec": "avc1.4d401e", "acodec": "mp4a.40.2", "ext": "mp4",
+         "height": None},
+        {"format_id": "good", "url": "https://x/g.mp4", "protocol": "https",
+         "vcodec": "avc1.4d401e", "acodec": "mp4a.40.2", "ext": "mp4",
+         "height": 1080, "tbr": 3000},
+    ])
+    assert [f.get("format_id") for f in picked] == ["good"]
+
+
 def test_progressive_payload_shape():
     info = {
         "title": "Clip", "ext": "mp4", "url": "https://x.test/v.mp4",
