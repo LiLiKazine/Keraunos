@@ -71,6 +71,11 @@ final class DownloadViewModel {   // main-actor by default (app target)
 
     func retry() async { await startDownload() }
 
+    /// Human-readable size of a finished download (e.g. "12.4 MB"), or nil if unreadable.
+    func fileSizeText(_ file: URL) -> String? {
+        store.fileSize(file).map { $0.formatted(.byteCount(style: .file)) }
+    }
+
     /// Removes a finished download from disk and refreshes the list. A failed delete is
     /// surfaced inline rather than thrown — it shouldn't tear down the screen.
     func deleteDownload(_ file: URL) {

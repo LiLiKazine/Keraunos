@@ -3,15 +3,34 @@ import Foundation
 import KeraunosCore
 
 struct DownloadStoreTests {
-    @Test func listsOnlyMP4FilesSorted() throws {
+    private func write(_ name: String, in dir: URL, modified: Date) throws -> URL {
+        let url = dir.appendingPathComponent(name)
+        try Data().write(to: url)
+        try FileManager.default.setAttributes([.modificationDate: modified], ofItemAtPath: url.path)
+        return url
+    }
+
+    @Test func listsOnlyMP4FilesNewestFirst() throws {
         let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        try Data().write(to: dir.appendingPathComponent("b.mp4"))
-        try Data().write(to: dir.appendingPathComponent("a.mp4"))
+        // Alphabetically "a" < "b", but a downloads list must surface the most recent
+        // file first regardless of name.
+        _ = try write("a.mp4", in: dir, modified: Date(timeIntervalSince1970: 100))
+        _ = try write("b.mp4", in: dir, modified: Date(timeIntervalSince1970: 200))
         try Data().write(to: dir.appendingPathComponent("notes.txt"))
 
         let names = DownloadStore(directory: dir).savedFiles().map(\.lastPathComponent)
-        #expect(names == ["a.mp4", "b.mp4"])
+        #expect(names == ["b.mp4", "a.mp4"])
+    }
+
+    @Test func reportsFileSizeAndNilForMissing() throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let file = dir.appendingPathComponent("clip.mp4")
+        try Data(count: 2048).write(to: file)
+        let store = DownloadStore(directory: dir)
+        #expect(store.fileSize(file) == 2048)
+        #expect(store.fileSize(dir.appendingPathComponent("ghost.mp4")) == nil)
     }
 
     @Test func defaultDirectoryIsDocuments() {

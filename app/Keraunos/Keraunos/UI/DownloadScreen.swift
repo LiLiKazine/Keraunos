@@ -56,8 +56,13 @@ struct DownloadScreen: View {
                         ForEach(model.savedFiles, id: \.self) { file in
                             ShareLink(item: file) {
                                 HStack {
-                                    Text(file.deletingPathExtension().lastPathComponent)
-                                        .lineLimit(1)
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text(file.deletingPathExtension().lastPathComponent)
+                                            .lineLimit(1)
+                                        if let size = model.fileSizeText(file) {
+                                            Text(size).font(.caption).foregroundStyle(.secondary)
+                                        }
+                                    }
                                     Spacer()
                                     Image(systemName: "square.and.arrow.up").foregroundStyle(.secondary)
                                 }
