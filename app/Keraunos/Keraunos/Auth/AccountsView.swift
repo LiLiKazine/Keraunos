@@ -54,7 +54,9 @@ struct AccountsView: View {
         .sheet(item: $loginTarget) { target in
             NavigationStack {
                 LoginWebView(url: target.url, dataStore: cookieStore.dataStore)
-                    .ignoresSafeArea()
+                    // Bottom-only: keep the nav bar from overlapping the page's top
+                    // content (e.g. the site's login button).
+                    .ignoresSafeArea(.container, edges: .bottom)
                     .navigationTitle(target.url.host ?? "Sign in")
                     .navigationBarTitleDisplayMode(.inline)
                     .toolbar {
