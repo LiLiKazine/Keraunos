@@ -69,6 +69,21 @@ public extension KeraunosError {
             return false
         }
     }
+
+    /// Whether we should *transparently* retry once (without surfacing) before giving up.
+    /// A STRICT SUBSET of `isRetryable`: only transient transport/cold-start faults a warm
+    /// retry clears. `.rateLimited` (re-hammering a throttled host is wrong — the message
+    /// says "wait") and `.runtime` (don't auto-loop on unknown faults) stay *manually*
+    /// retryable but are NOT auto-retryable.
+    var isAutoRetryable: Bool {
+        switch self {
+        case .extractNetwork, .timedOut, .downloadNetwork:
+            return true
+        case .rateLimited, .runtime, .unsupported, .needsFfmpeg, .requiresAuth,
+             .cancelled, .mergeFailed, .unavailable:
+            return false
+        }
+    }
 }
 
 extension KeraunosError: LocalizedError {

@@ -68,10 +68,11 @@ struct DownloadViewModelTests {
         #expect(model.currentTask == nil)     // no download started
     }
 
-    @Test(arguments: [KeraunosError.extractNetwork, .timedOut])
+    @Test(arguments: [KeraunosError.extractNetwork, .timedOut, .downloadNetwork])
     func autoRetriesOnceOnTransientColdStart(_ first: KeraunosError) async {
-        // YouTube cold-start surfaces as either extract_network or a watchdog timeout
-        // (the EJS-in-JSC solve is heavy on the first run); the warm retry succeeds.
+        // Transient transport faults — a YouTube cold-start surfacing as extract_network
+        // or a watchdog timeout (the EJS-in-JSC solve is heavy on the first run), or a
+        // mid-transfer download blip — clear on a warm retry, which succeeds.
         let extractor = SequenceExtractor(results: [
             .failure(first),
             .success(progressive("clip.mp4")),
@@ -100,6 +101,25 @@ struct DownloadViewModelTests {
         await model.startDownload()
         #expect(model.errorMessage == KeraunosError.unsupported.errorDescription)
         #expect(model.lastSavedName == nil)
+    }
+
+    @Test func doesNotAutoRetryRateLimited() async {
+        // A rate-limit means "wait" — re-hammering immediately is exactly wrong, so it
+        // must surface at once. The queued success is left UNCONSUMED, proving no auto-
+        // retry fired; manual retry is still offered.
+        let extractor = SequenceExtractor(results: [
+            .failure(.rateLimited),
+            .success(progressive("clip.mp4")),
+        ])
+        let model = DownloadViewModel(
+            extractor: extractor,
+            assembler: MediaAssembler(downloader: SpyDownloader(), merger: MockMerger()),
+            store: DownloadStore(directory: tempDir()))
+        model.urlText = "https://x.test/post/1"
+        await model.startDownload()
+        #expect(model.errorMessage == KeraunosError.rateLimited.errorDescription)
+        #expect(model.lastSavedName == nil)   // success not consumed → no auto-retry
+        #expect(model.canRetry == true)
     }
 
     @Test func transientFailureOffersRetryButNotSignIn() async {

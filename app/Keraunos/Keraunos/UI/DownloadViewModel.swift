@@ -72,12 +72,14 @@ final class DownloadViewModel {   // main-actor by default (app target)
             // User tapped Cancel — leave the screen clean, surface nothing.
         } catch let error as KeraunosError {
             guard error != .cancelled else { return }   // also a user-initiated cancel
-            // One transparent retry for a transient cold-start failure: YouTube's first
-            // run mints a PoT and solves n/sig by running yt-dlp's EJS bundle in
-            // JavaScriptCore — heavy enough to occasionally exceed the watchdog (timeout)
-            // or blip the network. The warm retry runs against cached player/nsig and a
-            // minted token, so it's fast. Done before surfacing/logging, so it's invisible.
-            if (error == .extractNetwork || error == .timedOut), !isAutoRetry {
+            // One transparent retry for a transient transport fault. Two shapes hit this:
+            // a YouTube cold-start (the first run mints a PoT and solves n/sig by running
+            // yt-dlp's EJS bundle in JavaScriptCore — heavy enough to occasionally exceed
+            // the watchdog or blip the network), and a mid-transfer download-side blip.
+            // The warm retry runs against cached player/nsig and a minted token, so it's
+            // fast. Done before surfacing/logging, so it's invisible. `isAutoRetryable` is
+            // the single source of truth (a strict subset of `isRetryable`).
+            if error.isAutoRetryable, !isAutoRetry {
                 statusText = "Retrying…"
                 await startDownload(isAutoRetry: true)
                 return

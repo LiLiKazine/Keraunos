@@ -48,6 +48,29 @@ struct KeraunosErrorTests {
         }
     }
 
+    @Test func autoRetryableSetIsTheTransientTransportKinds() {
+        // Only transient transport/cold-start faults a warm retry clears.
+        for error in [KeraunosError.extractNetwork, .timedOut, .downloadNetwork] {
+            #expect(error.isAutoRetryable, "\(error) should be auto-retryable")
+        }
+        for error in [KeraunosError.rateLimited, .runtime(detail: "x"), .unsupported,
+                      .needsFfmpeg, .requiresAuth, .cancelled, .mergeFailed, .unavailable] {
+            #expect(!error.isAutoRetryable, "\(error) should not be auto-retryable")
+        }
+    }
+
+    @Test func autoRetryableIsSubsetOfRetryable() {
+        // Every auto-retryable kind is also manually retryable (the invariant).
+        for error in [KeraunosError.extractNetwork, .timedOut, .downloadNetwork] {
+            #expect(error.isRetryable, "\(error) auto-retryable kinds must also be retryable")
+        }
+        // ...but rateLimited/runtime are manually retryable WITHOUT being auto-retried.
+        #expect(KeraunosError.rateLimited.isRetryable == true)
+        #expect(KeraunosError.rateLimited.isAutoRetryable == false)
+        #expect(KeraunosError.runtime(detail: "x").isRetryable == true)
+        #expect(KeraunosError.runtime(detail: "x").isAutoRetryable == false)
+    }
+
     @Test func deterministicAndUserDrivenFailuresAreNotRetryable() {
         // Re-running won't change an unsupported site, a missing-ffmpeg need, a failed
         // mux, a user cancel, or an auth wall (that one is handled by the sign-in flow).
