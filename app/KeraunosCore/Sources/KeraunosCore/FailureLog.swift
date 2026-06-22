@@ -40,7 +40,23 @@ public struct FailureLog: Sendable {
         // Tabs separate fields, so flatten any newlines/tabs in free-text detail.
         let flatDetail = detail.replacingOccurrences(of: "\n", with: " ")
                                .replacingOccurrences(of: "\t", with: " ")
-        return [ISO8601DateFormatter().string(from: date), kind, url, flatDetail]
+        // Redact secret-bearing query-param values so exported diagnostics never leak
+        // signed-URL credentials (both the page URL and yt-dlp's error detail can embed them).
+        return [ISO8601DateFormatter().string(from: date), kind, redact(url), redact(flatDetail)]
             .joined(separator: "\t")
     }
+
+    /// Masks the VALUE of any credential-bearing query parameter, anywhere in `text`
+    /// (works on a bare URL or on free text that embeds one). The param name must sit at
+    /// a boundary (`?`, `&`, `;`, or whitespace) so `monkey=`/`lowkey=` aren't read as `key=`.
+    /// Longer names precede their prefixes in the alternation so the regex prefers the
+    /// longer match (e.g. `signature` over `sig`, `key-pair-id`/`keyid` over `key`).
+    static func redact(_ text: String) -> String {
+        let range = NSRange(text.startIndex..<text.endIndex, in: text)
+        return Self.secretParamRegex.stringByReplacingMatches(
+            in: text, range: range, withTemplate: "$1REDACTED")
+    }
+
+    private static let secretParamRegex = try! NSRegularExpression(
+        pattern: "(?i)([?&;\\s](?:x-amz-signature|x-amz-credential|x-amz-security-token|access_token|key-pair-id|authorization|signature|password|passwd|secret|policy|token|keyid|hmac|sig|key|pwd|auth|pot)=)([^&\\s]*)")
 }

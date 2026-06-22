@@ -44,6 +44,48 @@ struct FailureLogTests {
         #expect(log.contents().isEmpty)
     }
 
+    @Test func redactsSignedMediaURLParamsInDetail() {
+        let detail = "HTTP 403 (https://r.googlevideo.com/videoplayback?id=abc&sig=SECRET123&pot=TOKEN)"
+        let out = FailureLog.redact(detail)
+        #expect(out.contains("sig=REDACTED"))
+        #expect(out.contains("pot=REDACTED"))
+        #expect(out.contains("id=abc"))
+        #expect(!out.contains("SECRET123"))
+        #expect(!out.contains("TOKEN"))
+    }
+
+    @Test func redactsCloudFrontAndAwsParams() {
+        let cf = FailureLog.redact("?Policy=P1&Signature=S1&Key-Pair-Id=K1")
+        #expect(cf.contains("Policy=REDACTED"))
+        #expect(cf.contains("Signature=REDACTED"))
+        #expect(cf.contains("Key-Pair-Id=REDACTED"))
+        #expect(!cf.contains("P1") && !cf.contains("S1") && !cf.contains("K1"))
+
+        let aws = FailureLog.redact("?X-Amz-Signature=AAA&X-Amz-Credential=BBB")
+        #expect(aws.contains("X-Amz-Signature=REDACTED"))
+        #expect(aws.contains("X-Amz-Credential=REDACTED"))
+        #expect(!aws.contains("AAA") && !aws.contains("BBB"))
+    }
+
+    @Test func doesNotRedactNonSecretParams() {
+        let url = "https://www.youtube.com/watch?v=abc123&t=42&list=PL1"
+        #expect(FailureLog.redact(url) == url)
+    }
+
+    @Test func doesNotMatchParamNameSubstrings() {
+        let s = "?monkey=ok&lowkey=ok"
+        #expect(FailureLog.redact(s) == s)
+    }
+
+    @Test func recordedLineIsRedacted() {
+        let log = FailureLog(directory: tempDir())
+        log.record(url: "https://x.test/v", errorKind: "download_network",
+                   detail: "... &sig=LEAK ...", date: Date(timeIntervalSince1970: 1))
+        let contents = log.contents()
+        #expect(contents.contains("REDACTED"))
+        #expect(!contents.contains("LEAK"))
+    }
+
     @Test func appendsEntriesAndStartsEmpty() {
         let log = FailureLog(directory: tempDir())
         #expect(log.hasEntries == false)
