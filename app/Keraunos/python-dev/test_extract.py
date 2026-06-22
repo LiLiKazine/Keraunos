@@ -251,3 +251,29 @@ def test_po_token_error_maps_to_requires_auth(monkeypatch):
     out = json.loads(keraunos_extract.extract("https://www.youtube.com/watch?v=abc123"))
     assert out["ok"] is False
     assert out["error_kind"] == "requires_auth"
+
+
+def test_instagram_login_required_maps_to_requires_auth(monkeypatch):
+    # Phase 2: confirm the cookie path's trigger fires for Instagram. The IG extractor
+    # signals "log in" via raise_login_required(), which appends yt-dlp's _login_hint
+    # ("Use --cookies ... how to manually pass cookies"). extract() must map that to
+    # requires_auth so the UI surfaces the "Sign in" button (which drives LoginWebView
+    # -> cookie capture -> cookiefile). This is the one fragile link in the otherwise
+    # already-wired flow, so it gets a regression guard. The string below is exactly
+    # what raise_login_required('Requested content ... login required') produces.
+    from yt_dlp.utils import DownloadError
+    ig_message = (
+        "Requested content is not available, rate-limit reached or login required. "
+        "Use --cookies, --cookies-from-browser, --username and --password, --netrc-cmd, "
+        "or --netrc (instagram) to provide account credentials. See  "
+        "https://github.com/yt-dlp/yt-dlp/wiki/FAQ#how-do-i-pass-cookies-to-yt-dlp  "
+        "for how to manually pass cookies"
+    )
+    monkeypatch.setattr(
+        keraunos_extract.yt_dlp.YoutubeDL,
+        "extract_info",
+        lambda *a, **kw: (_ for _ in ()).throw(DownloadError(ig_message)),
+    )
+    out = json.loads(keraunos_extract.extract("https://www.instagram.com/reel/ABC123/"))
+    assert out["ok"] is False
+    assert out["error_kind"] == "requires_auth"
