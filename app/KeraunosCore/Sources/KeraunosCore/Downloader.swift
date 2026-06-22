@@ -32,6 +32,10 @@ public struct Downloader: FileDownloading {
             guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
                 throw KeraunosError.downloadNetwork
             }
+            // A real media file is never 0 bytes; an empty/truncated body is a failed
+            // transfer, not a download — reject it (retryable) rather than save a dud.
+            let size = (try? tempURL.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0
+            guard size > 0 else { throw KeraunosError.downloadNetwork }
             try? FileManager.default.removeItem(at: destination)
             try FileManager.default.moveItem(at: tempURL, to: destination)
         } catch let error as KeraunosError {

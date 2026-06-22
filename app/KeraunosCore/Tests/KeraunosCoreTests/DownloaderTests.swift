@@ -32,6 +32,19 @@ struct DownloaderTests {
         }
     }
 
+    @Test func rejectsEmptyBodyInsteadOfSavingAZeroByteDud() async throws {
+        // A 200 with no body would otherwise persist an unplayable 0-byte .mp4 and
+        // report success; treat it as a (retryable) network failure and leave no file.
+        StubURLProtocol.handler = { req in
+            (HTTPURLResponse(url: req.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!, Data())
+        }
+        let dest = tempFile("clip.mp4")
+        await #expect(throws: KeraunosError.downloadNetwork) {
+            try await Downloader(session: StubURLProtocol.session()).download(track(), to: dest)
+        }
+        #expect(!FileManager.default.fileExists(atPath: dest.path))
+    }
+
     @Test func mapsCancellationToCancelled() async throws {
         StubURLProtocol.handler = { _ in throw URLError(.cancelled) }
         await #expect(throws: KeraunosError.cancelled) {
