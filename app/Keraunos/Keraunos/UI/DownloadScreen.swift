@@ -1,8 +1,10 @@
 import SwiftUI
+import QuickLook   // provides the .quickLookPreview(_:) view modifier
 
 struct DownloadScreen: View {
     @State private var model: DownloadViewModel
     @State private var showLogin = false
+    @State private var previewURL: URL?
     let cookieStore: CookieStore
 
     init(model: DownloadViewModel, cookieStore: CookieStore) {
@@ -54,7 +56,9 @@ struct DownloadScreen: View {
                         Text("No downloads yet.").foregroundStyle(.secondary)
                     } else {
                         ForEach(model.savedFiles, id: \.self) { file in
-                            ShareLink(item: file) {
+                            Button {
+                                previewURL = file   // tap to play/preview in-app
+                            } label: {
                                 HStack {
                                     VStack(alignment: .leading, spacing: 2) {
                                         Text(file.deletingPathExtension().lastPathComponent)
@@ -64,21 +68,28 @@ struct DownloadScreen: View {
                                         }
                                     }
                                     Spacer()
-                                    Image(systemName: "square.and.arrow.up").foregroundStyle(.secondary)
+                                    Image(systemName: "play.circle").foregroundStyle(.secondary)
                                 }
+                                .contentShape(Rectangle())
                             }
+                            .buttonStyle(.plain)
                             .swipeActions(edge: .trailing) {
                                 Button(role: .destructive) {
                                     model.deleteDownload(file)
                                 } label: {
                                     Label("Delete", systemImage: "trash")
                                 }
+                                ShareLink(item: file) {
+                                    Label("Share", systemImage: "square.and.arrow.up")
+                                }
+                                .tint(.blue)
                             }
                         }
                     }
                 }
             }
             .navigationTitle("Keraunos")
+            .quickLookPreview($previewURL)
             .sheet(isPresented: $showLogin) {
                 NavigationStack {
                     if let url = model.signInURL {
