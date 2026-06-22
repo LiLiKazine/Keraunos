@@ -12,16 +12,27 @@ import threading
 import yt_dlp
 from yt_dlp.utils import DownloadError, ExtractorError, UnsupportedError
 
-# Prefer a progressive muxed http file with known muxable codecs; else best HEVC
-# then H.264 video-only + best AAC audio-only (all AVFoundation-muxable, no
-# VP9/AV1/Opus); else any progressive http mp4. The trailing branch keeps M1's
-# behavior for already-muxed direct-file URLs, whose codecs yt-dlp can't probe
-# under skip_download (vcodec/acodec come back None) — they're a single playable
-# file we just download, never merge. HLS stays excluded via protocol^=http.
+# Codec families AVFoundation can mux into an mp4 that Photos plays: H.264 / HEVC
+# video + AAC audio. Match BOTH the fourcc forms (avc1/avc3/hvc1/hev1/mp4a) and the
+# bare names some extractors emit — RedNote (xiaohongshu.py) labels its progressive
+# stream h264/aac, and Reddit's complete fallback video is bare h264. The fourcc-only
+# regex silently dropped both to needs_ffmpeg. VP9/AV1/Opus are deliberately NOT here:
+# they aren't AVFoundation-muxable, so they stay on the Phase 4 (libav) path.
+_VCODEC_MUXABLE = "vcodec~='^(avc1|avc3|avc|h264|hvc1|hev1|hevc|h265)'"
+_VCODEC_HEVC = "vcodec~='^(hvc1|hev1|hevc|h265)'"
+_VCODEC_H264 = "vcodec~='^(avc1|avc3|avc|h264)'"
+_ACODEC_AAC = "acodec~='^(mp4a|aac)'"
+
+# Prefer a progressive muxed http file with muxable codecs; else best HEVC then H.264
+# video-only + best AAC audio-only (all AVFoundation-muxable, no VP9/AV1/Opus); else
+# any progressive http mp4. The trailing branch keeps M1's behavior for already-muxed
+# direct-file URLs, whose codecs yt-dlp can't probe under skip_download (vcodec/acodec
+# come back None) — a single playable file we just download, never merge. HLS stays
+# excluded via protocol^=http.
 _FORMAT = (
-    "best[protocol^=http][vcodec~='^(avc1|hvc1|hev1)'][acodec^=mp4a]/"
-    "bestvideo[protocol^=http][vcodec~='^(hvc1|hev1)']+bestaudio[acodec^=mp4a]/"
-    "bestvideo[protocol^=http][vcodec^=avc1]+bestaudio[acodec^=mp4a]/"
+    f"best[protocol^=http][{_VCODEC_MUXABLE}][{_ACODEC_AAC}]/"
+    f"bestvideo[protocol^=http][{_VCODEC_HEVC}]+bestaudio[protocol^=http][{_ACODEC_AAC}]/"
+    f"bestvideo[protocol^=http][{_VCODEC_H264}]+bestaudio[protocol^=http][{_ACODEC_AAC}]/"
     "best[protocol^=http][ext=mp4]"
 )
 

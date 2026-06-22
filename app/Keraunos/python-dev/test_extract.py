@@ -8,8 +8,88 @@ import functools
 from pathlib import Path
 
 APP = Path(__file__).resolve().parents[1] / "PythonResources" / "app"
+APP_PACKAGES = Path(__file__).resolve().parents[1] / "PythonResources" / "app_packages"
 sys.path.insert(0, str(APP))
+sys.path.insert(0, str(APP_PACKAGES))
 import keraunos_extract  # noqa: E402
+from yt_dlp import YoutubeDL  # noqa: E402
+
+
+def _select(formats):
+    """Run the production _FORMAT selector over raw format dicts (no network) and
+    return the list of selected top-level formats. Mirrors how yt-dlp picks formats
+    inside extract(); lets us unit-test the selector against site-shaped fixtures."""
+    ydl = YoutubeDL({"quiet": True, "simulate": True, "no_warnings": True})
+    selector = ydl.build_format_selector(keraunos_extract._FORMAT)
+    return list(selector({"formats": formats, "incomplete_formats": {}}))
+
+
+# --- Format-selector: bare-codec admission (Phase 1) -----------------------------
+# RedNote (xiaohongshu.py) and Reddit (reddit.py) label their clean, AVFoundation-
+# muxable H.264/AAC streams with BARE codec names (h264 / aac) rather than the
+# fourcc forms (avc1 / mp4a). The original selector matched only the fourcc forms,
+# so these progressive/pairable streams were silently dropped to needs_ffmpeg.
+
+def test_selector_admits_bare_codec_progressive_without_ext():
+    # RedNote: progressive muxed file, bare h264/aac, URL carries no extension so
+    # the trailing best[ext=mp4] fallback can't rescue it — only codec admission can.
+    picked = _select([{
+        "format_id": "xhs", "url": "https://sns-video.xhscdn.com/abc", "protocol": "https",
+        "vcodec": "h264", "acodec": "aac", "width": 1280, "height": 720, "tbr": 1500,
+    }])
+    assert [f.get("format_id") for f in picked] == ["xhs"]
+    # Single progressive file: no separate video+audio request.
+    assert "requested_formats" not in picked[0]
+
+
+def test_selector_pairs_reddit_videoonly_h264_with_aac_audio():
+    # Reddit fallback_url is a complete video-only H.264 mp4 (acodec none); audio is
+    # a separate complete AAC stream. The selector must pair them as bestvideo+bestaudio.
+    picked = _select([
+        {"format_id": "fallback", "url": "https://v.redd.it/x/DASH_720.mp4",
+         "protocol": "https", "vcodec": "h264", "acodec": "none", "ext": "mp4",
+         "width": 1280, "height": 720, "tbr": 1500},
+        {"format_id": "dash-audio", "url": "https://v.redd.it/x/DASH_AUDIO_128.mp4",
+         "protocol": "https", "vcodec": "none", "acodec": "aac", "ext": "m4a", "tbr": 128},
+    ])
+    assert len(picked) == 1
+    reqs = picked[0].get("requested_formats")
+    assert reqs is not None and len(reqs) == 2
+    assert {f["format_id"] for f in reqs} == {"fallback", "dash-audio"}
+
+
+def test_selector_admits_bare_hevc():
+    # HEVC labelled bare (hevc / h265) must also pass — same Photos-muxable family.
+    picked = _select([{
+        "format_id": "hevc-prog", "url": "https://x/v.mp4", "protocol": "https",
+        "vcodec": "hevc", "acodec": "aac", "ext": "mp4", "height": 1080, "tbr": 4000,
+    }])
+    assert [f.get("format_id") for f in picked] == ["hevc-prog"]
+
+
+def test_selector_still_picks_fourcc_progressive():
+    # Regression guard: the fourcc forms that already worked must keep working.
+    picked = _select([{
+        "format_id": "yt", "url": "https://x/v.mp4", "protocol": "https",
+        "vcodec": "avc1.4d401e", "acodec": "mp4a.40.2", "ext": "mp4",
+        "height": 1080, "tbr": 3000,
+    }])
+    assert [f.get("format_id") for f in picked] == ["yt"]
+
+
+def test_selector_rejects_av1_vp9_opus():
+    # Photos-playability guarantee: VP9/AV1 video and Opus audio are NOT AVFoundation-
+    # muxable, so the default selector must still reject them (they go to Phase 4/libav,
+    # not the AVFoundation path). Video-only/audio-only means best[ext=mp4] can't grab them.
+    picked = _select([
+        {"format_id": "av1", "url": "https://x/v.mp4", "protocol": "https",
+         "vcodec": "av01.0.08M.08", "acodec": "none", "ext": "mp4", "height": 2160, "tbr": 12000},
+        {"format_id": "vp9", "url": "https://x/v.webm", "protocol": "https",
+         "vcodec": "vp9", "acodec": "none", "ext": "webm", "height": 2160, "tbr": 11000},
+        {"format_id": "opus", "url": "https://x/a.webm", "protocol": "https",
+         "vcodec": "none", "acodec": "opus", "ext": "webm", "tbr": 160},
+    ])
+    assert picked == []
 
 
 def _serve(directory, ready):
