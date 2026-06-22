@@ -119,4 +119,44 @@ struct DownloadStoreTests {
         // truth and a stale row should clear cleanly rather than surface an error.
         try DownloadStore(directory: dir).delete(dir.appendingPathComponent("ghost.mp4"))
     }
+
+    // MARK: - Extension allow-set tests
+
+    @Test func listsNonMp4VideoExtensions() throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        // Progressive downloads keep yt-dlp's source extension, which may not be mp4.
+        // The planned libav path emits .mkv. All five must appear in the list.
+        _ = try write("a.mp4",  in: dir, modified: Date(timeIntervalSince1970: 1))
+        _ = try write("b.mov",  in: dir, modified: Date(timeIntervalSince1970: 2))
+        _ = try write("c.m4v",  in: dir, modified: Date(timeIntervalSince1970: 3))
+        _ = try write("d.mkv",  in: dir, modified: Date(timeIntervalSince1970: 4))
+        _ = try write("e.webm", in: dir, modified: Date(timeIntervalSince1970: 5))
+
+        let names = Set(DownloadStore(directory: dir).savedFiles().map(\.lastPathComponent))
+        #expect(names == ["a.mp4", "b.mov", "c.m4v", "d.mkv", "e.webm"])
+    }
+
+    @Test func excludesNonVideoSidecarFiles() throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        // Non-video sidecar files (logs, cookies, text) must never appear in the list.
+        _ = try write("clip.mp4",      in: dir, modified: Date(timeIntervalSince1970: 1))
+        _ = try write("failures.log",  in: dir, modified: Date(timeIntervalSince1970: 2))
+        _ = try write("cookies.txt",   in: dir, modified: Date(timeIntervalSince1970: 3))
+        _ = try write("notes.txt",     in: dir, modified: Date(timeIntervalSince1970: 4))
+
+        let names = DownloadStore(directory: dir).savedFiles().map(\.lastPathComponent)
+        #expect(names == ["clip.mp4"])
+    }
+
+    @Test func extensionMatchIsCaseInsensitive() throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        _ = try write("CLIP.MP4", in: dir, modified: Date(timeIntervalSince1970: 2))
+        _ = try write("clip.MOV", in: dir, modified: Date(timeIntervalSince1970: 1))
+
+        let names = Set(DownloadStore(directory: dir).savedFiles().map(\.lastPathComponent))
+        #expect(names == ["CLIP.MP4", "clip.MOV"])
+    }
 }

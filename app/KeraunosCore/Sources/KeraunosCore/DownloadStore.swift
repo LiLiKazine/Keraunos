@@ -9,11 +9,16 @@ public struct DownloadStore {
             ?? FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
     }
 
+    // Progressive downloads keep yt-dlp's source extension (not always mp4); the planned
+    // libav merge path emits .mkv. Non-video sidecars (failures.log, cookies.txt) are
+    // excluded by virtue of not appearing in this set — do not widen it to a deny-list.
+    static let listedExtensions: Set<String> = ["mp4", "m4v", "mov", "mkv", "webm"]
+
     public func savedFiles() -> [URL] {
         let contents = (try? FileManager.default.contentsOfDirectory(
             at: directory, includingPropertiesForKeys: [.contentModificationDateKey])) ?? []
         return contents
-            .filter { $0.pathExtension.lowercased() == "mp4" }
+            .filter { Self.listedExtensions.contains($0.pathExtension.lowercased()) }
             // Newest first — the file just downloaded belongs at the top of the list.
             .sorted { Self.modifiedAt($0) > Self.modifiedAt($1) }
     }
