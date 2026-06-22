@@ -12,12 +12,16 @@ public enum URLNormalizer {
         // user doesn't have to type it; anything with an explicit scheme is left as-is.
         let candidate = hasScheme(trimmed) ? trimmed : "https://\(trimmed)"
 
-        guard let components = URLComponents(string: candidate),
+        guard var components = URLComponents(string: candidate),
               let scheme = components.scheme?.lowercased(), scheme == "http" || scheme == "https",
-              let host = components.host, host.contains("."),   // reject "hello" / "not a url"
-              let url = components.url
+              let host = components.host, host.contains(".")   // reject "hello" / "not a url"
         else { return nil }
-        return url
+        // RFC 3986 §3.1/§3.2.2: scheme and host are case-insensitive, so normalise them
+        // to lowercase for stable `url.scheme == "https"` / host comparisons and display.
+        // Path, query, and fragment are case-sensitive and are left untouched.
+        components.scheme = scheme
+        components.host = host.lowercased()
+        return components.url
     }
 
     private static func hasScheme(_ s: String) -> Bool {

@@ -42,4 +42,20 @@ struct URLNormalizerTests {
         #expect(URLNormalizer.normalize("javascript:alert(1)") == nil)
         #expect(URLNormalizer.normalize("file:///etc/passwd") == nil)
     }
+
+    @Test func lowercasesScheme() {
+        // RFC 3986 §3.1: scheme is case-insensitive; normalise to lowercase so that
+        // downstream `url.scheme == "https"` comparisons are always stable.
+        let url = URLNormalizer.normalize("HTTPS://youtube.com/v")
+        #expect(url?.scheme == "https")
+        #expect(url?.absoluteString.hasPrefix("https://") == true)
+    }
+
+    @Test func lowercasesHostButPreservesPathAndQueryCase() {
+        // RFC 3986 §3.2.2: host is case-insensitive; path and query are not.
+        let url = URLNormalizer.normalize("https://WWW.YouTube.com/Watch?V=AbC")
+        #expect(url?.host == "www.youtube.com")
+        #expect(url?.absoluteString.contains("/Watch") == true)
+        #expect(url?.absoluteString.contains("V=AbC") == true)
+    }
 }
