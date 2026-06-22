@@ -69,6 +69,26 @@ struct DownloadViewModelTests {
         #expect(model.errorMessage == KeraunosError.requiresAuth.errorDescription)
     }
 
+    @Test func cancelStopsInFlightDownloadWithoutSurfacingAnError() async {
+        let extractor = HangingExtractor()
+        let model = vm(extractor: extractor, merger: MockMerger(), dir: tempDir())
+        model.urlText = "https://x.test/post/1"
+        model.start()
+
+        // Block until resolve() is actually running, so the cancel is genuinely
+        // in-flight rather than racing the task's start (deterministic, no sleeps).
+        var resolving = extractor.resolving.makeAsyncIterator()
+        _ = await resolving.next()
+        #expect(model.isWorking == true)
+
+        model.cancel()
+        await model.currentTask?.value   // let the cancellation unwind
+
+        #expect(model.isWorking == false)
+        #expect(model.errorMessage == nil)   // a user-initiated cancel is not an error
+        #expect(model.lastSavedName == nil)
+    }
+
     @Test func retryAfterLoginSucceedsAndClearsSignIn() async {
         let dir = tempDir()
         let extractor = SequenceExtractor(results: [
@@ -95,6 +115,23 @@ final class SequenceExtractor: MediaExtracting, @unchecked Sendable {
     init(results: [Result<ResolvedMedia, KeraunosError>]) { self.results = results }
     func resolve(_ url: URL) async throws -> ResolvedMedia {
         try (results.isEmpty ? .failure(.runtime(detail: "no more results")) : results.removeFirst()).get()
+    }
+}
+
+/// Suspends inside resolve() until the task is cancelled, signalling when it has
+/// actually entered resolve() so a test can cancel a genuinely in-flight download.
+final class HangingExtractor: MediaExtracting, @unchecked Sendable {
+    let resolving: AsyncStream<Void>
+    private let entered: AsyncStream<Void>.Continuation
+    init() {
+        var continuation: AsyncStream<Void>.Continuation!
+        resolving = AsyncStream { continuation = $0 }
+        entered = continuation
+    }
+    func resolve(_ url: URL) async throws -> ResolvedMedia {
+        entered.yield(())
+        try await Task.sleep(for: .seconds(60))   // cancellation throws CancellationError here
+        throw KeraunosError.runtime(detail: "should have been cancelled")
     }
 }
 

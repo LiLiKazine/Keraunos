@@ -13,6 +13,9 @@ final class DownloadViewModel {   // main-actor by default (app target)
     private(set) var lastSavedName: String?
     private(set) var savedFiles: [URL] = []
 
+    /// The in-flight download task, retained so the UI can cancel it. Readable in tests.
+    private(set) var currentTask: Task<Void, Never>?
+
     private let extractor: any MediaExtracting
     private let assembler: MediaAssembler
     private let store: DownloadStore
@@ -42,7 +45,10 @@ final class DownloadViewModel {   // main-actor by default (app target)
             }
             lastSavedName = saved.lastPathComponent
             savedFiles = store.savedFiles()
+        } catch is CancellationError {
+            // User tapped Cancel — leave the screen clean, surface nothing.
         } catch let error as KeraunosError {
+            guard error != .cancelled else { return }   // also a user-initiated cancel
             errorMessage = error.errorDescription
             if error == .requiresAuth {
                 requiresSignIn = true
@@ -52,6 +58,16 @@ final class DownloadViewModel {   // main-actor by default (app target)
             errorMessage = KeraunosError.runtime(detail: error.localizedDescription).errorDescription
         }
     }
+
+    /// Starts a download as a cancellable task (the UI entry point). Any prior task is
+    /// cancelled first so a re-tap can't run two downloads at once.
+    func start() {
+        currentTask?.cancel()
+        currentTask = Task { await startDownload() }
+    }
+
+    /// Cancels the in-flight download; `startDownload`'s catch treats it as non-error.
+    func cancel() { currentTask?.cancel() }
 
     func retry() async { await startDownload() }
 

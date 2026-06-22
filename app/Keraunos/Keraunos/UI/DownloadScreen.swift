@@ -27,16 +27,17 @@ struct DownloadScreen: View {
                         .labelStyle(.iconOnly)
                         .buttonBorderShape(.capsule)
                     }
-                    Button {
-                        Task { await model.startDownload() }
-                    } label: {
-                        if model.isWorking {
-                            HStack { ProgressView(); Text(model.statusText ?? "Working…") }
-                        } else {
-                            Text("Download")
+                    if model.isWorking {
+                        HStack {
+                            ProgressView()
+                            Text(model.statusText ?? "Working…")
+                            Spacer()
+                            Button("Cancel", role: .cancel) { model.cancel() }
                         }
+                    } else {
+                        Button("Download") { model.start() }
+                            .disabled(model.urlText.isEmpty)
                     }
-                    .disabled(model.isWorking || model.urlText.isEmpty)
                 }
 
                 if let error = model.errorMessage {
