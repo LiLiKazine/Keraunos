@@ -1,0 +1,26 @@
+# Manual test sources (7-site measurement)
+
+> **Manual QA only — not wired into the automated suite.** Per `CLAUDE.md`, the
+> `Downloader`/`Extractor` tests run against **localhost**, never real sites (flakiness
+> + ToS). This is the hand-run checklist for the coverage roadmap's **Phase 3**
+> ("run the 7 URLs by hand, keep a local failure log"). Paste each through an on-device
+> build and record the `error_kind` (from the in-app **Share failure log**) + whether a
+> playable file landed.
+
+| Site | URL | Last result | Notes |
+|------|-----|-------------|-------|
+| Twitter / X | `https://x.com/AnatoliKopadze/status/2068750209652560159/video/1?s=46` | ⚠️ `extract_network` | SSL `UNEXPECTED_EOF_WHILE_READING` fetching X JSON — transient/X-side reset; retry, or sign in to x.com. Progressive ≤720p path otherwise. |
+| YouTube | _(add a known >1080p and a ≤1080p URL)_ | — | ≤1080p H.264/AAC expected to work; >1080p gated on the SABR spike. |
+| Reddit | _(add a v.redd.it post)_ | — | Phase 1 fix (bare `h264` + audio pairing) — verify live. |
+| Bilibili | _(add a video URL)_ | — | H.264/HEVC `dash` should work post Phase 1; AV1 needs Phase 4. |
+| RedNote (Xiaohongshu) | _(add a note URL)_ | — | Phase 1 fix (bare `h264`/`aac`, no-ext URL) — verify live. |
+| Instagram | _(add a reel/post URL)_ | — | Gated; sign in via the in-app web view (Phase 2 confirmed wired). |
+| TikTok / Douyin | _(add a video URL)_ | — | Progressive H.264/AAC — expected to work today. |
+
+## How to record a result
+1. Paste the URL, attempt the download on-device.
+2. On failure, open **Diagnostics → Share failure log** and read the `error_kind`
+   (`extract_network`, `download_network`, `requires_auth`, `needs_ffmpeg`,
+   `unsupported`, `timeout`, `runtime`).
+3. Note here whether a playable `.mp4` landed. That row-by-row result is the Phase 3
+   measurement that, together with the Phase 3.5 SABR spike, decides Phase 4 scope.
