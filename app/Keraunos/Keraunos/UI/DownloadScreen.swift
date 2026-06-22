@@ -28,6 +28,7 @@ struct DownloadScreen: View {
                         }
                         .labelStyle(.iconOnly)
                         .buttonBorderShape(.capsule)
+                        .accessibilityLabel("Paste link")   // icon-only: announce its purpose
                     }
                     if model.isWorking {
                         VStack(alignment: .leading, spacing: 8) {
@@ -38,6 +39,7 @@ struct DownloadScreen: View {
                             }
                             if let progress = model.downloadProgress {
                                 ProgressView(value: progress)
+                                    .accessibilityLabel("Download progress")
                             } else {
                                 ProgressView()
                             }
@@ -77,10 +79,12 @@ struct DownloadScreen: View {
                                     }
                                     Spacer()
                                     Image(systemName: "play.circle").foregroundStyle(.secondary)
+                                        .accessibilityHidden(true)   // decorative; row reads the title
                                 }
                                 .contentShape(Rectangle())
                             }
                             .buttonStyle(.plain)
+                            .accessibilityHint("Plays this download")
                             .swipeActions(edge: .trailing) {
                                 Button(role: .destructive) {
                                     model.deleteDownload(file)
