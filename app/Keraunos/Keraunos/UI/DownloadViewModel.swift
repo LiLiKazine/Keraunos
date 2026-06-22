@@ -102,6 +102,14 @@ final class DownloadViewModel {   // main-actor by default (app target)
 
     func retry() async { await startDownload() }
 
+    /// Handles a URL the app was opened with (deep link / share / Shortcut): if it
+    /// resolves to a media link, fill the field and start downloading; ignore otherwise.
+    func openIncoming(_ url: URL) {
+        guard let target = IncomingURL.target(from: url) else { return }
+        urlText = target.absoluteString
+        start()
+    }
+
     /// Human-readable size of a finished download (e.g. "12.4 MB"), or nil if unreadable.
     func fileSizeText(_ file: URL) -> String? {
         store.fileSize(file).map { $0.formatted(.byteCount(style: .file)) }

@@ -52,6 +52,22 @@ struct DownloadViewModelTests {
         #expect(model.errorMessage == KeraunosError.needsFfmpeg.errorDescription)
     }
 
+    @Test func openIncomingDeepLinkFillsFieldAndDownloads() async {
+        let model = vm(extractor: MockExtractor(result: .success(progressive("clip.mp4"))),
+                       merger: MockMerger(), dir: tempDir())
+        model.openIncoming(URL(string: "keraunos://download?url=https://x.test/v")!)
+        await model.currentTask?.value
+        #expect(model.urlText == "https://x.test/v")
+        #expect(model.lastSavedName == "clip.mp4")
+    }
+
+    @Test func openIncomingIgnoresUnsupportedURL() async {
+        let model = vm(extractor: MockExtractor(), merger: MockMerger(), dir: tempDir())
+        model.openIncoming(URL(string: "ftp://x.test/v")!)
+        #expect(model.urlText == "")          // untouched
+        #expect(model.currentTask == nil)     // no download started
+    }
+
     @Test func transientFailureOffersRetryButNotSignIn() async {
         let model = vm(extractor: MockExtractor(result: .failure(.downloadNetwork)),
                        merger: MockMerger(), dir: tempDir())

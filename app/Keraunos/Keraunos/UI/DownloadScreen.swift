@@ -107,6 +107,7 @@ struct DownloadScreen: View {
                 }
             }
             .navigationTitle("Keraunos")
+            .onOpenURL { model.openIncoming($0) }   // deep link / share / Shortcut entry
             .quickLookPreview($previewURL)
             .sheet(isPresented: $showLogin) {
                 NavigationStack {
