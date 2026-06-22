@@ -132,6 +132,217 @@ class LazyLoadSearchExtractor(LazyLoadExtractor):
     pass
 
 
+class YoutubeBaseInfoExtractor(LazyLoadExtractor):
+    _module = 'yt_dlp.extractor.youtube'
+    IE_NAME = 'YoutubeBaseInfoExtract'
+    _NETRC_MACHINE = 'youtube'
+
+
+class YoutubeTabBaseInfoExtractor(YoutubeBaseInfoExtractor):
+    _module = 'yt_dlp.extractor.youtube'
+    IE_NAME = 'YoutubeTabBaseInfoExtract'
+    _NETRC_MACHINE = 'youtube'
+
+
+class YoutubeClipIE(YoutubeTabBaseInfoExtractor):
+    _module = 'yt_dlp.extractor.youtube'
+    IE_NAME = 'youtube:clip'
+    _VALID_URL = 'https?://(?:www\\.)?youtube\\.com/clip/(?P<id>[^/?#]+)'
+    _NETRC_MACHINE = 'youtube'
+    _RETURN_TYPE = 'video'
+
+
+class YoutubeConsentRedirectIE(YoutubeBaseInfoExtractor):
+    _module = 'yt_dlp.extractor.youtube'
+    IE_NAME = 'youtube:consent'
+    _VALID_URL = 'https?://consent\\.youtube\\.com/m\\?'
+    IE_DESC = False
+    _NETRC_MACHINE = 'youtube'
+    _RETURN_TYPE = 'video'
+
+
+class YoutubeFavouritesIE(YoutubeBaseInfoExtractor):
+    _module = 'yt_dlp.extractor.youtube'
+    IE_NAME = 'youtube:favorites'
+    _VALID_URL = ':ytfav(?:ou?rite)?s?'
+    IE_DESC = 'YouTube liked videos; ":ytfav" keyword (requires cookies)'
+    _NETRC_MACHINE = 'youtube'
+
+
+class YoutubeFeedsInfoExtractor(YoutubeBaseInfoExtractor):
+    _module = 'yt_dlp.extractor.youtube'
+    IE_NAME = 'youtube:feeds'
+    _NETRC_MACHINE = 'youtube'
+
+
+class YoutubeHistoryIE(YoutubeFeedsInfoExtractor):
+    _module = 'yt_dlp.extractor.youtube'
+    IE_NAME = 'youtube:history'
+    _VALID_URL = ':ythis(?:tory)?'
+    IE_DESC = 'Youtube watch history; ":ythis" keyword (requires cookies)'
+    _NETRC_MACHINE = 'youtube'
+
+
+class YoutubeIE(YoutubeBaseInfoExtractor):
+    _module = 'yt_dlp.extractor.youtube'
+    IE_NAME = 'youtube'
+    _VALID_URL = '(?x)^\n                     (\n                         (?:https?://|//)                                    # http(s):// or protocol-independent URL\n                         (?:(?:(?:(?:\\w+\\.)?[yY][oO][uU][tT][uU][bB][eE](?:-nocookie|kids)?\\.com|\n                            (?:www\\.)?deturl\\.com/www\\.youtube\\.com|\n                            (?:www\\.)?pwnyoutube\\.com|\n                            (?:www\\.)?hooktube\\.com|\n                            (?:www\\.)?yourepeat\\.com|\n                            tube\\.majestyc\\.net|\n                            (?:www\\.)?redirect\\.invidious\\.io|(?:(?:www|dev)\\.)?invidio\\.us|(?:www\\.)?invidious\\.pussthecat\\.org|(?:www\\.)?invidious\\.zee\\.li|(?:www\\.)?invidious\\.ethibox\\.fr|(?:www\\.)?iv\\.ggtyler\\.dev|(?:www\\.)?inv\\.vern\\.i2p|(?:www\\.)?am74vkcrjp2d5v36lcdqgsj2m6x36tbrkhsruoegwfcizzabnfgf5zyd\\.onion|(?:www\\.)?inv\\.riverside\\.rocks|(?:www\\.)?invidious\\.silur\\.me|(?:www\\.)?inv\\.bp\\.projectsegfau\\.lt|(?:www\\.)?invidious\\.g4c3eya4clenolymqbpgwz3q3tawoxw56yhzk4vugqrl6dtu3ejvhjid\\.onion|(?:www\\.)?invidious\\.slipfox\\.xyz|(?:www\\.)?invidious\\.esmail5pdn24shtvieloeedh7ehz3nrwcdivnfhfcedl7gf4kwddhkqd\\.onion|(?:www\\.)?inv\\.vernccvbvyi5qhfzyqengccj7lkove6bjot2xhh5kajhwvidqafczrad\\.onion|(?:www\\.)?invidious\\.tiekoetter\\.com|(?:www\\.)?iv\\.odysfvr23q5wgt7i456o5t3trw2cw5dgn56vbjfbq2m7xsc5vqbqpcyd\\.onion|(?:www\\.)?invidious\\.nerdvpn\\.de|(?:www\\.)?invidious\\.weblibre\\.org|(?:www\\.)?inv\\.odyssey346\\.dev|(?:www\\.)?invidious\\.dhusch\\.de|(?:www\\.)?iv\\.melmac\\.space|(?:www\\.)?watch\\.thekitty\\.zone|(?:www\\.)?invidious\\.privacydev\\.net|(?:www\\.)?ng27owmagn5amdm7l5s3rsqxwscl5ynppnis5dqcasogkyxcfqn7psid\\.onion|(?:www\\.)?invidious\\.drivet\\.xyz|(?:www\\.)?vid\\.priv\\.au|(?:www\\.)?euxxcnhsynwmfidvhjf6uzptsmh4dipkmgdmcmxxuo7tunp3ad2jrwyd\\.onion|(?:www\\.)?inv\\.vern\\.cc|(?:www\\.)?invidious\\.esmailelbob\\.xyz|(?:www\\.)?invidious\\.sethforprivacy\\.com|(?:www\\.)?yt\\.oelrichsgarcia\\.de|(?:www\\.)?yt\\.artemislena\\.eu|(?:www\\.)?invidious\\.flokinet\\.to|(?:www\\.)?invidious\\.baczek\\.me|(?:www\\.)?y\\.com\\.sb|(?:www\\.)?invidious\\.epicsite\\.xyz|(?:www\\.)?invidious\\.lidarshield\\.cloud|(?:www\\.)?yt\\.funami\\.tech|(?:www\\.)?invidious\\.3o7z6yfxhbw7n3za4rss6l434kmv55cgw2vuziwuigpwegswvwzqipyd\\.onion|(?:www\\.)?osbivz6guyeahrwp2lnwyjk2xos342h4ocsxyqrlaopqjuhwn2djiiyd\\.onion|(?:www\\.)?u2cvlit75owumwpy4dj2hsmvkq7nvrclkpht7xgyye2pyoxhpmclkrad\\.onion|(?:(?:www|no)\\.)?invidiou\\.sh|(?:(?:www|fi)\\.)?invidious\\.snopyta\\.org|(?:www\\.)?invidious\\.kabi\\.tk|(?:www\\.)?invidious\\.mastodon\\.host|(?:www\\.)?invidious\\.zapashcanon\\.fr|(?:www\\.)?(?:invidious(?:-us)?|piped)\\.kavin\\.rocks|(?:www\\.)?invidious\\.tinfoil-hat\\.net|(?:www\\.)?invidious\\.himiko\\.cloud|(?:www\\.)?invidious\\.reallyancient\\.tech|(?:www\\.)?invidious\\.tube|(?:www\\.)?invidiou\\.site|(?:www\\.)?invidious\\.site|(?:www\\.)?invidious\\.xyz|(?:www\\.)?invidious\\.nixnet\\.xyz|(?:www\\.)?invidious\\.048596\\.xyz|(?:www\\.)?invidious\\.drycat\\.fr|(?:www\\.)?inv\\.skyn3t\\.in|(?:www\\.)?tube\\.poal\\.co|(?:www\\.)?tube\\.connect\\.cafe|(?:www\\.)?vid\\.wxzm\\.sx|(?:www\\.)?vid\\.mint\\.lgbt|(?:www\\.)?vid\\.puffyan\\.us|(?:www\\.)?yewtu\\.be|(?:www\\.)?yt\\.elukerio\\.org|(?:www\\.)?yt\\.lelux\\.fi|(?:www\\.)?invidious\\.ggc-project\\.de|(?:www\\.)?yt\\.maisputain\\.ovh|(?:www\\.)?ytprivate\\.com|(?:www\\.)?invidious\\.13ad\\.de|(?:www\\.)?invidious\\.toot\\.koeln|(?:www\\.)?invidious\\.fdn\\.fr|(?:www\\.)?watch\\.nettohikari\\.com|(?:www\\.)?invidious\\.namazso\\.eu|(?:www\\.)?invidious\\.silkky\\.cloud|(?:www\\.)?invidious\\.exonip\\.de|(?:www\\.)?invidious\\.riverside\\.rocks|(?:www\\.)?invidious\\.blamefran\\.net|(?:www\\.)?invidious\\.moomoo\\.de|(?:www\\.)?ytb\\.trom\\.tf|(?:www\\.)?yt\\.cyberhost\\.uk|(?:www\\.)?kgg2m7yk5aybusll\\.onion|(?:www\\.)?qklhadlycap4cnod\\.onion|(?:www\\.)?axqzx4s6s54s32yentfqojs3x5i7faxza6xo3ehd4bzzsg2ii4fv2iid\\.onion|(?:www\\.)?c7hqkpkpemu6e7emz5b4vyz7idjgdvgaaa3dyimmeojqbgpea3xqjoid\\.onion|(?:www\\.)?fz253lmuao3strwbfbmx46yu7acac2jz27iwtorgmbqlkurlclmancad\\.onion|(?:www\\.)?invidious\\.l4qlywnpwqsluw65ts7md3khrivpirse744un3x7mlskqauz5pyuzgqd\\.onion|(?:www\\.)?owxfohz4kjyv25fvlqilyxast7inivgiktls3th44jhk3ej3i7ya\\.b32\\.i2p|(?:www\\.)?4l2dgddgsrkf2ous66i6seeyi6etzfgrue332grh2n7madpwopotugyd\\.onion|(?:www\\.)?w6ijuptxiku4xpnnaetxvnkc5vqcdu7mgns2u77qefoixi63vbvnpnqd\\.onion|(?:www\\.)?kbjggqkzv65ivcqj6bumvp337z6264huv5kpkwuv6gu5yjiskvan7fad\\.onion|(?:www\\.)?grwp24hodrefzvjjuccrkw3mjq4tzhaaq32amf33dzpmuxe7ilepcmad\\.onion|(?:www\\.)?hpniueoejy4opn7bc4ftgazyqjoeqwlvh2uiku2xqku6zpoa4bf5ruid\\.onion|(?:www\\.)?piped\\.kavin\\.rocks|(?:www\\.)?piped\\.tokhmi\\.xyz|(?:www\\.)?piped\\.syncpundit\\.io|(?:www\\.)?piped\\.mha\\.fi|(?:www\\.)?watch\\.whatever\\.social|(?:www\\.)?piped\\.garudalinux\\.org|(?:www\\.)?piped\\.rivo\\.lol|(?:www\\.)?piped-libre\\.kavin\\.rocks|(?:www\\.)?yt\\.jae\\.fi|(?:www\\.)?piped\\.mint\\.lgbt|(?:www\\.)?il\\.ax|(?:www\\.)?piped\\.esmailelbob\\.xyz|(?:www\\.)?piped\\.projectsegfau\\.lt|(?:www\\.)?piped\\.privacydev\\.net|(?:www\\.)?piped\\.palveluntarjoaja\\.eu|(?:www\\.)?piped\\.smnz\\.de|(?:www\\.)?piped\\.adminforge\\.de|(?:www\\.)?watch\\.whatevertinfoil\\.de|(?:www\\.)?piped\\.qdi\\.fi|(?:(?:www|cf)\\.)?piped\\.video|(?:www\\.)?piped\\.aeong\\.one|(?:www\\.)?piped\\.moomoo\\.me|(?:www\\.)?piped\\.chauvet\\.pro|(?:www\\.)?watch\\.leptons\\.xyz|(?:www\\.)?pd\\.vern\\.cc|(?:www\\.)?piped\\.hostux\\.net|(?:www\\.)?piped\\.lunar\\.icu|(?:www\\.)?hyperpipe\\.surge\\.sh|(?:www\\.)?hyperpipe\\.esmailelbob\\.xyz|(?:www\\.)?listen\\.whatever\\.social|(?:www\\.)?music\\.adminforge\\.de|\n                            youtube\\.googleapis\\.com)/                        # the various hostnames, with wildcard subdomains\n                         (?:.*?\\#/)?                                          # handle anchor (#/) redirect urls\n                         (?:                                                  # the various things that can precede the ID:\n                             (?:(?:v|embed|e|shorts|live)/(?!videoseries|live_stream))  # v/ or embed/ or e/ or shorts/\n                             |(?:                                             # or the v= param in all its forms\n                                 (?:(?:watch|movie)(?:_popup)?(?:\\.php)?/?)?  # preceding watch(_popup|.php) or nothing (like /?v=xxxx)\n                                 (?:\\?|\\#!?)                                  # the params delimiter ? or # or #!\n                                 (?:.*?[&;])??                                # any other preceding param (like /?s=tuff&v=xxxx or ?s=tuff&amp;v=V36LpHqtcDY)\n                                 v=\n                             )\n                         ))\n                         |(?:\n                            youtu\\.be|                                        # just youtu.be/xxxx\n                            vid\\.plus|                                        # or vid.plus/xxxx\n                            zwearz\\.com/watch|                                # or zwearz.com/watch/xxxx\n                            (?:www\\.)?redirect\\.invidious\\.io|(?:(?:www|dev)\\.)?invidio\\.us|(?:www\\.)?invidious\\.pussthecat\\.org|(?:www\\.)?invidious\\.zee\\.li|(?:www\\.)?invidious\\.ethibox\\.fr|(?:www\\.)?iv\\.ggtyler\\.dev|(?:www\\.)?inv\\.vern\\.i2p|(?:www\\.)?am74vkcrjp2d5v36lcdqgsj2m6x36tbrkhsruoegwfcizzabnfgf5zyd\\.onion|(?:www\\.)?inv\\.riverside\\.rocks|(?:www\\.)?invidious\\.silur\\.me|(?:www\\.)?inv\\.bp\\.projectsegfau\\.lt|(?:www\\.)?invidious\\.g4c3eya4clenolymqbpgwz3q3tawoxw56yhzk4vugqrl6dtu3ejvhjid\\.onion|(?:www\\.)?invidious\\.slipfox\\.xyz|(?:www\\.)?invidious\\.esmail5pdn24shtvieloeedh7ehz3nrwcdivnfhfcedl7gf4kwddhkqd\\.onion|(?:www\\.)?inv\\.vernccvbvyi5qhfzyqengccj7lkove6bjot2xhh5kajhwvidqafczrad\\.onion|(?:www\\.)?invidious\\.tiekoetter\\.com|(?:www\\.)?iv\\.odysfvr23q5wgt7i456o5t3trw2cw5dgn56vbjfbq2m7xsc5vqbqpcyd\\.onion|(?:www\\.)?invidious\\.nerdvpn\\.de|(?:www\\.)?invidious\\.weblibre\\.org|(?:www\\.)?inv\\.odyssey346\\.dev|(?:www\\.)?invidious\\.dhusch\\.de|(?:www\\.)?iv\\.melmac\\.space|(?:www\\.)?watch\\.thekitty\\.zone|(?:www\\.)?invidious\\.privacydev\\.net|(?:www\\.)?ng27owmagn5amdm7l5s3rsqxwscl5ynppnis5dqcasogkyxcfqn7psid\\.onion|(?:www\\.)?invidious\\.drivet\\.xyz|(?:www\\.)?vid\\.priv\\.au|(?:www\\.)?euxxcnhsynwmfidvhjf6uzptsmh4dipkmgdmcmxxuo7tunp3ad2jrwyd\\.onion|(?:www\\.)?inv\\.vern\\.cc|(?:www\\.)?invidious\\.esmailelbob\\.xyz|(?:www\\.)?invidious\\.sethforprivacy\\.com|(?:www\\.)?yt\\.oelrichsgarcia\\.de|(?:www\\.)?yt\\.artemislena\\.eu|(?:www\\.)?invidious\\.flokinet\\.to|(?:www\\.)?invidious\\.baczek\\.me|(?:www\\.)?y\\.com\\.sb|(?:www\\.)?invidious\\.epicsite\\.xyz|(?:www\\.)?invidious\\.lidarshield\\.cloud|(?:www\\.)?yt\\.funami\\.tech|(?:www\\.)?invidious\\.3o7z6yfxhbw7n3za4rss6l434kmv55cgw2vuziwuigpwegswvwzqipyd\\.onion|(?:www\\.)?osbivz6guyeahrwp2lnwyjk2xos342h4ocsxyqrlaopqjuhwn2djiiyd\\.onion|(?:www\\.)?u2cvlit75owumwpy4dj2hsmvkq7nvrclkpht7xgyye2pyoxhpmclkrad\\.onion|(?:(?:www|no)\\.)?invidiou\\.sh|(?:(?:www|fi)\\.)?invidious\\.snopyta\\.org|(?:www\\.)?invidious\\.kabi\\.tk|(?:www\\.)?invidious\\.mastodon\\.host|(?:www\\.)?invidious\\.zapashcanon\\.fr|(?:www\\.)?(?:invidious(?:-us)?|piped)\\.kavin\\.rocks|(?:www\\.)?invidious\\.tinfoil-hat\\.net|(?:www\\.)?invidious\\.himiko\\.cloud|(?:www\\.)?invidious\\.reallyancient\\.tech|(?:www\\.)?invidious\\.tube|(?:www\\.)?invidiou\\.site|(?:www\\.)?invidious\\.site|(?:www\\.)?invidious\\.xyz|(?:www\\.)?invidious\\.nixnet\\.xyz|(?:www\\.)?invidious\\.048596\\.xyz|(?:www\\.)?invidious\\.drycat\\.fr|(?:www\\.)?inv\\.skyn3t\\.in|(?:www\\.)?tube\\.poal\\.co|(?:www\\.)?tube\\.connect\\.cafe|(?:www\\.)?vid\\.wxzm\\.sx|(?:www\\.)?vid\\.mint\\.lgbt|(?:www\\.)?vid\\.puffyan\\.us|(?:www\\.)?yewtu\\.be|(?:www\\.)?yt\\.elukerio\\.org|(?:www\\.)?yt\\.lelux\\.fi|(?:www\\.)?invidious\\.ggc-project\\.de|(?:www\\.)?yt\\.maisputain\\.ovh|(?:www\\.)?ytprivate\\.com|(?:www\\.)?invidious\\.13ad\\.de|(?:www\\.)?invidious\\.toot\\.koeln|(?:www\\.)?invidious\\.fdn\\.fr|(?:www\\.)?watch\\.nettohikari\\.com|(?:www\\.)?invidious\\.namazso\\.eu|(?:www\\.)?invidious\\.silkky\\.cloud|(?:www\\.)?invidious\\.exonip\\.de|(?:www\\.)?invidious\\.riverside\\.rocks|(?:www\\.)?invidious\\.blamefran\\.net|(?:www\\.)?invidious\\.moomoo\\.de|(?:www\\.)?ytb\\.trom\\.tf|(?:www\\.)?yt\\.cyberhost\\.uk|(?:www\\.)?kgg2m7yk5aybusll\\.onion|(?:www\\.)?qklhadlycap4cnod\\.onion|(?:www\\.)?axqzx4s6s54s32yentfqojs3x5i7faxza6xo3ehd4bzzsg2ii4fv2iid\\.onion|(?:www\\.)?c7hqkpkpemu6e7emz5b4vyz7idjgdvgaaa3dyimmeojqbgpea3xqjoid\\.onion|(?:www\\.)?fz253lmuao3strwbfbmx46yu7acac2jz27iwtorgmbqlkurlclmancad\\.onion|(?:www\\.)?invidious\\.l4qlywnpwqsluw65ts7md3khrivpirse744un3x7mlskqauz5pyuzgqd\\.onion|(?:www\\.)?owxfohz4kjyv25fvlqilyxast7inivgiktls3th44jhk3ej3i7ya\\.b32\\.i2p|(?:www\\.)?4l2dgddgsrkf2ous66i6seeyi6etzfgrue332grh2n7madpwopotugyd\\.onion|(?:www\\.)?w6ijuptxiku4xpnnaetxvnkc5vqcdu7mgns2u77qefoixi63vbvnpnqd\\.onion|(?:www\\.)?kbjggqkzv65ivcqj6bumvp337z6264huv5kpkwuv6gu5yjiskvan7fad\\.onion|(?:www\\.)?grwp24hodrefzvjjuccrkw3mjq4tzhaaq32amf33dzpmuxe7ilepcmad\\.onion|(?:www\\.)?hpniueoejy4opn7bc4ftgazyqjoeqwlvh2uiku2xqku6zpoa4bf5ruid\\.onion|(?:www\\.)?piped\\.kavin\\.rocks|(?:www\\.)?piped\\.tokhmi\\.xyz|(?:www\\.)?piped\\.syncpundit\\.io|(?:www\\.)?piped\\.mha\\.fi|(?:www\\.)?watch\\.whatever\\.social|(?:www\\.)?piped\\.garudalinux\\.org|(?:www\\.)?piped\\.rivo\\.lol|(?:www\\.)?piped-libre\\.kavin\\.rocks|(?:www\\.)?yt\\.jae\\.fi|(?:www\\.)?piped\\.mint\\.lgbt|(?:www\\.)?il\\.ax|(?:www\\.)?piped\\.esmailelbob\\.xyz|(?:www\\.)?piped\\.projectsegfau\\.lt|(?:www\\.)?piped\\.privacydev\\.net|(?:www\\.)?piped\\.palveluntarjoaja\\.eu|(?:www\\.)?piped\\.smnz\\.de|(?:www\\.)?piped\\.adminforge\\.de|(?:www\\.)?watch\\.whatevertinfoil\\.de|(?:www\\.)?piped\\.qdi\\.fi|(?:(?:www|cf)\\.)?piped\\.video|(?:www\\.)?piped\\.aeong\\.one|(?:www\\.)?piped\\.moomoo\\.me|(?:www\\.)?piped\\.chauvet\\.pro|(?:www\\.)?watch\\.leptons\\.xyz|(?:www\\.)?pd\\.vern\\.cc|(?:www\\.)?piped\\.hostux\\.net|(?:www\\.)?piped\\.lunar\\.icu|(?:www\\.)?hyperpipe\\.surge\\.sh|(?:www\\.)?hyperpipe\\.esmailelbob\\.xyz|(?:www\\.)?listen\\.whatever\\.social|(?:www\\.)?music\\.adminforge\\.de\n                         )/\n                         |(?:www\\.)?cleanvideosearch\\.com/media/action/yt/watch\\?videoId=\n                         )\n                     )?                                                       # all until now is optional -> you can pass the naked ID\n                     (?P<id>[0-9A-Za-z_-]{11})                              # here is it! the YouTube video ID\n                     (?(1).+)?                                                # if we found the ID, everything can follow\n                     (?:\\#|$)'
+    IE_DESC = 'YouTube'
+    _NETRC_MACHINE = 'youtube'
+    age_limit = 18
+    _RETURN_TYPE = 'video'
+
+    @classmethod
+    def suitable(cls, url):
+        from yt_dlp.utils import parse_qs
+
+        qs = parse_qs(url)
+        if qs.get('list', [None])[0]:
+            return False
+        return super().suitable(url)
+
+
+class YoutubeLivestreamEmbedIE(YoutubeBaseInfoExtractor):
+    _module = 'yt_dlp.extractor.youtube'
+    IE_NAME = 'YoutubeLivestreamEmbed'
+    _VALID_URL = 'https?://(?:\\w+\\.)?youtube\\.com/embed/live_stream/?\\?(?:[^#]+&)?channel=(?P<id>[^&#]+)'
+    IE_DESC = 'YouTube livestream embeds'
+    _NETRC_MACHINE = 'youtube'
+
+
+class YoutubeMusicSearchURLIE(YoutubeTabBaseInfoExtractor):
+    _module = 'yt_dlp.extractor.youtube'
+    IE_NAME = 'youtube:music:search_url'
+    _VALID_URL = 'https?://music\\.youtube\\.com/search\\?([^#]+&)?(?:search_query|q)=(?:[^&]+)(?:[&#]|$)'
+    IE_DESC = 'YouTube music search URLs with selectable sections, e.g. #songs'
+    _NETRC_MACHINE = 'youtube'
+    _RETURN_TYPE = 'playlist'
+
+
+class YoutubeNotificationsIE(YoutubeTabBaseInfoExtractor):
+    _module = 'yt_dlp.extractor.youtube'
+    IE_NAME = 'youtube:notif'
+    _VALID_URL = ':ytnotif(?:ication)?s?'
+    IE_DESC = 'YouTube notifications; ":ytnotif" keyword (requires cookies)'
+    _NETRC_MACHINE = 'youtube'
+
+
+class YoutubePlaylistIE(YoutubeBaseInfoExtractor):
+    _module = 'yt_dlp.extractor.youtube'
+    IE_NAME = 'youtube:playlist'
+    _VALID_URL = '(?x)(?:\n                        (?:https?://)?\n                        (?:\\w+\\.)?\n                        (?:\n                            (?:\n                                youtube(?:kids)?\\.com|\n                                (?:www\\.)?redirect\\.invidious\\.io|(?:(?:www|dev)\\.)?invidio\\.us|(?:www\\.)?invidious\\.pussthecat\\.org|(?:www\\.)?invidious\\.zee\\.li|(?:www\\.)?invidious\\.ethibox\\.fr|(?:www\\.)?iv\\.ggtyler\\.dev|(?:www\\.)?inv\\.vern\\.i2p|(?:www\\.)?am74vkcrjp2d5v36lcdqgsj2m6x36tbrkhsruoegwfcizzabnfgf5zyd\\.onion|(?:www\\.)?inv\\.riverside\\.rocks|(?:www\\.)?invidious\\.silur\\.me|(?:www\\.)?inv\\.bp\\.projectsegfau\\.lt|(?:www\\.)?invidious\\.g4c3eya4clenolymqbpgwz3q3tawoxw56yhzk4vugqrl6dtu3ejvhjid\\.onion|(?:www\\.)?invidious\\.slipfox\\.xyz|(?:www\\.)?invidious\\.esmail5pdn24shtvieloeedh7ehz3nrwcdivnfhfcedl7gf4kwddhkqd\\.onion|(?:www\\.)?inv\\.vernccvbvyi5qhfzyqengccj7lkove6bjot2xhh5kajhwvidqafczrad\\.onion|(?:www\\.)?invidious\\.tiekoetter\\.com|(?:www\\.)?iv\\.odysfvr23q5wgt7i456o5t3trw2cw5dgn56vbjfbq2m7xsc5vqbqpcyd\\.onion|(?:www\\.)?invidious\\.nerdvpn\\.de|(?:www\\.)?invidious\\.weblibre\\.org|(?:www\\.)?inv\\.odyssey346\\.dev|(?:www\\.)?invidious\\.dhusch\\.de|(?:www\\.)?iv\\.melmac\\.space|(?:www\\.)?watch\\.thekitty\\.zone|(?:www\\.)?invidious\\.privacydev\\.net|(?:www\\.)?ng27owmagn5amdm7l5s3rsqxwscl5ynppnis5dqcasogkyxcfqn7psid\\.onion|(?:www\\.)?invidious\\.drivet\\.xyz|(?:www\\.)?vid\\.priv\\.au|(?:www\\.)?euxxcnhsynwmfidvhjf6uzptsmh4dipkmgdmcmxxuo7tunp3ad2jrwyd\\.onion|(?:www\\.)?inv\\.vern\\.cc|(?:www\\.)?invidious\\.esmailelbob\\.xyz|(?:www\\.)?invidious\\.sethforprivacy\\.com|(?:www\\.)?yt\\.oelrichsgarcia\\.de|(?:www\\.)?yt\\.artemislena\\.eu|(?:www\\.)?invidious\\.flokinet\\.to|(?:www\\.)?invidious\\.baczek\\.me|(?:www\\.)?y\\.com\\.sb|(?:www\\.)?invidious\\.epicsite\\.xyz|(?:www\\.)?invidious\\.lidarshield\\.cloud|(?:www\\.)?yt\\.funami\\.tech|(?:www\\.)?invidious\\.3o7z6yfxhbw7n3za4rss6l434kmv55cgw2vuziwuigpwegswvwzqipyd\\.onion|(?:www\\.)?osbivz6guyeahrwp2lnwyjk2xos342h4ocsxyqrlaopqjuhwn2djiiyd\\.onion|(?:www\\.)?u2cvlit75owumwpy4dj2hsmvkq7nvrclkpht7xgyye2pyoxhpmclkrad\\.onion|(?:(?:www|no)\\.)?invidiou\\.sh|(?:(?:www|fi)\\.)?invidious\\.snopyta\\.org|(?:www\\.)?invidious\\.kabi\\.tk|(?:www\\.)?invidious\\.mastodon\\.host|(?:www\\.)?invidious\\.zapashcanon\\.fr|(?:www\\.)?(?:invidious(?:-us)?|piped)\\.kavin\\.rocks|(?:www\\.)?invidious\\.tinfoil-hat\\.net|(?:www\\.)?invidious\\.himiko\\.cloud|(?:www\\.)?invidious\\.reallyancient\\.tech|(?:www\\.)?invidious\\.tube|(?:www\\.)?invidiou\\.site|(?:www\\.)?invidious\\.site|(?:www\\.)?invidious\\.xyz|(?:www\\.)?invidious\\.nixnet\\.xyz|(?:www\\.)?invidious\\.048596\\.xyz|(?:www\\.)?invidious\\.drycat\\.fr|(?:www\\.)?inv\\.skyn3t\\.in|(?:www\\.)?tube\\.poal\\.co|(?:www\\.)?tube\\.connect\\.cafe|(?:www\\.)?vid\\.wxzm\\.sx|(?:www\\.)?vid\\.mint\\.lgbt|(?:www\\.)?vid\\.puffyan\\.us|(?:www\\.)?yewtu\\.be|(?:www\\.)?yt\\.elukerio\\.org|(?:www\\.)?yt\\.lelux\\.fi|(?:www\\.)?invidious\\.ggc-project\\.de|(?:www\\.)?yt\\.maisputain\\.ovh|(?:www\\.)?ytprivate\\.com|(?:www\\.)?invidious\\.13ad\\.de|(?:www\\.)?invidious\\.toot\\.koeln|(?:www\\.)?invidious\\.fdn\\.fr|(?:www\\.)?watch\\.nettohikari\\.com|(?:www\\.)?invidious\\.namazso\\.eu|(?:www\\.)?invidious\\.silkky\\.cloud|(?:www\\.)?invidious\\.exonip\\.de|(?:www\\.)?invidious\\.riverside\\.rocks|(?:www\\.)?invidious\\.blamefran\\.net|(?:www\\.)?invidious\\.moomoo\\.de|(?:www\\.)?ytb\\.trom\\.tf|(?:www\\.)?yt\\.cyberhost\\.uk|(?:www\\.)?kgg2m7yk5aybusll\\.onion|(?:www\\.)?qklhadlycap4cnod\\.onion|(?:www\\.)?axqzx4s6s54s32yentfqojs3x5i7faxza6xo3ehd4bzzsg2ii4fv2iid\\.onion|(?:www\\.)?c7hqkpkpemu6e7emz5b4vyz7idjgdvgaaa3dyimmeojqbgpea3xqjoid\\.onion|(?:www\\.)?fz253lmuao3strwbfbmx46yu7acac2jz27iwtorgmbqlkurlclmancad\\.onion|(?:www\\.)?invidious\\.l4qlywnpwqsluw65ts7md3khrivpirse744un3x7mlskqauz5pyuzgqd\\.onion|(?:www\\.)?owxfohz4kjyv25fvlqilyxast7inivgiktls3th44jhk3ej3i7ya\\.b32\\.i2p|(?:www\\.)?4l2dgddgsrkf2ous66i6seeyi6etzfgrue332grh2n7madpwopotugyd\\.onion|(?:www\\.)?w6ijuptxiku4xpnnaetxvnkc5vqcdu7mgns2u77qefoixi63vbvnpnqd\\.onion|(?:www\\.)?kbjggqkzv65ivcqj6bumvp337z6264huv5kpkwuv6gu5yjiskvan7fad\\.onion|(?:www\\.)?grwp24hodrefzvjjuccrkw3mjq4tzhaaq32amf33dzpmuxe7ilepcmad\\.onion|(?:www\\.)?hpniueoejy4opn7bc4ftgazyqjoeqwlvh2uiku2xqku6zpoa4bf5ruid\\.onion|(?:www\\.)?piped\\.kavin\\.rocks|(?:www\\.)?piped\\.tokhmi\\.xyz|(?:www\\.)?piped\\.syncpundit\\.io|(?:www\\.)?piped\\.mha\\.fi|(?:www\\.)?watch\\.whatever\\.social|(?:www\\.)?piped\\.garudalinux\\.org|(?:www\\.)?piped\\.rivo\\.lol|(?:www\\.)?piped-libre\\.kavin\\.rocks|(?:www\\.)?yt\\.jae\\.fi|(?:www\\.)?piped\\.mint\\.lgbt|(?:www\\.)?il\\.ax|(?:www\\.)?piped\\.esmailelbob\\.xyz|(?:www\\.)?piped\\.projectsegfau\\.lt|(?:www\\.)?piped\\.privacydev\\.net|(?:www\\.)?piped\\.palveluntarjoaja\\.eu|(?:www\\.)?piped\\.smnz\\.de|(?:www\\.)?piped\\.adminforge\\.de|(?:www\\.)?watch\\.whatevertinfoil\\.de|(?:www\\.)?piped\\.qdi\\.fi|(?:(?:www|cf)\\.)?piped\\.video|(?:www\\.)?piped\\.aeong\\.one|(?:www\\.)?piped\\.moomoo\\.me|(?:www\\.)?piped\\.chauvet\\.pro|(?:www\\.)?watch\\.leptons\\.xyz|(?:www\\.)?pd\\.vern\\.cc|(?:www\\.)?piped\\.hostux\\.net|(?:www\\.)?piped\\.lunar\\.icu|(?:www\\.)?hyperpipe\\.surge\\.sh|(?:www\\.)?hyperpipe\\.esmailelbob\\.xyz|(?:www\\.)?listen\\.whatever\\.social|(?:www\\.)?music\\.adminforge\\.de\n                            )\n                            /.*?\\?.*?\\blist=\n                        )?\n                        (?P<id>(?:(?:PL|LL|EC|UU|FL|RD|UL|TL|PU|OLAK5uy_)[0-9A-Za-z-_]{10,}|RDMM|WL|LL|LM))\n                     )'
+    IE_DESC = 'YouTube playlists'
+    _NETRC_MACHINE = 'youtube'
+    _RETURN_TYPE = 'playlist'
+
+    @classmethod
+    def suitable(cls, url):
+        if YoutubeTabIE.suitable(url):
+            return False
+        from yt_dlp.utils import parse_qs
+        qs = parse_qs(url)
+        if qs.get('v', [None])[0]:
+            return False
+        return super().suitable(url)
+
+
+class YoutubeRecommendedIE(YoutubeFeedsInfoExtractor):
+    _module = 'yt_dlp.extractor.youtube'
+    IE_NAME = 'youtube:recommended'
+    _VALID_URL = 'https?://(?:www\\.)?youtube\\.com/?(?:[?#]|$)|:ytrec(?:ommended)?'
+    IE_DESC = 'YouTube recommended videos; ":ytrec" keyword'
+    _NETRC_MACHINE = 'youtube'
+
+
+class YoutubeSearchIE(YoutubeTabBaseInfoExtractor, LazyLoadSearchExtractor):
+    _module = 'yt_dlp.extractor.youtube'
+    IE_NAME = 'youtube:search'
+    _VALID_URL = 'ytsearch(?P<prefix>|[1-9][0-9]*|all):(?P<query>[\\s\\S]+)'
+    IE_DESC = 'YouTube search'
+    _NETRC_MACHINE = 'youtube'
+    SEARCH_KEY = 'ytsearch'
+    _RETURN_TYPE = 'playlist'
+
+
+class YoutubeSearchURLIE(YoutubeTabBaseInfoExtractor):
+    _module = 'yt_dlp.extractor.youtube'
+    IE_NAME = 'youtube:search_url'
+    _VALID_URL = 'https?://(?:www\\.)?youtube\\.com/(?:results|search)\\?([^#]+&)?(?:search_query|q)=(?:[^&]+)(?:[&#]|$)'
+    IE_DESC = 'YouTube search URLs with sorting and filter support'
+    _NETRC_MACHINE = 'youtube'
+    _RETURN_TYPE = 'playlist'
+
+
+class YoutubeShortsAudioPivotIE(YoutubeBaseInfoExtractor):
+    _module = 'yt_dlp.extractor.youtube'
+    IE_NAME = 'youtube:shorts:pivot:audio'
+    _VALID_URL = 'https?://(?:www\\.)?youtube\\.com/source/(?P<id>[\\w-]{11})/shorts'
+    IE_DESC = 'YouTube Shorts audio pivot (Shorts using audio of a given video)'
+    _NETRC_MACHINE = 'youtube'
+
+
+class YoutubeSubscriptionsIE(YoutubeFeedsInfoExtractor):
+    _module = 'yt_dlp.extractor.youtube'
+    IE_NAME = 'youtube:subscriptions'
+    _VALID_URL = ':ytsub(?:scription)?s?'
+    IE_DESC = 'YouTube subscriptions feed; ":ytsubs" keyword (requires cookies)'
+    _NETRC_MACHINE = 'youtube'
+
+
+class YoutubeTabIE(YoutubeTabBaseInfoExtractor):
+    _module = 'yt_dlp.extractor.youtube'
+    IE_NAME = 'youtube:tab'
+    _VALID_URL = '(?x:\n        https?://\n            (?!consent\\.)(?:\\w+\\.)?\n            (?:\n                youtube(?:kids)?\\.com|\n                (?:www\\.)?redirect\\.invidious\\.io|(?:(?:www|dev)\\.)?invidio\\.us|(?:www\\.)?invidious\\.pussthecat\\.org|(?:www\\.)?invidious\\.zee\\.li|(?:www\\.)?invidious\\.ethibox\\.fr|(?:www\\.)?iv\\.ggtyler\\.dev|(?:www\\.)?inv\\.vern\\.i2p|(?:www\\.)?am74vkcrjp2d5v36lcdqgsj2m6x36tbrkhsruoegwfcizzabnfgf5zyd\\.onion|(?:www\\.)?inv\\.riverside\\.rocks|(?:www\\.)?invidious\\.silur\\.me|(?:www\\.)?inv\\.bp\\.projectsegfau\\.lt|(?:www\\.)?invidious\\.g4c3eya4clenolymqbpgwz3q3tawoxw56yhzk4vugqrl6dtu3ejvhjid\\.onion|(?:www\\.)?invidious\\.slipfox\\.xyz|(?:www\\.)?invidious\\.esmail5pdn24shtvieloeedh7ehz3nrwcdivnfhfcedl7gf4kwddhkqd\\.onion|(?:www\\.)?inv\\.vernccvbvyi5qhfzyqengccj7lkove6bjot2xhh5kajhwvidqafczrad\\.onion|(?:www\\.)?invidious\\.tiekoetter\\.com|(?:www\\.)?iv\\.odysfvr23q5wgt7i456o5t3trw2cw5dgn56vbjfbq2m7xsc5vqbqpcyd\\.onion|(?:www\\.)?invidious\\.nerdvpn\\.de|(?:www\\.)?invidious\\.weblibre\\.org|(?:www\\.)?inv\\.odyssey346\\.dev|(?:www\\.)?invidious\\.dhusch\\.de|(?:www\\.)?iv\\.melmac\\.space|(?:www\\.)?watch\\.thekitty\\.zone|(?:www\\.)?invidious\\.privacydev\\.net|(?:www\\.)?ng27owmagn5amdm7l5s3rsqxwscl5ynppnis5dqcasogkyxcfqn7psid\\.onion|(?:www\\.)?invidious\\.drivet\\.xyz|(?:www\\.)?vid\\.priv\\.au|(?:www\\.)?euxxcnhsynwmfidvhjf6uzptsmh4dipkmgdmcmxxuo7tunp3ad2jrwyd\\.onion|(?:www\\.)?inv\\.vern\\.cc|(?:www\\.)?invidious\\.esmailelbob\\.xyz|(?:www\\.)?invidious\\.sethforprivacy\\.com|(?:www\\.)?yt\\.oelrichsgarcia\\.de|(?:www\\.)?yt\\.artemislena\\.eu|(?:www\\.)?invidious\\.flokinet\\.to|(?:www\\.)?invidious\\.baczek\\.me|(?:www\\.)?y\\.com\\.sb|(?:www\\.)?invidious\\.epicsite\\.xyz|(?:www\\.)?invidious\\.lidarshield\\.cloud|(?:www\\.)?yt\\.funami\\.tech|(?:www\\.)?invidious\\.3o7z6yfxhbw7n3za4rss6l434kmv55cgw2vuziwuigpwegswvwzqipyd\\.onion|(?:www\\.)?osbivz6guyeahrwp2lnwyjk2xos342h4ocsxyqrlaopqjuhwn2djiiyd\\.onion|(?:www\\.)?u2cvlit75owumwpy4dj2hsmvkq7nvrclkpht7xgyye2pyoxhpmclkrad\\.onion|(?:(?:www|no)\\.)?invidiou\\.sh|(?:(?:www|fi)\\.)?invidious\\.snopyta\\.org|(?:www\\.)?invidious\\.kabi\\.tk|(?:www\\.)?invidious\\.mastodon\\.host|(?:www\\.)?invidious\\.zapashcanon\\.fr|(?:www\\.)?(?:invidious(?:-us)?|piped)\\.kavin\\.rocks|(?:www\\.)?invidious\\.tinfoil-hat\\.net|(?:www\\.)?invidious\\.himiko\\.cloud|(?:www\\.)?invidious\\.reallyancient\\.tech|(?:www\\.)?invidious\\.tube|(?:www\\.)?invidiou\\.site|(?:www\\.)?invidious\\.site|(?:www\\.)?invidious\\.xyz|(?:www\\.)?invidious\\.nixnet\\.xyz|(?:www\\.)?invidious\\.048596\\.xyz|(?:www\\.)?invidious\\.drycat\\.fr|(?:www\\.)?inv\\.skyn3t\\.in|(?:www\\.)?tube\\.poal\\.co|(?:www\\.)?tube\\.connect\\.cafe|(?:www\\.)?vid\\.wxzm\\.sx|(?:www\\.)?vid\\.mint\\.lgbt|(?:www\\.)?vid\\.puffyan\\.us|(?:www\\.)?yewtu\\.be|(?:www\\.)?yt\\.elukerio\\.org|(?:www\\.)?yt\\.lelux\\.fi|(?:www\\.)?invidious\\.ggc-project\\.de|(?:www\\.)?yt\\.maisputain\\.ovh|(?:www\\.)?ytprivate\\.com|(?:www\\.)?invidious\\.13ad\\.de|(?:www\\.)?invidious\\.toot\\.koeln|(?:www\\.)?invidious\\.fdn\\.fr|(?:www\\.)?watch\\.nettohikari\\.com|(?:www\\.)?invidious\\.namazso\\.eu|(?:www\\.)?invidious\\.silkky\\.cloud|(?:www\\.)?invidious\\.exonip\\.de|(?:www\\.)?invidious\\.riverside\\.rocks|(?:www\\.)?invidious\\.blamefran\\.net|(?:www\\.)?invidious\\.moomoo\\.de|(?:www\\.)?ytb\\.trom\\.tf|(?:www\\.)?yt\\.cyberhost\\.uk|(?:www\\.)?kgg2m7yk5aybusll\\.onion|(?:www\\.)?qklhadlycap4cnod\\.onion|(?:www\\.)?axqzx4s6s54s32yentfqojs3x5i7faxza6xo3ehd4bzzsg2ii4fv2iid\\.onion|(?:www\\.)?c7hqkpkpemu6e7emz5b4vyz7idjgdvgaaa3dyimmeojqbgpea3xqjoid\\.onion|(?:www\\.)?fz253lmuao3strwbfbmx46yu7acac2jz27iwtorgmbqlkurlclmancad\\.onion|(?:www\\.)?invidious\\.l4qlywnpwqsluw65ts7md3khrivpirse744un3x7mlskqauz5pyuzgqd\\.onion|(?:www\\.)?owxfohz4kjyv25fvlqilyxast7inivgiktls3th44jhk3ej3i7ya\\.b32\\.i2p|(?:www\\.)?4l2dgddgsrkf2ous66i6seeyi6etzfgrue332grh2n7madpwopotugyd\\.onion|(?:www\\.)?w6ijuptxiku4xpnnaetxvnkc5vqcdu7mgns2u77qefoixi63vbvnpnqd\\.onion|(?:www\\.)?kbjggqkzv65ivcqj6bumvp337z6264huv5kpkwuv6gu5yjiskvan7fad\\.onion|(?:www\\.)?grwp24hodrefzvjjuccrkw3mjq4tzhaaq32amf33dzpmuxe7ilepcmad\\.onion|(?:www\\.)?hpniueoejy4opn7bc4ftgazyqjoeqwlvh2uiku2xqku6zpoa4bf5ruid\\.onion|(?:www\\.)?piped\\.kavin\\.rocks|(?:www\\.)?piped\\.tokhmi\\.xyz|(?:www\\.)?piped\\.syncpundit\\.io|(?:www\\.)?piped\\.mha\\.fi|(?:www\\.)?watch\\.whatever\\.social|(?:www\\.)?piped\\.garudalinux\\.org|(?:www\\.)?piped\\.rivo\\.lol|(?:www\\.)?piped-libre\\.kavin\\.rocks|(?:www\\.)?yt\\.jae\\.fi|(?:www\\.)?piped\\.mint\\.lgbt|(?:www\\.)?il\\.ax|(?:www\\.)?piped\\.esmailelbob\\.xyz|(?:www\\.)?piped\\.projectsegfau\\.lt|(?:www\\.)?piped\\.privacydev\\.net|(?:www\\.)?piped\\.palveluntarjoaja\\.eu|(?:www\\.)?piped\\.smnz\\.de|(?:www\\.)?piped\\.adminforge\\.de|(?:www\\.)?watch\\.whatevertinfoil\\.de|(?:www\\.)?piped\\.qdi\\.fi|(?:(?:www|cf)\\.)?piped\\.video|(?:www\\.)?piped\\.aeong\\.one|(?:www\\.)?piped\\.moomoo\\.me|(?:www\\.)?piped\\.chauvet\\.pro|(?:www\\.)?watch\\.leptons\\.xyz|(?:www\\.)?pd\\.vern\\.cc|(?:www\\.)?piped\\.hostux\\.net|(?:www\\.)?piped\\.lunar\\.icu|(?:www\\.)?hyperpipe\\.surge\\.sh|(?:www\\.)?hyperpipe\\.esmailelbob\\.xyz|(?:www\\.)?listen\\.whatever\\.social|(?:www\\.)?music\\.adminforge\\.de\n            )/\n            (?:\n                (?P<channel_type>channel|c|user|browse)/|\n                (?P<not_channel>\n                    feed/|hashtag/|\n                    (?:playlist|watch)\\?.*?\\blist=\n                )|\n                (?!(?:channel|c|user|playlist|watch|w|v|embed|e|live|watch_popup|clip|shorts|movies|results|search|shared|hashtag|trending|explore|feed|feeds|browse|oembed|get_video_info|iframe_api|s/player|source|storefront|oops|index|account|t/terms|about|upload|signin|logout)\\b)  # Direct URLs\n            )\n            (?P<id>[^/?\\#&]+)\n    )'
+    IE_DESC = 'YouTube Tabs'
+    _NETRC_MACHINE = 'youtube'
+    _RETURN_TYPE = 'any'
+
+    @classmethod
+    def suitable(cls, url):
+        return False if YoutubeIE.suitable(url) else super().suitable(url)
+
+
+class YoutubeTruncatedIDIE(YoutubeBaseInfoExtractor):
+    _module = 'yt_dlp.extractor.youtube'
+    IE_NAME = 'youtube:truncated_id'
+    _VALID_URL = 'https?://(?:www\\.)?youtube\\.com/watch\\?v=(?P<id>[0-9A-Za-z_-]{1,10})$'
+    IE_DESC = False
+    _NETRC_MACHINE = 'youtube'
+
+
+class YoutubeTruncatedURLIE(YoutubeBaseInfoExtractor):
+    _module = 'yt_dlp.extractor.youtube'
+    IE_NAME = 'youtube:truncated_url'
+    _VALID_URL = '(?x)\n        (?:https?://)?\n        (?:\\w+\\.)?[yY][oO][uU][tT][uU][bB][eE](?:-nocookie)?\\.com/\n        (?:watch\\?(?:\n            feature=[a-z_]+|\n            annotation_id=annotation_[^&]+|\n            x-yt-cl=[0-9]+|\n            hl=[^&]*|\n            t=[0-9]+\n        )?\n        |\n            attribution_link\\?a=[^&]+\n        )\n        $\n    '
+    IE_DESC = False
+    _NETRC_MACHINE = 'youtube'
+
+
+class YoutubeWatchLaterIE(YoutubeBaseInfoExtractor):
+    _module = 'yt_dlp.extractor.youtube'
+    IE_NAME = 'youtube:watchlater'
+    _VALID_URL = ':ytwatchlater'
+    IE_DESC = 'Youtube watch later list; ":ytwatchlater" keyword (requires cookies)'
+    _NETRC_MACHINE = 'youtube'
+
+
+class YoutubeYtBeIE(YoutubeBaseInfoExtractor):
+    _module = 'yt_dlp.extractor.youtube'
+    IE_NAME = 'YoutubeYtBe'
+    _VALID_URL = 'https?://youtu\\.be/(?P<id>[0-9A-Za-z_-]{11})/*?.*?\\blist=(?P<playlist_id>(?:(?:PL|LL|EC|UU|FL|RD|UL|TL|PU|OLAK5uy_)[0-9A-Za-z-_]{10,}|RDMM|WL|LL|LM))'
+    IE_DESC = 'youtu.be'
+    _NETRC_MACHINE = 'youtube'
+    _RETURN_TYPE = 'video'
+
+
+class YoutubeYtUserIE(YoutubeBaseInfoExtractor):
+    _module = 'yt_dlp.extractor.youtube'
+    IE_NAME = 'youtube:user'
+    _VALID_URL = 'ytuser:(?P<id>.+)'
+    IE_DESC = 'YouTube user videos; "ytuser:" prefix'
+    _NETRC_MACHINE = 'youtube'
+
+
 class ABCIE(LazyLoadExtractor):
     _module = 'yt_dlp.extractor.abc'
     IE_NAME = 'abc.net.au'
@@ -216,6 +427,18 @@ class ADNSeasonIE(ADNBaseIE):
     _RETURN_TYPE = 'playlist'
 
 
+class AGalegaBaseIE(LazyLoadExtractor):
+    _module = 'yt_dlp.extractor.agalega'
+    IE_NAME = 'AGalegaBase'
+
+
+class AGalegaIE(AGalegaBaseIE):
+    _module = 'yt_dlp.extractor.agalega'
+    IE_NAME = 'agalega:videos'
+    _VALID_URL = 'https?://(?:www\\.)?agalega\\.gal/videos/(?:detail/)?(?P<id>[0-9]+)'
+    _RETURN_TYPE = 'video'
+
+
 class AMCNetworksIE(LazyLoadExtractor):
     _module = 'yt_dlp.extractor.amcnetworks'
     IE_NAME = 'AMCNetworks'
@@ -228,6 +451,25 @@ class APAIE(LazyLoadExtractor):
     IE_NAME = 'APA'
     _VALID_URL = '(?P<base_url>https?://[^/]+\\.apa\\.at)/embed/(?P<id>[\\da-f]{8}-[\\da-f]{4}-[\\da-f]{4}-[\\da-f]{4}-[\\da-f]{12})'
     _RETURN_TYPE = 'video'
+
+
+class ARDAudiothekBaseIE(LazyLoadExtractor):
+    _module = 'yt_dlp.extractor.ard'
+    IE_NAME = 'ARDAudiothekBase'
+
+
+class ARDAudiothekIE(ARDAudiothekBaseIE):
+    _module = 'yt_dlp.extractor.ard'
+    IE_NAME = 'ARDAudiothek'
+    _VALID_URL = 'https:?//(?:www\\.)?ard(?:audiothek|sounds)\\.de/episode/(?P<id>urn:ard:(?:episode|section|extra):[a-f0-9]{16})'
+    _RETURN_TYPE = 'video'
+
+
+class ARDAudiothekPlaylistIE(ARDAudiothekBaseIE):
+    _module = 'yt_dlp.extractor.ard'
+    IE_NAME = 'ARDAudiothekPlaylist'
+    _VALID_URL = 'https:?//(?:www\\.)?ard(?:audiothek|sounds)\\.de/sendung/(?P<playlist>[\\w-]+)/(?P<id>urn:ard:show:[a-f0-9]{16})'
+    _RETURN_TYPE = 'playlist'
 
 
 class ARDBetaMediathekIE(LazyLoadExtractor):
@@ -249,45 +491,6 @@ class ARDMediathekCollectionIE(LazyLoadExtractor):
     IE_NAME = 'ARDMediathekCollection'
     _VALID_URL = '(?x)https?://\n        (?:(?:beta|www)\\.)?ardmediathek\\.de/\n        (?:[^/?#]+/)?\n        (?P<playlist>sendung|serie|sammlung)/\n        (?:(?P<display_id>[^?#]+?)/)?\n        (?P<id>[a-zA-Z0-9]+)\n        (?:/(?P<season>\\d+)(?:/(?P<version>OV|AD))?)?/?(?:[?#]|$)'
     _RETURN_TYPE = 'playlist'
-
-
-class ATVAtIE(LazyLoadExtractor):
-    _module = 'yt_dlp.extractor.atvat'
-    IE_NAME = 'ATVAt'
-    _VALID_URL = 'https?://(?:www\\.)?atv\\.at/tv/(?:[^/]+/){2,3}(?P<id>.*)'
-    _RETURN_TYPE = 'video'
-
-
-class AWAANIE(LazyLoadExtractor):
-    _module = 'yt_dlp.extractor.awaan'
-    IE_NAME = 'AWAAN'
-    _VALID_URL = 'https?://(?:www\\.)?(?:awaan|dcndigital)\\.ae/(?:#/)?show/(?P<show_id>\\d+)/[^/]+(?:/(?P<id>\\d+)/(?P<season_id>\\d+))?'
-
-
-class AWAANBaseIE(LazyLoadExtractor):
-    _module = 'yt_dlp.extractor.awaan'
-    IE_NAME = 'AWAANBase'
-
-
-class AWAANLiveIE(AWAANBaseIE):
-    _module = 'yt_dlp.extractor.awaan'
-    IE_NAME = 'awaan:live'
-    _VALID_URL = 'https?://(?:www\\.)?(?:awaan|dcndigital)\\.ae/(?:#/)?live/(?P<id>\\d+)'
-    _RETURN_TYPE = 'video'
-
-
-class AWAANSeasonIE(LazyLoadExtractor):
-    _module = 'yt_dlp.extractor.awaan'
-    IE_NAME = 'awaan:season'
-    _VALID_URL = 'https?://(?:www\\.)?(?:awaan|dcndigital)\\.ae/(?:#/)?program/(?:(?P<show_id>\\d+)|season/(?P<season_id>\\d+))'
-    _RETURN_TYPE = 'playlist'
-
-
-class AWAANVideoIE(AWAANBaseIE):
-    _module = 'yt_dlp.extractor.awaan'
-    IE_NAME = 'awaan:video'
-    _VALID_URL = 'https?://(?:www\\.)?(?:awaan|dcndigital)\\.ae/(?:#/)?(?:video(?:/[^/]+)?|media|catchup/[^/]+/[^/]+)/(?P<id>\\d+)'
-    _RETURN_TYPE = 'video'
 
 
 class AZMedienIE(LazyLoadExtractor):
@@ -411,8 +614,8 @@ class AfreecaTVBaseIE(LazyLoadExtractor):
 class AfreecaTVCatchStoryIE(AfreecaTVBaseIE):
     _module = 'yt_dlp.extractor.afreecatv'
     IE_NAME = 'soop:catchstory'
-    _VALID_URL = 'https?://vod\\.(?:sooplive\\.co\\.kr|afreecatv\\.com)/player/(?P<id>\\d+)/catchstory'
-    IE_DESC = 'sooplive.co.kr catch story'
+    _VALID_URL = 'https?://vod\\.sooplive\\.com/player/(?P<id>\\d+)/catchstory'
+    IE_DESC = 'sooplive.com catch story'
     _NETRC_MACHINE = 'afreecatv'
     _RETURN_TYPE = 'playlist'
 
@@ -420,8 +623,8 @@ class AfreecaTVCatchStoryIE(AfreecaTVBaseIE):
 class AfreecaTVIE(AfreecaTVBaseIE):
     _module = 'yt_dlp.extractor.afreecatv'
     IE_NAME = 'soop'
-    _VALID_URL = 'https?://vod\\.(?:sooplive\\.co\\.kr|afreecatv\\.com)/(?:PLAYER/STATION|player)/(?P<id>\\d+)/?(?:$|[?#&])'
-    IE_DESC = 'sooplive.co.kr'
+    _VALID_URL = 'https?://vod\\.sooplive\\.com/(?:PLAYER/STATION|player)/(?P<id>\\d+)/?(?:$|[?#&])'
+    IE_DESC = 'sooplive.com'
     _NETRC_MACHINE = 'afreecatv'
     _RETURN_TYPE = 'video'
 
@@ -429,8 +632,8 @@ class AfreecaTVIE(AfreecaTVBaseIE):
 class AfreecaTVLiveIE(AfreecaTVBaseIE):
     _module = 'yt_dlp.extractor.afreecatv'
     IE_NAME = 'soop:live'
-    _VALID_URL = 'https?://play\\.(?:sooplive\\.co\\.kr|afreecatv\\.com)/(?P<id>[^/?#]+)(?:/(?P<bno>\\d+))?'
-    IE_DESC = 'sooplive.co.kr livestreams'
+    _VALID_URL = 'https?://play\\.sooplive\\.com/(?P<id>[^/?#]+)(?:/(?P<bno>\\d+))?'
+    IE_DESC = 'sooplive.com livestreams'
     _NETRC_MACHINE = 'afreecatv'
     _RETURN_TYPE = 'video'
 
@@ -438,16 +641,9 @@ class AfreecaTVLiveIE(AfreecaTVBaseIE):
 class AfreecaTVUserIE(AfreecaTVBaseIE):
     _module = 'yt_dlp.extractor.afreecatv'
     IE_NAME = 'soop:user'
-    _VALID_URL = 'https?://ch\\.(?:sooplive\\.co\\.kr|afreecatv\\.com)/(?P<id>[^/?#]+)/vods/?(?P<slug_type>[^/?#]+)?'
+    _VALID_URL = 'https?://(?:www\\.)?sooplive\\.com/station/(?P<id>[^/?#]+)/vod/?(?P<slug_type>[^/?#]+)?'
     _NETRC_MACHINE = 'afreecatv'
     _RETURN_TYPE = 'playlist'
-
-
-class AirTVIE(LazyLoadExtractor):
-    _module = 'yt_dlp.extractor.airtv'
-    IE_NAME = 'AirTV'
-    _VALID_URL = 'https?://www\\.air\\.tv/watch\\?v=(?P<id>\\w+)'
-    _RETURN_TYPE = 'video'
 
 
 class AitubeKZVideoIE(LazyLoadExtractor):
@@ -468,6 +664,13 @@ class AliExpressLiveIE(LazyLoadExtractor):
     _module = 'yt_dlp.extractor.aliexpress'
     IE_NAME = 'AliExpressLive'
     _VALID_URL = 'https?://live\\.aliexpress\\.com/live/(?P<id>\\d+)'
+    _RETURN_TYPE = 'video'
+
+
+class AlibabaIE(LazyLoadExtractor):
+    _module = 'yt_dlp.extractor.alibaba'
+    IE_NAME = 'Alibaba'
+    _VALID_URL = 'https?://(?:www\\.)?alibaba\\.com/product-detail/[\\w-]+_(?P<id>\\d+)\\.html'
     _RETURN_TYPE = 'video'
 
 
@@ -502,25 +705,6 @@ class AlphaPornoIE(LazyLoadExtractor):
     IE_NAME = 'AlphaPorno'
     _VALID_URL = 'https?://(?:www\\.)?alphaporno\\.com/videos/(?P<id>[^/]+)'
     age_limit = 18
-    _RETURN_TYPE = 'video'
-
-
-class Alsace20TVBaseIE(LazyLoadExtractor):
-    _module = 'yt_dlp.extractor.alsace20tv'
-    IE_NAME = 'Alsace20TVBase'
-
-
-class Alsace20TVEmbedIE(Alsace20TVBaseIE):
-    _module = 'yt_dlp.extractor.alsace20tv'
-    IE_NAME = 'Alsace20TVEmbed'
-    _VALID_URL = 'https?://(?:www\\.)?alsace20\\.tv/emb/(?P<id>[\\w]+)'
-    _RETURN_TYPE = 'video'
-
-
-class Alsace20TVIE(Alsace20TVBaseIE):
-    _module = 'yt_dlp.extractor.alsace20tv'
-    IE_NAME = 'Alsace20TV'
-    _VALID_URL = 'https?://(?:www\\.)?alsace20\\.tv/(?:[\\w-]+/)+[\\w-]+-(?P<id>[\\w]+)'
     _RETURN_TYPE = 'video'
 
 
@@ -644,13 +828,6 @@ class AmericasTestKitchenSeasonIE(LazyLoadExtractor):
     _RETURN_TYPE = 'playlist'
 
 
-class AnchorFMEpisodeIE(LazyLoadExtractor):
-    _module = 'yt_dlp.extractor.anchorfm'
-    IE_NAME = 'AnchorFMEpisode'
-    _VALID_URL = 'https?://anchor\\.fm/(?P<channel_name>\\w+)/(?:embed/)?episodes/[\\w-]+-(?P<episode_id>\\w+)'
-    _RETURN_TYPE = 'video'
-
-
 class AngelIE(LazyLoadExtractor):
     _module = 'yt_dlp.extractor.angel'
     IE_NAME = 'Angel'
@@ -710,8 +887,9 @@ class AparatIE(LazyLoadExtractor):
 
 class AppleConnectIE(LazyLoadExtractor):
     _module = 'yt_dlp.extractor.appleconnect'
-    IE_NAME = 'AppleConnect'
-    _VALID_URL = 'https?://itunes\\.apple\\.com/\\w{0,2}/?post/(?:id)?sa\\.(?P<id>[\\w-]+)'
+    IE_NAME = 'apple:music:connect'
+    _VALID_URL = 'https?://music\\.apple\\.com/[\\w-]+/post/(?P<id>\\d+)'
+    IE_DESC = 'Apple Music Connect'
     _RETURN_TYPE = 'video'
 
 
@@ -720,20 +898,6 @@ class ApplePodcastsIE(LazyLoadExtractor):
     IE_NAME = 'ApplePodcasts'
     _VALID_URL = 'https?://podcasts\\.apple\\.com/(?:[^/]+/)?podcast(?:/[^/]+){1,2}.*?\\bi=(?P<id>\\d+)'
     _RETURN_TYPE = 'video'
-
-
-class AppleTrailersIE(LazyLoadExtractor):
-    _module = 'yt_dlp.extractor.appletrailers'
-    IE_NAME = 'appletrailers'
-    _VALID_URL = 'https?://(?:www\\.|movie)?trailers\\.apple\\.com/(?:trailers|ca)/(?P<company>[^/]+)/(?P<movie>[^/]+)'
-    _RETURN_TYPE = 'playlist'
-
-
-class AppleTrailersSectionIE(LazyLoadExtractor):
-    _module = 'yt_dlp.extractor.appletrailers'
-    IE_NAME = 'appletrailers:section'
-    _VALID_URL = 'https?://(?:www\\.)?trailers\\.apple\\.com/#section=(?P<id>justadded|exclusive|justhd|mostpopular|moviestudios)'
-    _RETURN_TYPE = 'playlist'
 
 
 class ArcPublishingIE(LazyLoadExtractor):
@@ -936,13 +1100,6 @@ class AudiusTrackIE(AudiusIE):
     IE_NAME = 'audius:track'
     _VALID_URL = '(?x)(?:audius:)(?:https?://(?:www\\.)?.+/v1/tracks/)?(?P<track_id>\\w+)'
     IE_DESC = 'Audius track ID or API link. Prepend with "audius:"'
-
-
-class AxsIE(LazyLoadExtractor):
-    _module = 'yt_dlp.extractor.axs'
-    IE_NAME = 'axs.tv'
-    _VALID_URL = 'https?://(?:www\\.)?axs\\.tv/(?:channel/(?:[^/?#]+/)+)?video/(?P<id>[^/?#]+)'
-    _RETURN_TYPE = 'video'
 
 
 class BBCCoUkArticleIE(LazyLoadExtractor):
@@ -1175,7 +1332,7 @@ class BandcampUserIE(LazyLoadExtractor):
 class BandcampWeeklyIE(BandcampIE):
     _module = 'yt_dlp.extractor.bandcamp'
     IE_NAME = 'Bandcamp:weekly'
-    _VALID_URL = 'https?://(?:www\\.)?bandcamp\\.com/?\\?(?:.*?&)?show=(?P<id>\\d+)'
+    _VALID_URL = 'https?://(?:www\\.)?bandcamp\\.com/radio/?\\?(?:[^#]+&)?show=(?P<id>\\d+)'
     _RETURN_TYPE = 'video'
 
 
@@ -1209,20 +1366,6 @@ class BeaconTvIE(LazyLoadExtractor):
     _module = 'yt_dlp.extractor.beacon'
     IE_NAME = 'BeaconTv'
     _VALID_URL = 'https?://(?:www\\.)?beacon\\.tv/content/(?P<id>[\\w-]+)'
-    _RETURN_TYPE = 'video'
-
-
-class BeatBumpPlaylistIE(LazyLoadExtractor):
-    _module = 'yt_dlp.extractor.beatbump'
-    IE_NAME = 'BeatBumpPlaylist'
-    _VALID_URL = 'https?://beatbump\\.(?:ml|io)/(?:release\\?id=|artist/|playlist/)(?P<id>[\\w-]+)'
-    _RETURN_TYPE = 'playlist'
-
-
-class BeatBumpVideoIE(LazyLoadExtractor):
-    _module = 'yt_dlp.extractor.beatbump'
-    IE_NAME = 'BeatBumpVideo'
-    _VALID_URL = 'https?://beatbump\\.(?:ml|io)/listen\\?id=(?P<id>[\\w-]+)'
     _RETURN_TYPE = 'video'
 
 
@@ -1295,13 +1438,6 @@ class BibelTVVideoIE(BibelTVBaseIE):
     IE_NAME = 'bibeltv:video'
     _VALID_URL = 'https?://(?:www\\.)?bibeltv\\.de/mediathek/videos/(?P<id>\\d+)[\\w-]+'
     IE_DESC = 'BibelTV single video'
-    _RETURN_TYPE = 'video'
-
-
-class BigflixIE(LazyLoadExtractor):
-    _module = 'yt_dlp.extractor.bigflix'
-    IE_NAME = 'Bigflix'
-    _VALID_URL = 'https?://(?:www\\.)?bigflix\\.com/.+/(?P<id>[0-9]+)'
     _RETURN_TYPE = 'video'
 
 
@@ -1533,6 +1669,13 @@ class BitChuteIE(LazyLoadExtractor):
     _RETURN_TYPE = 'video'
 
 
+class BitmovinIE(LazyLoadExtractor):
+    _module = 'yt_dlp.extractor.bitmovin'
+    IE_NAME = 'Bitmovin'
+    _VALID_URL = 'https?://streams\\.bitmovin\\.com/(?P<id>\\w+)'
+    _RETURN_TYPE = 'video'
+
+
 class BlackboardCollaborateIE(LazyLoadExtractor):
     _module = 'yt_dlp.extractor.blackboardcollaborate'
     IE_NAME = 'BlackboardCollaborate'
@@ -1596,19 +1739,6 @@ class BlueskyIE(LazyLoadExtractor):
     _VALID_URL = ['https?://(?:www\\.)?(?:bsky\\.app|main\\.bsky\\.dev)/profile/(?P<handle>[\\w.:%-]+)/post/(?P<id>\\w+)', 'at://(?P<handle>[\\w.:%-]+)/app\\.bsky\\.feed\\.post/(?P<id>\\w+)']
     age_limit = 18
     _RETURN_TYPE = 'any'
-
-
-class BokeCCBaseIE(LazyLoadExtractor):
-    _module = 'yt_dlp.extractor.bokecc'
-    IE_NAME = 'BokeCCBase'
-
-
-class BokeCCIE(BokeCCBaseIE):
-    _module = 'yt_dlp.extractor.bokecc'
-    IE_NAME = 'BokeCC'
-    _VALID_URL = 'https?://union\\.bokecc\\.com/playvideo\\.bo\\?(?P<query>.*)'
-    IE_DESC = 'CC视频'
-    _RETURN_TYPE = 'video'
 
 
 class BongaCamsIE(LazyLoadExtractor):
@@ -1805,7 +1935,7 @@ class BundestagIE(LazyLoadExtractor):
 class BunnyCdnIE(LazyLoadExtractor):
     _module = 'yt_dlp.extractor.bunnycdn'
     IE_NAME = 'BunnyCdn'
-    _VALID_URL = 'https?://(?:iframe\\.mediadelivery\\.net|video\\.bunnycdn\\.com)/(?:embed|play)/(?P<library_id>\\d+)/(?P<id>[\\da-f-]+)'
+    _VALID_URL = 'https?://(?:(?:iframe|player)\\.mediadelivery\\.net|video\\.bunnycdn\\.com)/(?:embed|play)/(?P<library_id>\\d+)/(?P<id>[\\da-f-]+)'
     _RETURN_TYPE = 'video'
 
 
@@ -1844,19 +1974,37 @@ class CBCGemBaseIE(LazyLoadExtractor):
     _NETRC_MACHINE = 'cbcgem'
 
 
+class CBCGemContentIE(CBCGemBaseIE):
+    _module = 'yt_dlp.extractor.cbc'
+    IE_NAME = 'gem.cbc.ca:content'
+    _VALID_URL = 'https?://gem\\.cbc\\.ca/(?P<id>[0-9a-z-]+)/?(?:[?#]|$)'
+    IE_DESC = False
+    _NETRC_MACHINE = 'cbcgem'
+    _RETURN_TYPE = 'any'
+
+
 class CBCGemIE(CBCGemBaseIE):
     _module = 'yt_dlp.extractor.cbc'
     IE_NAME = 'gem.cbc.ca'
-    _VALID_URL = 'https?://gem\\.cbc\\.ca/(?:media/)?(?P<id>[0-9a-z-]+/s(?P<season>[0-9]+)[a-z][0-9]+)'
+    _VALID_URL = 'https?://gem\\.cbc\\.ca/(?:media/)?(?P<id>[0-9a-z-]+/s(?P<season>[0-9]+)[a-z][0-9]{2,4})/?(?:[?#]|$)'
     _NETRC_MACHINE = 'cbcgem'
     age_limit = 14
     _RETURN_TYPE = 'video'
 
 
-class CBCGemLiveIE(LazyLoadExtractor):
+class CBCGemLiveIE(CBCGemBaseIE):
     _module = 'yt_dlp.extractor.cbc'
     IE_NAME = 'gem.cbc.ca:live'
     _VALID_URL = 'https?://gem\\.cbc\\.ca/live(?:-event)?/(?P<id>\\d+)'
+    _NETRC_MACHINE = 'cbcgem'
+    _RETURN_TYPE = 'video'
+
+
+class CBCGemOlympicsIE(CBCGemBaseIE):
+    _module = 'yt_dlp.extractor.cbc'
+    IE_NAME = 'gem.cbc.ca:olympics'
+    _VALID_URL = 'https?://gem\\.cbc\\.ca/(?P<id>(?:[0-9a-z]+-)+[0-9]{5,})/s01e(?P<media_id>[0-9]{5,})'
+    _NETRC_MACHINE = 'cbcgem'
     _RETURN_TYPE = 'video'
 
 
@@ -2017,14 +2165,14 @@ class CCTVIE(LazyLoadExtractor):
 class CDAFolderIE(LazyLoadExtractor):
     _module = 'yt_dlp.extractor.cda'
     IE_NAME = 'CDAFolder'
-    _VALID_URL = 'https?://(?:www\\.)?cda\\.pl/(?P<channel>[\\w-]+)/folder/(?P<id>\\d+)'
+    _VALID_URL = 'https?://(?:(?:www|m)\\.)?cda\\.pl/(?P<channel>[\\w-]+)/folder/(?P<id>\\d+)'
     _RETURN_TYPE = 'playlist'
 
 
 class CDAIE(LazyLoadExtractor):
     _module = 'yt_dlp.extractor.cda'
     IE_NAME = 'CDA'
-    _VALID_URL = 'https?://(?:(?:www\\.)?cda\\.pl/video|ebd\\.cda\\.pl/[0-9]+x[0-9]+)/(?P<id>[0-9a-z]+)'
+    _VALID_URL = 'https?://(?:(?:(?:www|m)\\.)?cda\\.pl/video|ebd\\.cda\\.pl/[0-9]+x[0-9]+)/(?P<id>[0-9a-z]+)'
     _NETRC_MACHINE = 'cdapl'
     age_limit = 18
     _RETURN_TYPE = 'video'
@@ -2079,13 +2227,6 @@ class CNNIndonesiaIE(LazyLoadExtractor):
     _RETURN_TYPE = 'video'
 
 
-class CONtvIE(LazyLoadExtractor):
-    _module = 'yt_dlp.extractor.contv'
-    IE_NAME = 'CONtv'
-    _VALID_URL = 'https?://(?:www\\.)?contv\\.com/details-movie/(?P<id>[^/]+)'
-    _RETURN_TYPE = 'any'
-
-
 class CPACIE(LazyLoadExtractor):
     _module = 'yt_dlp.extractor.cpac'
     IE_NAME = 'cpac'
@@ -2129,21 +2270,6 @@ class CTVNewsIE(LazyLoadExtractor):
     _RETURN_TYPE = 'any'
 
 
-class CaffeineTVIE(LazyLoadExtractor):
-    _module = 'yt_dlp.extractor.caffeinetv'
-    IE_NAME = 'CaffeineTV'
-    _VALID_URL = 'https?://(?:www\\.)?caffeine\\.tv/[^/?#]+/video/(?P<id>[\\da-f-]+)'
-    age_limit = 17
-    _RETURN_TYPE = 'video'
-
-
-class CallinIE(LazyLoadExtractor):
-    _module = 'yt_dlp.extractor.callin'
-    IE_NAME = 'Callin'
-    _VALID_URL = 'https?://(?:www\\.)?callin\\.com/episode/(?P<id>[-a-zA-Z]+)'
-    _RETURN_TYPE = 'video'
-
-
 class CaltransIE(LazyLoadExtractor):
     _module = 'yt_dlp.extractor.caltrans'
     IE_NAME = 'Caltrans'
@@ -2169,20 +2295,6 @@ class CamModelsIE(LazyLoadExtractor):
     _module = 'yt_dlp.extractor.cammodels'
     IE_NAME = 'CamModels'
     _VALID_URL = 'https?://(?:www\\.)?cammodels\\.com/cam/(?P<id>[^/?#&]+)'
-
-
-class CamdemyFolderIE(LazyLoadExtractor):
-    _module = 'yt_dlp.extractor.camdemy'
-    IE_NAME = 'CamdemyFolder'
-    _VALID_URL = 'https?://(?:www\\.)?camdemy\\.com/folder/(?P<id>\\d+)'
-    _RETURN_TYPE = 'playlist'
-
-
-class CamdemyIE(LazyLoadExtractor):
-    _module = 'yt_dlp.extractor.camdemy'
-    IE_NAME = 'Camdemy'
-    _VALID_URL = 'https?://(?:www\\.)?camdemy\\.com/media/(?P<id>\\d+)'
-    _RETURN_TYPE = 'video'
 
 
 class CamsodaIE(LazyLoadExtractor):
@@ -2374,13 +2486,6 @@ class ClipchampIE(LazyLoadExtractor):
     _RETURN_TYPE = 'video'
 
 
-class ClippitIE(LazyLoadExtractor):
-    _module = 'yt_dlp.extractor.clippit'
-    IE_NAME = 'Clippit'
-    _VALID_URL = 'https?://(?:www\\.)?clippituser\\.tv/c/(?P<id>[a-z]+)'
-    _RETURN_TYPE = 'video'
-
-
 class CloserToTruthIE(LazyLoadExtractor):
     _module = 'yt_dlp.extractor.closertotruth'
     IE_NAME = 'CloserToTruth'
@@ -2486,6 +2591,13 @@ class CraftsyIE(LazyLoadExtractor):
     IE_NAME = 'Craftsy'
     _VALID_URL = 'https?://www\\.craftsy\\.com/class/(?P<id>[\\w-]+)'
     _RETURN_TYPE = 'playlist'
+
+
+class CroatianFilmIE(LazyLoadExtractor):
+    _module = 'yt_dlp.extractor.croatianfilm'
+    IE_NAME = 'croatian.film'
+    _VALID_URL = 'https://?(?:www\\.)?croatian\\.film/[a-z]{2}/[^/?#]+/(?P<id>\\d+)'
+    _RETURN_TYPE = 'video'
 
 
 class CrooksAndLiarsIE(LazyLoadExtractor):
@@ -3007,7 +3119,7 @@ class DiscoveryLifeIE(DiscoveryPlusBaseIE):
 class DiscoveryNetworksDeIE(DiscoveryPlusBaseIE):
     _module = 'yt_dlp.extractor.dplay'
     IE_NAME = 'DiscoveryNetworksDe'
-    _VALID_URL = 'https?://(?:www\\.)?(?P<domain>(?:tlc|dmax)\\.de|dplay\\.co\\.uk)/(?:programme|show|sendungen)/(?P<programme>[^/]+)/(?:video/)?(?P<alternate_id>[^/]+)'
+    _VALID_URL = 'https?://(?:www\\.)?(?P<domain>(?:tlc|dmax)\\.de)/(?:programme|show|sendungen)/(?P<programme>[^/?#]+)/(?:video/)?(?P<alternate_id>[^/?#]+)'
     _RETURN_TYPE = 'video'
 
 
@@ -3116,17 +3228,10 @@ class DreiSatIE(ZDFBaseIE):
     _RETURN_TYPE = 'video'
 
 
-class DroobleIE(LazyLoadExtractor):
-    _module = 'yt_dlp.extractor.drooble'
-    IE_NAME = 'Drooble'
-    _VALID_URL = '(?x)https?://drooble\\.com/(?:\n        (?:(?P<user>[^/]+)/)?(?P<kind>song|videos|music/albums)/(?P<id>\\d+)|\n        (?P<user_2>[^/]+)/(?P<kind_2>videos|music))\n    '
-    _RETURN_TYPE = 'any'
-
-
 class DropboxIE(LazyLoadExtractor):
     _module = 'yt_dlp.extractor.dropbox'
     IE_NAME = 'Dropbox'
-    _VALID_URL = 'https?://(?:www\\.)?dropbox\\.com/(?:(?:e/)?scl/fi|sh?)/(?P<id>\\w+)'
+    _VALID_URL = 'https?://(?:www\\.)?dropbox\\.com/(?:(?:e/)?scl/f[io]|sh?)/(?P<id>\\w+)'
     _RETURN_TYPE = 'video'
 
 
@@ -3142,22 +3247,6 @@ class DropoutSeasonIE(LazyLoadExtractor):
     _module = 'yt_dlp.extractor.dropout'
     IE_NAME = 'DropoutSeason'
     _VALID_URL = 'https?://(?:watch\\.)?dropout\\.tv/(?P<id>[^\\/$&?#]+)(?:/?$|/season:(?P<season>[0-9]+)/?$)'
-    _RETURN_TYPE = 'playlist'
-
-
-class DubokuIE(LazyLoadExtractor):
-    _module = 'yt_dlp.extractor.duboku'
-    IE_NAME = 'duboku'
-    _VALID_URL = '(?:https?://[^/]+\\.duboku\\.io/vodplay/)(?P<id>[0-9]+-[0-9-]+)\\.html.*'
-    IE_DESC = 'www.duboku.io'
-    _RETURN_TYPE = 'video'
-
-
-class DubokuPlaylistIE(LazyLoadExtractor):
-    _module = 'yt_dlp.extractor.duboku'
-    IE_NAME = 'duboku:list'
-    _VALID_URL = '(?:https?://[^/]+\\.duboku\\.io/voddetail/)(?P<id>[0-9]+)\\.html.*'
-    IE_DESC = 'www.duboku.io entire series'
     _RETURN_TYPE = 'playlist'
 
 
@@ -3190,6 +3279,13 @@ class EMPFlixIE(TNAEMPFlixBaseIE):
     IE_NAME = 'EMPFlix'
     _VALID_URL = 'https?://(?:www\\.)?(?P<host>empflix)\\.com/(?:videos/(?P<display_id>.+?)-|[^/]+/(?P<display_id_2>[^/]+)/video)(?P<id>[0-9]+)'
     age_limit = 18
+    _RETURN_TYPE = 'video'
+
+
+class ERRArhiivIE(LazyLoadExtractor):
+    _module = 'yt_dlp.extractor.err'
+    IE_NAME = 'ERRArhiiv'
+    _VALID_URL = 'https://arhiiv\\.err\\.ee/video/(?:vaata/)?(?P<id>[^/?#]+)'
     _RETURN_TYPE = 'video'
 
 
@@ -3346,13 +3442,6 @@ class EggsIE(EggsBaseIE):
     _RETURN_TYPE = 'video'
 
 
-class EightTracksIE(LazyLoadExtractor):
-    _module = 'yt_dlp.extractor.eighttracks'
-    IE_NAME = '8tracks'
-    _VALID_URL = 'https?://8tracks\\.com/(?P<user>[^/]+)/(?P<id>[^/#]+)(?:#.*)?$'
-    _RETURN_TYPE = 'playlist'
-
-
 class EinsUndEinsTVBaseIE(ZattooPlatformBaseIE):
     _module = 'yt_dlp.extractor.zattoo'
     IE_NAME = 'EinsUndEinsTVBase'
@@ -3382,13 +3471,6 @@ class EinsUndEinsTVRecordingsIE(EinsUndEinsTVBaseIE):
     IE_NAME = 'EinsUndEinsTVRecordings'
     _VALID_URL = '(?x)https?://(?:www\\.)?1und1\\.tv/(?:\n        [^?#]+\\?(?:[^#]+&)?recording=(?P<vid2>\\d+)\n        (?P<vid1>)\n    )'
     _NETRC_MACHINE = '1und1tv'
-
-
-class EitbIE(LazyLoadExtractor):
-    _module = 'yt_dlp.extractor.eitb'
-    IE_NAME = 'eitb.tv'
-    _VALID_URL = 'https?://(?:www\\.)?eitb\\.tv/(?:eu/bideoa|es/video)/[^/]+/\\d+/(?P<id>\\d+)'
-    _RETURN_TYPE = 'video'
 
 
 class ElPaisIE(LazyLoadExtractor):
@@ -3539,13 +3621,6 @@ class ExpressenIE(LazyLoadExtractor):
     _RETURN_TYPE = 'video'
 
 
-class EyedoTVIE(LazyLoadExtractor):
-    _module = 'yt_dlp.extractor.eyedotv'
-    IE_NAME = 'EyedoTV'
-    _VALID_URL = 'https?://(?:www\\.)?eyedo\\.tv/[^/]+/(?:#!/)?Live/Detail/(?P<id>[0-9]+)'
-    _RETURN_TYPE = 'video'
-
-
 class FC2EmbedIE(LazyLoadExtractor):
     _module = 'yt_dlp.extractor.fc2'
     IE_NAME = 'fc2:embed'
@@ -3600,7 +3675,6 @@ class FacebookIE(LazyLoadExtractor):
     _module = 'yt_dlp.extractor.facebook'
     IE_NAME = 'facebook'
     _VALID_URL = '(?x)\n                (?:\n                    https?://\n                        (?:[\\w-]+\\.)?(?:facebook\\.com|facebookwkhpilnemxj7asaniu7vnjjbiltxjqhye3mhbshg7kx5tfyd\\.onion)/\n                        (?:[^#]*?\\#!/)?\n                        (?:\n                            (?:\n                                permalink\\.php|\n                                video/video\\.php|\n                                photo\\.php|\n                                video\\.php|\n                                video/embed|\n                                story\\.php|\n                                watch(?:/live)?/?\n                            )\\?(?:.*?)(?:v|video_id|story_fbid)=|\n                            [^/]+/videos/(?:[^/]+/)?|\n                            [^/]+/posts/|\n                            events/(?:[^/]+/)?|\n                            groups/[^/]+/(?:permalink|posts)/(?:[\\da-f]+/)?|\n                            watchparty/\n                        )|\n                    facebook:\n                )\n                (?P<id>pfbid[A-Za-z0-9]+|\\d+)\n                '
-    _NETRC_MACHINE = 'facebook'
     _RETURN_TYPE = 'any'
 
 
@@ -3692,6 +3766,14 @@ class FifaIE(LazyLoadExtractor):
     _RETURN_TYPE = 'video'
 
 
+class FilmArchivIE(LazyLoadExtractor):
+    _module = 'yt_dlp.extractor.filmarchiv'
+    IE_NAME = 'FilmArchiv'
+    _VALID_URL = 'https?://(?:www\\.)?filmarchiv\\.at/de/filmarchiv-on/video/(?P<id>f_[0-9a-zA-Z]{5,})'
+    IE_DESC = 'FILMARCHIV ON'
+    _RETURN_TYPE = 'video'
+
+
 class FilmOnChannelIE(LazyLoadExtractor):
     _module = 'yt_dlp.extractor.filmon'
     IE_NAME = 'filmon:channel'
@@ -3719,6 +3801,14 @@ class FirstTVIE(LazyLoadExtractor):
     _VALID_URL = 'https?://(?:www\\.)?(?:sport)?1tv\\.ru/(?:[^/?#]+/)+(?P<id>[^/?#]+)'
     IE_DESC = 'Первый канал'
     _RETURN_TYPE = 'any'
+
+
+class FirstTVLiveIE(LazyLoadExtractor):
+    _module = 'yt_dlp.extractor.firsttv'
+    IE_NAME = '1tv:live'
+    _VALID_URL = 'https?://(?:www\\.)?1tv\\.ru/live'
+    IE_DESC = 'Первый канал (прямой эфир)'
+    _RETURN_TYPE = 'video'
 
 
 class FiveTVIE(LazyLoadExtractor):
@@ -3750,7 +3840,12 @@ class FlickrIE(LazyLoadExtractor):
     _RETURN_TYPE = 'video'
 
 
-class FloatplaneChannelIE(LazyLoadExtractor):
+class FloatplaneChannelBaseIE(LazyLoadExtractor):
+    _module = 'yt_dlp.extractor.floatplane'
+    IE_NAME = 'FloatplaneChannelBase'
+
+
+class FloatplaneChannelIE(FloatplaneChannelBaseIE):
     _module = 'yt_dlp.extractor.floatplane'
     IE_NAME = 'FloatplaneChannel'
     _VALID_URL = 'https?://(?:(?:www|beta)\\.)?floatplane\\.com/channel/(?P<id>[\\w-]+)/home(?:/(?P<channel>[\\w-]+))?'
@@ -3867,13 +3962,6 @@ class FranceCultureIE(RadioFranceBaseIE):
     _RETURN_TYPE = 'video'
 
 
-class FranceInterIE(LazyLoadExtractor):
-    _module = 'yt_dlp.extractor.franceinter'
-    IE_NAME = 'FranceInter'
-    _VALID_URL = 'https?://(?:www\\.)?franceinter\\.fr/emissions/(?P<id>[^?#]+)'
-    _RETURN_TYPE = 'video'
-
-
 class FranceTVIE(LazyLoadExtractor):
     _module = 'yt_dlp.extractor.francetv'
     IE_NAME = 'francetv'
@@ -3888,8 +3976,9 @@ class FranceTVBaseInfoExtractor(LazyLoadExtractor):
 
 class FranceTVInfoIE(FranceTVBaseInfoExtractor):
     _module = 'yt_dlp.extractor.francetv'
-    IE_NAME = 'francetvinfo.fr'
-    _VALID_URL = 'https?://(?:www|mobile|france3-regions)\\.francetvinfo\\.fr/(?:[^/]+/)*(?P<id>[^/?#&.]+)'
+    IE_NAME = 'franceinfo'
+    _VALID_URL = 'https?://(?:www|mobile|france3-regions)\\.france(?:tv)?info.fr/(?:[^/?#]+/)*(?P<id>[^/?#&.]+)'
+    IE_DESC = 'franceinfo.fr (formerly francetvinfo.fr)'
     _RETURN_TYPE = 'video'
 
 
@@ -3974,13 +4063,6 @@ class FrontendMastersLessonIE(FrontendMastersPageBaseIE):
     _RETURN_TYPE = 'video'
 
 
-class FujiTVFODPlus7IE(LazyLoadExtractor):
-    _module = 'yt_dlp.extractor.fujitv'
-    IE_NAME = 'FujiTVFODPlus7'
-    _VALID_URL = 'https?://fod\\.fujitv\\.co\\.jp/title/(?P<sid>[0-9a-z]{4})/(?P<id>[0-9a-z]+)'
-    _RETURN_TYPE = 'video'
-
-
 class FunkIE(LazyLoadExtractor):
     _module = 'yt_dlp.extractor.funk'
     IE_NAME = 'Funk'
@@ -4034,24 +4116,10 @@ class GMANetworkVideoIE(LazyLoadExtractor):
     _RETURN_TYPE = 'video'
 
 
-class GPUTechConfIE(LazyLoadExtractor):
-    _module = 'yt_dlp.extractor.gputechconf'
-    IE_NAME = 'GPUTechConf'
-    _VALID_URL = 'https?://on-demand\\.gputechconf\\.com/gtc/2015/video/S(?P<id>\\d+)\\.html'
-    _RETURN_TYPE = 'video'
-
-
 class GabIE(LazyLoadExtractor):
     _module = 'yt_dlp.extractor.gab'
     IE_NAME = 'Gab'
     _VALID_URL = 'https?://(?:www\\.)?gab\\.com/[^/]+/posts/(?P<id>\\d+)'
-    _RETURN_TYPE = 'video'
-
-
-class GabTVIE(LazyLoadExtractor):
-    _module = 'yt_dlp.extractor.gab'
-    IE_NAME = 'GabTV'
-    _VALID_URL = 'https?://tv\\.gab\\.com/channel/[^/]+/view/(?P<id>[a-z0-9-]+)'
     _RETURN_TYPE = 'video'
 
 
@@ -4184,7 +4252,7 @@ class GermanupaIE(LazyLoadExtractor):
 class GetCourseRuIE(LazyLoadExtractor):
     _module = 'yt_dlp.extractor.getcourseru'
     IE_NAME = 'GetCourseRu'
-    _VALID_URL = ['https?://(?:(?!player02\\.)[^.]+\\.getcourse\\.(?:ru|io)|academymel\\.online|marafon\\.mani\\-beauty\\.com|on\\.psbook\\.ru)/(?!pl/|teach/)(?P<id>[^?#]+)', 'https?://(?:(?!player02\\.)[^.]+\\.getcourse\\.(?:ru|io)|academymel\\.online|marafon\\.mani\\-beauty\\.com|on\\.psbook\\.ru)/(?:pl/)?teach/control/lesson/view\\?(?:[^#]+&)?id=(?P<id>\\d+)']
+    _VALID_URL = ['https?://(?:(?!player02\\.)[a-zA-Z0-9-]+\\.getcourse\\.(?:ru|io)|academymel\\.online|marafon\\.mani\\-beauty\\.com|on\\.psbook\\.ru)/(?!pl/|teach/)(?P<id>[^?#]+)', 'https?://(?:(?!player02\\.)[a-zA-Z0-9-]+\\.getcourse\\.(?:ru|io)|academymel\\.online|marafon\\.mani\\-beauty\\.com|on\\.psbook\\.ru)/(?:pl/)?teach/control/lesson/view\\?(?:[^#]+&)?id=(?P<id>\\d+)']
     _NETRC_MACHINE = 'getcourseru'
     _RETURN_TYPE = 'playlist'
 
@@ -4358,8 +4426,9 @@ class GoIE(AdobePassIE):
 
 class GoPlayIE(LazyLoadExtractor):
     _module = 'yt_dlp.extractor.goplay'
-    IE_NAME = 'GoPlay'
-    _VALID_URL = 'https?://(www\\.)?goplay\\.be/video/([^/?#]+/[^/?#]+/|)(?P<id>[^/#]+)'
+    IE_NAME = 'play.tv'
+    _VALID_URL = 'https?://(www\\.)?play\\.tv/video/([^/?#]+/[^/?#]+/|)(?P<id>[^/#]+)'
+    IE_DESC = 'PLAY (formerly goplay.be)'
     _NETRC_MACHINE = 'goplay'
     _RETURN_TYPE = 'video'
 
@@ -4429,25 +4498,6 @@ class GoogleDriveIE(LazyLoadExtractor):
     _RETURN_TYPE = 'video'
 
 
-class GooglePodcastsBaseIE(LazyLoadExtractor):
-    _module = 'yt_dlp.extractor.googlepodcasts'
-    IE_NAME = 'GooglePodcastsBase'
-
-
-class GooglePodcastsFeedIE(GooglePodcastsBaseIE):
-    _module = 'yt_dlp.extractor.googlepodcasts'
-    IE_NAME = 'google:podcasts:feed'
-    _VALID_URL = 'https?://podcasts\\.google\\.com/feed/(?P<id>[^/?&#]+)/?(?:[?#&]|$)'
-    _RETURN_TYPE = 'playlist'
-
-
-class GooglePodcastsIE(GooglePodcastsBaseIE):
-    _module = 'yt_dlp.extractor.googlepodcasts'
-    IE_NAME = 'google:podcasts'
-    _VALID_URL = 'https?://podcasts\\.google\\.com/feed/(?P<feed_url>[^/]+)/episode/(?P<id>[^/?&#]+)'
-    _RETURN_TYPE = 'video'
-
-
 class GoogleSearchIE(LazyLoadSearchExtractor):
     _module = 'yt_dlp.extractor.googlesearch'
     IE_NAME = 'video.google:search'
@@ -4455,14 +4505,6 @@ class GoogleSearchIE(LazyLoadSearchExtractor):
     IE_DESC = 'Google Video search'
     SEARCH_KEY = 'gvsearch'
     _RETURN_TYPE = 'playlist'
-
-
-class GoshgayIE(LazyLoadExtractor):
-    _module = 'yt_dlp.extractor.goshgay'
-    IE_NAME = 'Goshgay'
-    _VALID_URL = 'https?://(?:www\\.)?goshgay\\.com/video(?P<id>\\d+?)($|/)'
-    age_limit = 18
-    _RETURN_TYPE = 'video'
 
 
 class GraspopIE(LazyLoadExtractor):
@@ -4525,14 +4567,6 @@ class HGTVUsaIE(DiscoveryPlusBaseIE):
     _module = 'yt_dlp.extractor.dplay'
     IE_NAME = 'HGTVUsa'
     _VALID_URL = 'https?://(?:watch\\.)?hgtv\\.com/video/(?P<id>[^/]+/[^/?#]+)'
-    _RETURN_TYPE = 'video'
-
-
-class HKETVIE(LazyLoadExtractor):
-    _module = 'yt_dlp.extractor.hketv'
-    IE_NAME = 'hketv'
-    _VALID_URL = 'https?://(?:www\\.)?hkedcity\\.net/etv/resource/(?P<id>[0-9]+)'
-    IE_DESC = '香港教育局教育電視 (HKETV) Educational Television, Hong Kong Educational Bureau'
     _RETURN_TYPE = 'video'
 
 
@@ -4883,13 +4917,6 @@ class ITVIE(LazyLoadExtractor):
     _RETURN_TYPE = 'video'
 
 
-class IVXPlayerIE(LazyLoadExtractor):
-    _module = 'yt_dlp.extractor.tempo'
-    IE_NAME = 'IVXPlayer'
-    _VALID_URL = 'ivxplayer:(?P<video_id>\\d+):(?P<player_key>\\w+)'
-    _RETURN_TYPE = 'video'
-
-
 class IcareusIE(LazyLoadExtractor):
     _module = 'yt_dlp.extractor.icareus'
     IE_NAME = 'Icareus'
@@ -4930,42 +4957,35 @@ class IdagioPlaylistBaseIE(LazyLoadExtractor):
 class IdagioAlbumIE(IdagioPlaylistBaseIE):
     _module = 'yt_dlp.extractor.idagio'
     IE_NAME = 'IdagioAlbum'
-    _VALID_URL = 'https?://(?:www\\.)?app\\.idagio\\.com/albums/(?P<id>[\\w-]+)'
+    _VALID_URL = 'https?://(?:www\\.)?app\\.idagio\\.com(?:/[a-z]{2})?/albums/(?P<id>[\\w-]+)'
     _RETURN_TYPE = 'playlist'
 
 
 class IdagioPersonalPlaylistIE(IdagioPlaylistBaseIE):
     _module = 'yt_dlp.extractor.idagio'
     IE_NAME = 'IdagioPersonalPlaylist'
-    _VALID_URL = 'https?://(?:www\\.)?app\\.idagio\\.com/playlists/personal/(?P<id>[\\da-f-]+)'
+    _VALID_URL = 'https?://(?:www\\.)?app\\.idagio\\.com(?:/[a-z]{2})?/playlists/personal/(?P<id>[\\da-f-]+)'
     _RETURN_TYPE = 'playlist'
 
 
 class IdagioPlaylistIE(IdagioPlaylistBaseIE):
     _module = 'yt_dlp.extractor.idagio'
     IE_NAME = 'IdagioPlaylist'
-    _VALID_URL = 'https?://(?:www\\.)?app\\.idagio\\.com/playlists/(?!personal/)(?P<id>[\\w-]+)'
+    _VALID_URL = 'https?://(?:www\\.)?app\\.idagio\\.com(?:/[a-z]{2})?/playlists/(?!personal/)(?P<id>[\\w-]+)'
     _RETURN_TYPE = 'playlist'
 
 
 class IdagioRecordingIE(IdagioPlaylistBaseIE):
     _module = 'yt_dlp.extractor.idagio'
     IE_NAME = 'IdagioRecording'
-    _VALID_URL = 'https?://(?:www\\.)?app\\.idagio\\.com/recordings/(?P<id>\\d+)(?![^#]*[&?]trackId=\\d+)'
+    _VALID_URL = 'https?://(?:www\\.)?app\\.idagio\\.com(?:/[a-z]{2})?/recordings/(?P<id>\\d+)(?![^#]*[&?]trackId=\\d+)'
     _RETURN_TYPE = 'playlist'
 
 
 class IdagioTrackIE(LazyLoadExtractor):
     _module = 'yt_dlp.extractor.idagio'
     IE_NAME = 'IdagioTrack'
-    _VALID_URL = 'https?://(?:www\\.)?app\\.idagio\\.com/recordings/\\d+\\?(?:[^#]+&)?trackId=(?P<id>\\d+)'
-    _RETURN_TYPE = 'video'
-
-
-class IdolPlusIE(LazyLoadExtractor):
-    _module = 'yt_dlp.extractor.idolplus'
-    IE_NAME = 'IdolPlus'
-    _VALID_URL = 'https?://(?:www\\.)?idolplus\\.com/z[us]/(?:concert/|contents/?\\?(?:[^#]+&)?albumId=)(?P<id>\\w+)'
+    _VALID_URL = 'https?://(?:www\\.)?app\\.idagio\\.com(?:/[a-z]{2})?/recordings/\\d+\\?(?:[^#]+&)?trackId=(?P<id>\\d+)'
     _RETURN_TYPE = 'video'
 
 
@@ -5080,7 +5100,7 @@ class IndavideoEmbedIE(LazyLoadExtractor):
     _RETURN_TYPE = 'video'
 
 
-class InfoQIE(BokeCCBaseIE):
+class InfoQIE(LazyLoadExtractor):
     _module = 'yt_dlp.extractor.infoq'
     IE_NAME = 'InfoQ'
     _VALID_URL = 'https?://(?:www\\.)?infoq\\.com/(?:[^/]+/)+(?P<id>[^/]+)'
@@ -5143,13 +5163,6 @@ class InternazionaleIE(LazyLoadExtractor):
     _RETURN_TYPE = 'video'
 
 
-class InternetVideoArchiveIE(LazyLoadExtractor):
-    _module = 'yt_dlp.extractor.internetvideoarchive'
-    IE_NAME = 'InternetVideoArchive'
-    _VALID_URL = 'https?://video\\.internetvideoarchive\\.net/(?:player|flash/players)/.*?\\?.*?publishedid.*?'
-    _RETURN_TYPE = 'video'
-
-
 class InvestigationDiscoveryIE(DiscoveryPlusBaseIE):
     _module = 'yt_dlp.extractor.dplay'
     IE_NAME = 'InvestigationDiscovery'
@@ -5179,7 +5192,6 @@ class IqiyiIE(LazyLoadExtractor):
     IE_NAME = 'iqiyi'
     _VALID_URL = 'https?://(?:(?:[^.]+\\.)?iqiyi\\.com|www\\.pps\\.tv)/.+\\.html'
     IE_DESC = '爱奇艺'
-    _NETRC_MACHINE = 'iqiyi'
     _RETURN_TYPE = 'any'
 
 
@@ -5270,13 +5282,6 @@ class IxiguaIE(LazyLoadExtractor):
     _module = 'yt_dlp.extractor.ixigua'
     IE_NAME = 'Ixigua'
     _VALID_URL = 'https?://(?:\\w+\\.)?ixigua\\.com/(?:video/)?(?P<id>\\d+).+'
-    _RETURN_TYPE = 'video'
-
-
-class IzleseneIE(LazyLoadExtractor):
-    _module = 'yt_dlp.extractor.izlesene'
-    IE_NAME = 'Izlesene'
-    _VALID_URL = '(?x)\n        https?://(?:(?:www|m)\\.)?izlesene\\.com/\n        (?:video|embedplayer)/(?:[^/]+/)?(?P<id>[0-9]+)\n        '
     _RETURN_TYPE = 'video'
 
 
@@ -5541,12 +5546,6 @@ class KikaPlaylistIE(LazyLoadExtractor):
     _RETURN_TYPE = 'playlist'
 
 
-class KinjaEmbedIE(LazyLoadExtractor):
-    _module = 'yt_dlp.extractor.kinja'
-    IE_NAME = 'kinja:embed'
-    _VALID_URL = '(?x)https?://(?:[^.]+\\.)?\n        (?:\n            avclub|\n            clickhole|\n            deadspin|\n            gizmodo|\n            jalopnik|\n            jezebel|\n            kinja|\n            kotaku|\n            lifehacker|\n            splinternews|\n            the(?:inventory|onion|root|takeout)\n        )\\.com/\n        (?:\n            ajax/inset|\n            embed/video\n        )/iframe\\?.*?\\bid=\n        (?P<type>\n            fb|\n            imgur|\n            instagram|\n            jwp(?:layer)?-video|\n            kinjavideo|\n            mcp|\n            megaphone|\n            soundcloud(?:-playlist)?|\n            tumblr-post|\n            twitch-stream|\n            twitter|\n            ustream-channel|\n            vimeo|\n            vine|\n            youtube-(?:list|video)\n        )-(?P<id>[^&]+)'
-
-
 class KinoPoiskIE(LazyLoadExtractor):
     _module = 'yt_dlp.extractor.kinopoisk'
     IE_NAME = 'KinoPoisk'
@@ -5565,14 +5564,14 @@ class UnsupportedInfoExtractor(LazyLoadExtractor):
 class KnownDRMIE(UnsupportedInfoExtractor):
     _module = 'yt_dlp.extractor.unsupported'
     IE_NAME = 'DRM'
-    _VALID_URL = 'https?://(?:www\\.)?(?:play\\.hbomax\\.com|channel(?:4|5)\\.com|peacocktv\\.com|(?:[\\w.]+\\.)?disneyplus\\.com|open\\.spotify\\.com|tvnz\\.co\\.nz|oneplus\\.ch|artstation\\.com/learning/courses|philo\\.com|(?:[\\w.]+\\.)?mech-plus\\.com|aha\\.video|mubi\\.com|vootkids\\.com|nowtv\\.it/watch|tv\\.apple\\.com|primevideo\\.com|hulu\\.com|resource\\.inkryptvideos\\.com|joyn\\.de|amazon\\.(?:\\w{2}\\.)?\\w+/gp/video|music\\.amazon\\.(?:\\w{2}\\.)?\\w+|(?:watch|front)\\.njpwworld\\.com|qub\\.ca/vrai|(?:beta\\.)?crunchyroll\\.com|viki\\.com|deezer\\.com|b-ch\\.com|ctv\\.ca|noovo\\.ca|tsn\\.ca|paramountplus\\.com|(?:m\\.)?(?:sony)?crackle\\.com|cw(?:tv(?:pr)?|seed)\\.com|6play\\.fr|rtlplay\\.be|play\\.rtl\\.hr|rtlmost\\.hu|plus\\.rtl\\.de(?!/podcast/)|mediasetinfinity\\.es)'
+    _VALID_URL = 'https?://(?:www\\.)?(?:play\\.hbomax\\.com|channel(?:4|5)\\.com|peacocktv\\.com|(?:[\\w.]+\\.)?disneyplus\\.com|open\\.spotify\\.com|tvnz\\.co\\.nz|oneplus\\.ch|artstation\\.com/learning/courses|philo\\.com|(?:[\\w.]+\\.)?mech-plus\\.com|aha\\.video|mubi\\.com|vootkids\\.com|nowtv\\.it/watch|tv\\.apple\\.com|primevideo\\.com|hulu\\.com|resource\\.inkryptvideos\\.com|joyn\\.de|amazon\\.(?:\\w{2}\\.)?\\w+/gp/video|music\\.amazon\\.(?:\\w{2}\\.)?\\w+|(?:watch|front)\\.njpwworld\\.com|qub\\.ca/vrai|(?:beta\\.)?crunchyroll\\.com|viki\\.com|deezer\\.com|b-ch\\.com|ctv\\.ca|noovo\\.ca|tsn\\.ca|paramountplus\\.com|(?:m\\.)?(?:sony)?crackle\\.com|cw(?:tv(?:pr)?|seed)\\.com|6play\\.fr|rtlplay\\.be|play\\.rtl\\.hr|rtlmost\\.hu|plus\\.rtl\\.de(?!/podcast/)|mediasetinfinity\\.es|tv5mondeplus\\.com|tv\\.rakuten\\.co\\.jp|watch\\.telusoriginals\\.com|video\\.unext\\.jp|www\\.web\\.nhk|fod\\.fujitv\\.co\\.jp|zee5\\.com)'
     IE_DESC = False
 
 
 class KnownPiracyIE(UnsupportedInfoExtractor):
     _module = 'yt_dlp.extractor.unsupported'
     IE_NAME = 'Piracy'
-    _VALID_URL = 'https?://(?:www\\.)?(?:dood\\.(?:to|watch|so|pm|wf|re)|viewsb\\.com|filemoon\\.sx|hentai\\.animestigma\\.com|thisav\\.com|gounlimited\\.to|highstream\\.tv|uqload\\.com|vedbam\\.xyz|vadbam\\.netvidlo\\.us|wolfstream\\.tv|xvideosharing\\.com|(?:\\w+\\.)?viidshar\\.com|sxyprn\\.com|jable\\.tv|91porn\\.com|einthusan\\.(?:tv|com|ca)|yourupload\\.com|xanimu\\.com)'
+    _VALID_URL = 'https?://(?:www\\.)?(?:dood\\.(?:to|watch|so|pm|wf|re)|viewsb\\.com|filemoon\\.sx|hentai\\.animestigma\\.com|thisav\\.com|gounlimited\\.to|highstream\\.tv|uqload\\.com|vedbam\\.xyz|vadbam\\.netvidlo\\.us|wolfstream\\.tv|xvideosharing\\.com|(?:\\w+\\.)?viidshar\\.com|sxyprn\\.com|jable\\.tv|91porn\\.com|einthusan\\.(?:tv|com|ca)|yourupload\\.com|xanimu\\.com|musicdex\\.org|duboku\\.io)'
     IE_DESC = False
 
 
@@ -5592,14 +5591,6 @@ class KompasVideoIE(JixieBaseIE):
     _module = 'yt_dlp.extractor.kompas'
     IE_NAME = 'KompasVideo'
     _VALID_URL = 'https?://video\\.kompas\\.com/\\w+/(?P<id>\\d+)/(?P<slug>[\\w-]+)'
-    _RETURN_TYPE = 'video'
-
-
-class KooIE(LazyLoadExtractor):
-    _module = 'yt_dlp.extractor.koo'
-    IE_NAME = 'Koo'
-    _VALID_URL = 'https?://(?:www\\.)?kooapp\\.com/koo/[^/]+/(?P<id>[^/&#$?]+)'
-    _WORKING = False
     _RETURN_TYPE = 'video'
 
 
@@ -5953,14 +5944,6 @@ class LentaIE(LazyLoadExtractor):
     _RETURN_TYPE = 'video'
 
 
-class LetvCloudIE(LazyLoadExtractor):
-    _module = 'yt_dlp.extractor.leeco'
-    IE_NAME = 'LetvCloud'
-    _VALID_URL = 'https?://yuntv\\.letv\\.com/bcloud.html\\?.+'
-    IE_DESC = '乐视云'
-    _RETURN_TYPE = 'video'
-
-
 class LiTVIE(LazyLoadExtractor):
     _module = 'yt_dlp.extractor.litv'
     IE_NAME = 'LiTV'
@@ -6082,27 +6065,6 @@ class LiveJournalIE(LazyLoadExtractor):
     _RETURN_TYPE = 'video'
 
 
-class LivestreamIE(LazyLoadExtractor):
-    _module = 'yt_dlp.extractor.livestream'
-    IE_NAME = 'livestream'
-    _VALID_URL = '(?x)\n        https?://(?:new\\.)?livestream\\.com/\n        (?:accounts/(?P<account_id>\\d+)|(?P<account_name>[^/]+))\n        (?:/events/(?P<event_id>\\d+)|/(?P<event_name>[^/]+))?\n        (?:/videos/(?P<id>\\d+))?\n    '
-    _RETURN_TYPE = 'any'
-
-
-class LivestreamOriginalIE(LazyLoadExtractor):
-    _module = 'yt_dlp.extractor.livestream'
-    IE_NAME = 'livestream:original'
-    _VALID_URL = '(?x)https?://original\\.livestream\\.com/\n        (?P<user>[^/\\?#]+)(?:/(?P<type>video|folder)\n        (?:(?:\\?.*?Id=|/)(?P<id>.*?)(&|$))?)?\n        '
-    _RETURN_TYPE = 'any'
-
-
-class LivestreamShortenerIE(LazyLoadExtractor):
-    _module = 'yt_dlp.extractor.livestream'
-    IE_NAME = 'livestream:shortener'
-    _VALID_URL = 'https?://livestre\\.am/(?P<id>.+)'
-    IE_DESC = False
-
-
 class LivestreamfailsIE(LazyLoadExtractor):
     _module = 'yt_dlp.extractor.livestreamfails'
     IE_NAME = 'Livestreamfails'
@@ -6117,6 +6079,30 @@ class LnkIE(LazyLoadExtractor):
     _RETURN_TYPE = 'video'
 
 
+class StreaksBaseIE(LazyLoadExtractor):
+    _module = 'yt_dlp.extractor.streaks'
+    IE_NAME = 'StreaksBase'
+
+
+class LocipoBaseIE(StreaksBaseIE):
+    _module = 'yt_dlp.extractor.locipo'
+    IE_NAME = 'LocipoBase'
+
+
+class LocipoIE(LocipoBaseIE):
+    _module = 'yt_dlp.extractor.locipo'
+    IE_NAME = 'Locipo'
+    _VALID_URL = ['https?://locipo\\.jp/creative/(?P<id>[\\da-f]{8}(?:-[\\da-f]{4}){3}-[\\da-f]{12})', 'https?://locipo\\.jp/embed/?\\?(?:[^#]+&)?id=(?P<id>[\\da-f]{8}(?:-[\\da-f]{4}){3}-[\\da-f]{12})']
+    _RETURN_TYPE = 'any'
+
+
+class LocipoPlaylistIE(LocipoBaseIE):
+    _module = 'yt_dlp.extractor.locipo'
+    IE_NAME = 'LocipoPlaylist'
+    _VALID_URL = ['https?://locipo\\.jp/(?P<type>playlist)/(?P<id>[\\da-f]{8}(?:-[\\da-f]{4}){3}-[\\da-f]{12})', 'https?://locipo\\.jp/(?P<type>series)/(?P<id>\\d+)']
+    _RETURN_TYPE = 'playlist'
+
+
 class LocoIE(LazyLoadExtractor):
     _module = 'yt_dlp.extractor.loco'
     IE_NAME = 'Loco'
@@ -6128,6 +6114,7 @@ class LoomFolderIE(LazyLoadExtractor):
     _module = 'yt_dlp.extractor.loom'
     IE_NAME = 'loom:folder'
     _VALID_URL = 'https?://(?:www\\.)?loom\\.com/share/folder/(?P<id>[\\da-f]{32})'
+    _WORKING = False
     _RETURN_TYPE = 'playlist'
 
 
@@ -6155,29 +6142,6 @@ class LumniIE(FranceTVBaseInfoExtractor):
     _module = 'yt_dlp.extractor.lumni'
     IE_NAME = 'Lumni'
     _VALID_URL = 'https?://(?:www\\.)?lumni\\.fr/video/(?P<id>[\\w-]+)'
-    _RETURN_TYPE = 'video'
-
-
-class LyndaBaseIE(LazyLoadExtractor):
-    _module = 'yt_dlp.extractor.lynda'
-    IE_NAME = 'LyndaBase'
-    _NETRC_MACHINE = 'lynda'
-
-
-class LyndaCourseIE(LyndaBaseIE):
-    _module = 'yt_dlp.extractor.lynda'
-    IE_NAME = 'lynda:course'
-    _VALID_URL = 'https?://(?:www|m)\\.(?:lynda\\.com|educourse\\.ga)/(?P<coursepath>(?:[^/]+/){2,3}(?P<courseid>\\d+))-2\\.html'
-    IE_DESC = 'lynda.com online courses'
-    _NETRC_MACHINE = 'lynda'
-
-
-class LyndaIE(LyndaBaseIE):
-    _module = 'yt_dlp.extractor.lynda'
-    IE_NAME = 'lynda'
-    _VALID_URL = '(?x)\n                    https?://\n                        (?:www\\.)?(?:lynda\\.com|educourse\\.ga)/\n                        (?:\n                            (?:[^/]+/){2,3}(?P<course_id>\\d+)|\n                            player/embed\n                        )/\n                        (?P<id>\\d+)\n                    '
-    IE_DESC = 'lynda.com videos'
-    _NETRC_MACHINE = 'lynda'
     _RETURN_TYPE = 'video'
 
 
@@ -6380,30 +6344,6 @@ class MangomoloVideoIE(MangomoloBaseIE):
     _VALID_URL = '(?:https?:)?//(?:admin\\.mangomolo\\.com/analytics/index\\.php/customers/embed/|player\\.mangomolo\\.com/v1/)video\\?.*?\\bid=(?P<id>\\d+)'
 
 
-class ManotoTVIE(LazyLoadExtractor):
-    _module = 'yt_dlp.extractor.manoto'
-    IE_NAME = 'ManotoTV'
-    _VALID_URL = 'https?://(?:www\\.)?manototv\\.com/episode/(?P<id>[0-9]+)'
-    IE_DESC = 'Manoto TV (Episode)'
-    _RETURN_TYPE = 'video'
-
-
-class ManotoTVLiveIE(LazyLoadExtractor):
-    _module = 'yt_dlp.extractor.manoto'
-    IE_NAME = 'ManotoTVLive'
-    _VALID_URL = 'https?://(?:www\\.)?manototv\\.com/live/'
-    IE_DESC = 'Manoto TV (Live)'
-    _RETURN_TYPE = 'video'
-
-
-class ManotoTVShowIE(LazyLoadExtractor):
-    _module = 'yt_dlp.extractor.manoto'
-    IE_NAME = 'ManotoTVShow'
-    _VALID_URL = 'https?://(?:www\\.)?manototv\\.com/show/(?P<id>[0-9]+)'
-    IE_DESC = 'Manoto TV (Show)'
-    _RETURN_TYPE = 'playlist'
-
-
 class ManyVidsIE(LazyLoadExtractor):
     _module = 'yt_dlp.extractor.manyvids'
     IE_NAME = 'ManyVids'
@@ -6459,10 +6399,29 @@ class MatchTVIE(LazyLoadExtractor):
     _RETURN_TYPE = 'video'
 
 
-class MaveIE(LazyLoadExtractor):
+class MatchiTVIE(LazyLoadExtractor):
+    _module = 'yt_dlp.extractor.matchitv'
+    IE_NAME = 'MatchiTV'
+    _VALID_URL = 'https?://(?:www\\.)?matchi\\.tv/watch/?\\?(?:[^#]+&)?s=(?P<id>[0-9a-zA-Z]+)'
+    _RETURN_TYPE = 'video'
+
+
+class MaveBaseIE(LazyLoadExtractor):
     _module = 'yt_dlp.extractor.mave'
-    IE_NAME = 'Mave'
-    _VALID_URL = 'https?://(?P<channel>[\\w-]+)\\.mave\\.digital/(?P<id>ep-\\d+)'
+    IE_NAME = 'MaveBase'
+
+
+class MaveChannelIE(MaveBaseIE):
+    _module = 'yt_dlp.extractor.mave'
+    IE_NAME = 'mave:channel'
+    _VALID_URL = 'https?://(?P<id>[\\w-]+)\\.mave\\.digital/?(?:$|[?#])'
+    _RETURN_TYPE = 'playlist'
+
+
+class MaveIE(MaveBaseIE):
+    _module = 'yt_dlp.extractor.mave'
+    IE_NAME = 'mave'
+    _VALID_URL = 'https?://(?P<channel_id>[\\w-]+)\\.mave\\.digital/ep-(?P<episode_code>\\d+)'
     age_limit = 18
     _RETURN_TYPE = 'video'
 
@@ -6665,13 +6624,6 @@ class MicrosoftMediusIE(MicrosoftMediusBaseIE):
     _RETURN_TYPE = 'video'
 
 
-class MicrosoftStreamIE(LazyLoadExtractor):
-    _module = 'yt_dlp.extractor.microsoftstream'
-    IE_NAME = 'microsoftstream'
-    _VALID_URL = 'https?://(?:web|www|msit)\\.microsoftstream\\.com/video/(?P<id>[\\da-f]{8}-[\\da-f]{4}-[\\da-f]{4}-[\\da-f]{4}-[\\da-f]{12})'
-    IE_DESC = 'Microsoft Stream'
-
-
 class MindsBaseIE(LazyLoadExtractor):
     _module = 'yt_dlp.extractor.minds'
     IE_NAME = 'MindsBase'
@@ -6701,12 +6653,6 @@ class MindsIE(MindsBaseIE):
     IE_NAME = 'minds'
     _VALID_URL = 'https?://(?:www\\.)?minds\\.com/(?:media|newsfeed|archive/view)/(?P<id>[0-9]+)'
     _RETURN_TYPE = 'video'
-
-
-class MinotoIE(LazyLoadExtractor):
-    _module = 'yt_dlp.extractor.minoto'
-    IE_NAME = 'Minoto'
-    _VALID_URL = '(?:minoto:|https?://(?:play|iframe|embed)\\.minoto-video\\.com/(?P<player_id>[0-9]+)/)(?P<id>[a-zA-Z0-9]+)'
 
 
 class Mir24TvIE(LazyLoadExtractor):
@@ -6830,13 +6776,6 @@ class MojevideoIE(LazyLoadExtractor):
     _RETURN_TYPE = 'video'
 
 
-class MojvideoIE(LazyLoadExtractor):
-    _module = 'yt_dlp.extractor.mojvideo'
-    IE_NAME = 'Mojvideo'
-    _VALID_URL = 'https?://(?:www\\.)?mojvideo\\.com/video-(?P<display_id>[^/]+)/(?P<id>[a-f0-9]+)'
-    _RETURN_TYPE = 'video'
-
-
 class MonsterSirenHypergryphMusicIE(LazyLoadExtractor):
     _module = 'yt_dlp.extractor.hypergryph'
     IE_NAME = 'monstersiren'
@@ -6848,41 +6787,7 @@ class MonsterSirenHypergryphMusicIE(LazyLoadExtractor):
 class MonstercatIE(LazyLoadExtractor):
     _module = 'yt_dlp.extractor.monstercat'
     IE_NAME = 'Monstercat'
-    _VALID_URL = 'https?://www\\.monstercat\\.com/release/(?P<id>\\d+)'
-    _RETURN_TYPE = 'playlist'
-
-
-class MotherlessPaginatedIE(LazyLoadExtractor):
-    _module = 'yt_dlp.extractor.motherless'
-    IE_NAME = 'MotherlessPaginated'
-
-
-class MotherlessGalleryIE(MotherlessPaginatedIE):
-    _module = 'yt_dlp.extractor.motherless'
-    IE_NAME = 'MotherlessGallery'
-    _VALID_URL = 'https?://(?:www\\.)?motherless\\.com/G[VIG]?(?P<id>[A-F0-9]+)/?(?:$|[#?])'
-    _RETURN_TYPE = 'playlist'
-
-
-class MotherlessGroupIE(MotherlessPaginatedIE):
-    _module = 'yt_dlp.extractor.motherless'
-    IE_NAME = 'MotherlessGroup'
-    _VALID_URL = 'https?://(?:www\\.)?motherless\\.com/g[vifm]?/(?P<id>[a-z0-9_]+)/?(?:$|[#?])'
-    _RETURN_TYPE = 'playlist'
-
-
-class MotherlessIE(LazyLoadExtractor):
-    _module = 'yt_dlp.extractor.motherless'
-    IE_NAME = 'Motherless'
-    _VALID_URL = 'https?://(?:www\\.)?motherless\\.com/(?:g/[a-z0-9_]+/|G[VIG]?[A-F0-9]+/)?(?P<id>[A-F0-9]+)'
-    age_limit = 18
-    _RETURN_TYPE = 'video'
-
-
-class MotherlessUploaderIE(MotherlessPaginatedIE):
-    _module = 'yt_dlp.extractor.motherless'
-    IE_NAME = 'MotherlessUploader'
-    _VALID_URL = 'https?://(?:www\\.)?motherless\\.com/u/(?P<id>\\w+)/?(?:$|[?#])'
+    _VALID_URL = 'https?://www\\.monstercat\\.com/release/(?P<id>\\d{12}|MC[A-Z]+\\d+)'
     _RETURN_TYPE = 'playlist'
 
 
@@ -6908,20 +6813,6 @@ class MoviepilotIE(LazyLoadExtractor):
     IE_NAME = 'moviepilot'
     _VALID_URL = 'https?://(?:www\\.)?moviepilot\\.de/movies/(?P<id>[^/]+)'
     IE_DESC = 'Moviepilot trailer'
-    _RETURN_TYPE = 'video'
-
-
-class MoviewPlayIE(JixieBaseIE):
-    _module = 'yt_dlp.extractor.moview'
-    IE_NAME = 'MoviewPlay'
-    _VALID_URL = 'https?://www\\.moview\\.id/play/\\d+/(?P<id>[\\w-]+)'
-    _RETURN_TYPE = 'video'
-
-
-class MoviezineIE(LazyLoadExtractor):
-    _module = 'yt_dlp.extractor.moviezine'
-    IE_NAME = 'Moviezine'
-    _VALID_URL = 'https?://(?:www\\.)?moviezine\\.se/video/(?P<id>[^?#]+)'
     _RETURN_TYPE = 'video'
 
 
@@ -6984,41 +6875,10 @@ class MuseScoreIE(LazyLoadExtractor):
     _RETURN_TYPE = 'video'
 
 
-class MusicdexBaseIE(LazyLoadExtractor):
-    _module = 'yt_dlp.extractor.musicdex'
-    IE_NAME = 'MusicdexBase'
-
-
-class MusicdexAlbumIE(MusicdexBaseIE):
-    _module = 'yt_dlp.extractor.musicdex'
-    IE_NAME = 'MusicdexAlbum'
-    _VALID_URL = 'https?://(?:www\\.)?musicdex\\.org/album/(?P<id>\\d+)'
-    _RETURN_TYPE = 'playlist'
-
-
-class MusicdexPageIE(MusicdexBaseIE):
-    _module = 'yt_dlp.extractor.musicdex'
-    IE_NAME = 'MusicdexPage'
-
-
-class MusicdexArtistIE(MusicdexPageIE):
-    _module = 'yt_dlp.extractor.musicdex'
-    IE_NAME = 'MusicdexArtist'
-    _VALID_URL = 'https?://(?:www\\.)?musicdex\\.org/artist/(?P<id>\\d+)'
-    _RETURN_TYPE = 'playlist'
-
-
-class MusicdexPlaylistIE(MusicdexPageIE):
-    _module = 'yt_dlp.extractor.musicdex'
-    IE_NAME = 'MusicdexPlaylist'
-    _VALID_URL = 'https?://(?:www\\.)?musicdex\\.org/playlist/(?P<id>\\d+)'
-    _RETURN_TYPE = 'playlist'
-
-
-class MusicdexSongIE(MusicdexBaseIE):
-    _module = 'yt_dlp.extractor.musicdex'
-    IE_NAME = 'MusicdexSong'
-    _VALID_URL = 'https?://(?:www\\.)?musicdex\\.org/track/(?P<id>\\d+)'
+class MuxIE(LazyLoadExtractor):
+    _module = 'yt_dlp.extractor.mux'
+    IE_NAME = 'Mux'
+    _VALID_URL = 'https?://(?:stream\\.new/v|player\\.mux\\.com)/(?P<id>[A-Za-z0-9-]+)'
     _RETURN_TYPE = 'video'
 
 
@@ -7547,11 +7407,6 @@ class NTSLiveIE(LazyLoadExtractor):
     _RETURN_TYPE = 'video'
 
 
-class StreaksBaseIE(LazyLoadExtractor):
-    _module = 'yt_dlp.extractor.streaks'
-    IE_NAME = 'StreaksBase'
-
-
 class NTVCoJpCUIE(StreaksBaseIE):
     _module = 'yt_dlp.extractor.ntvcojp'
     IE_NAME = 'cu.ntv.co.jp'
@@ -7570,7 +7425,7 @@ class NTVDeIE(LazyLoadExtractor):
 class NTVRuIE(LazyLoadExtractor):
     _module = 'yt_dlp.extractor.ntvru'
     IE_NAME = 'ntv.ru'
-    _VALID_URL = 'https?://(?:www\\.)?ntv\\.ru/(?:[^/]+/)*(?P<id>[^/?#&]+)'
+    _VALID_URL = 'https?://(?:www\\.)?ntv\\.ru/(?:[^/#?]+/)*(?P<id>[^/?#&]+)'
     _RETURN_TYPE = 'video'
 
 
@@ -7628,6 +7483,13 @@ class NZZIE(LazyLoadExtractor):
     _RETURN_TYPE = 'playlist'
 
 
+class NascarClassicsIE(LazyLoadExtractor):
+    _module = 'yt_dlp.extractor.nascar'
+    IE_NAME = 'NascarClassics'
+    _VALID_URL = 'https?://(?:www\\.)?classics\\.nascar\\.com/video/(?P<id>[\\w~-]+)'
+    _RETURN_TYPE = 'video'
+
+
 class NateIE(LazyLoadExtractor):
     _module = 'yt_dlp.extractor.nate'
     IE_NAME = 'Nate'
@@ -7651,13 +7513,6 @@ class NationalGeographicTVIE(FOXIE):
     _RETURN_TYPE = 'video'
 
 
-class NationalGeographicVideoIE(LazyLoadExtractor):
-    _module = 'yt_dlp.extractor.nationalgeographic'
-    IE_NAME = 'natgeo:video'
-    _VALID_URL = 'https?://video\\.nationalgeographic\\.com/.*?'
-    _RETURN_TYPE = 'video'
-
-
 class NaverBaseIE(LazyLoadExtractor):
     _module = 'yt_dlp.extractor.naver'
     IE_NAME = 'NaverBase'
@@ -7675,13 +7530,6 @@ class NaverLiveIE(NaverBaseIE):
     IE_NAME = 'Naver:live'
     _VALID_URL = 'https?://(?:m\\.)?tv(?:cast)?\\.naver\\.com/l/(?P<id>\\d+)'
     _RETURN_TYPE = 'video'
-
-
-class NaverNowIE(NaverBaseIE):
-    _module = 'yt_dlp.extractor.naver'
-    IE_NAME = 'navernow'
-    _VALID_URL = 'https?://now\\.naver\\.com/s/now\\.(?P<id>\\w+)'
-    _RETURN_TYPE = 'any'
 
 
 class NebulaBaseIE(LazyLoadExtractor):
@@ -7714,6 +7562,14 @@ class NebulaIE(NebulaBaseIE):
     _RETURN_TYPE = 'video'
 
 
+class NebulaSeasonIE(NebulaBaseIE):
+    _module = 'yt_dlp.extractor.nebula'
+    IE_NAME = 'nebula:season'
+    _VALID_URL = 'https?://(?:www\\.|beta\\.)?(?:watchnebula\\.com|nebula\\.app|nebula\\.tv)/(?P<series>[\\w-]+)/season/(?P<season_number>[\\w-]+)'
+    _NETRC_MACHINE = 'watchnebula'
+    _RETURN_TYPE = 'playlist'
+
+
 class NebulaSubscriptionsIE(NebulaBaseIE):
     _module = 'yt_dlp.extractor.nebula'
     IE_NAME = 'nebula:subscriptions'
@@ -7729,13 +7585,6 @@ class NekoHackerIE(LazyLoadExtractor):
     _RETURN_TYPE = 'playlist'
 
 
-class NerdCubedFeedIE(LazyLoadExtractor):
-    _module = 'yt_dlp.extractor.nerdcubed'
-    IE_NAME = 'NerdCubedFeed'
-    _VALID_URL = 'https?://(?:www\\.)?nerdcubed\\.co\\.uk/?(?:$|[#?])'
-    _RETURN_TYPE = 'playlist'
-
-
 class NestClipIE(LazyLoadExtractor):
     _module = 'yt_dlp.extractor.nest'
     IE_NAME = 'NestClip'
@@ -7747,6 +7596,25 @@ class NestIE(LazyLoadExtractor):
     _module = 'yt_dlp.extractor.nest'
     IE_NAME = 'Nest'
     _VALID_URL = 'https?://video\\.nest\\.com/(?:embedded/)?live/(?P<id>\\w+)'
+    _RETURN_TYPE = 'video'
+
+
+class NetAppBaseIE(LazyLoadExtractor):
+    _module = 'yt_dlp.extractor.netapp'
+    IE_NAME = 'NetAppBase'
+
+
+class NetAppCollectionIE(NetAppBaseIE):
+    _module = 'yt_dlp.extractor.netapp'
+    IE_NAME = 'NetAppCollection'
+    _VALID_URL = 'https?://media\\.netapp\\.com/collection/(?P<id>[0-9a-f-]+)'
+    _RETURN_TYPE = 'playlist'
+
+
+class NetAppVideoIE(NetAppBaseIE):
+    _module = 'yt_dlp.extractor.netapp'
+    IE_NAME = 'NetAppVideo'
+    _VALID_URL = 'https?://media\\.netapp\\.com/video-detail/(?P<id>[0-9a-f-]+)'
     _RETURN_TYPE = 'video'
 
 
@@ -7798,7 +7666,7 @@ class NetEaseMusicMvIE(NetEaseMusicBaseIE):
 class NetEaseMusicProgramIE(NetEaseMusicBaseIE):
     _module = 'yt_dlp.extractor.neteasemusic'
     IE_NAME = 'netease:program'
-    _VALID_URL = 'https?://music\\.163\\.com/(?:#/)?program\\?id=(?P<id>[0-9]+)'
+    _VALID_URL = 'https?://music\\.163\\.com/(?:#/)?(?:dj|program)\\?id=(?P<id>[0-9]+)'
     IE_DESC = '网易云音乐 - 电台节目'
     _RETURN_TYPE = 'any'
 
@@ -7842,39 +7710,11 @@ class NetPlusTVRecordingsIE(NetPlusTVBaseIE):
     _NETRC_MACHINE = 'netplus'
 
 
-class NetverseBaseIE(LazyLoadExtractor):
-    _module = 'yt_dlp.extractor.netverse'
-    IE_NAME = 'NetverseBase'
-
-
-class NetverseIE(NetverseBaseIE):
-    _module = 'yt_dlp.extractor.netverse'
-    IE_NAME = 'Netverse'
-    _VALID_URL = 'https?://(?:\\w+\\.)?netverse\\.id/(?P<type>watch|video)/(?P<display_id>[^/?#&]+)'
-    _RETURN_TYPE = 'video'
-
-
-class NetversePlaylistIE(NetverseBaseIE):
-    _module = 'yt_dlp.extractor.netverse'
-    IE_NAME = 'NetversePlaylist'
-    _VALID_URL = 'https?://(?:\\w+\\.)?netverse\\.id/(?P<type>webseries)/(?P<display_id>[^/?#&]+)'
-    _RETURN_TYPE = 'playlist'
-
-
-class NetverseSearchIE(LazyLoadSearchExtractor):
-    _module = 'yt_dlp.extractor.netverse'
-    IE_NAME = 'NetverseSearch'
-    _VALID_URL = 'netsearch(?P<prefix>|[1-9][0-9]*|all):(?P<query>[\\s\\S]+)'
-    SEARCH_KEY = 'netsearch'
-    _RETURN_TYPE = 'playlist'
-
-
 class NetzkinoIE(LazyLoadExtractor):
     _module = 'yt_dlp.extractor.netzkino'
     IE_NAME = 'Netzkino'
-    _VALID_URL = 'https?://(?:www\\.)?netzkino\\.de/\\#!/[^/]+/(?P<id>[^/]+)'
-    _WORKING = False
-    age_limit = 18
+    _VALID_URL = 'https?://(?:www\\.)?netzkino\\.de/details/(?P<id>[^/?#]+)'
+    age_limit = 12
     _RETURN_TYPE = 'video'
 
 
@@ -7912,40 +7752,6 @@ class NewsyIE(LazyLoadExtractor):
     _module = 'yt_dlp.extractor.newsy'
     IE_NAME = 'Newsy'
     _VALID_URL = 'https?://(?:www\\.)?newsy\\.com/stories/(?P<id>[^/?#$&]+)'
-    _RETURN_TYPE = 'video'
-
-
-class NextMediaIE(LazyLoadExtractor):
-    _module = 'yt_dlp.extractor.nextmedia'
-    IE_NAME = 'NextMedia'
-    _VALID_URL = 'https?://hk\\.apple\\.nextmedia\\.com/[^/]+/[^/]+/(?P<date>\\d+)/(?P<id>\\d+)'
-    IE_DESC = '蘋果日報'
-    _RETURN_TYPE = 'video'
-
-
-class AppleDailyIE(NextMediaIE):
-    _module = 'yt_dlp.extractor.nextmedia'
-    IE_NAME = 'AppleDaily'
-    _VALID_URL = 'https?://(www|ent)\\.appledaily\\.com\\.tw/[^/]+/[^/]+/[^/]+/(?P<date>\\d+)/(?P<id>\\d+)(/.*)?'
-    IE_DESC = '臺灣蘋果日報'
-    _RETURN_TYPE = 'video'
-
-
-class NextMediaActionNewsIE(NextMediaIE):
-    _module = 'yt_dlp.extractor.nextmedia'
-    IE_NAME = 'NextMediaActionNews'
-    _VALID_URL = 'https?://hk\\.dv\\.nextmedia\\.com/actionnews/[^/]+/(?P<date>\\d+)/(?P<id>\\d+)/\\d+'
-    IE_DESC = '蘋果日報 - 動新聞'
-    _RETURN_TYPE = 'video'
-
-
-class NextTVIE(LazyLoadExtractor):
-    _module = 'yt_dlp.extractor.nextmedia'
-    IE_NAME = 'NextTV'
-    _ENABLED = None
-    _VALID_URL = 'https?://(?:www\\.)?nexttv\\.com\\.tw/(?:[^/]+/)+(?P<id>\\d+)'
-    _WORKING = False
-    IE_DESC = '壹電視'
     _RETURN_TYPE = 'video'
 
 
@@ -8271,6 +8077,13 @@ class NovaPlayIE(LazyLoadExtractor):
     _RETURN_TYPE = 'video'
 
 
+class NowCanalIE(LazyLoadExtractor):
+    _module = 'yt_dlp.extractor.nowcanal'
+    IE_NAME = 'NowCanal'
+    _VALID_URL = 'https?://(?:www\\.)?nowcanal\\.pt(?:/[\\w-]+)+/detalhe/(?P<id>[\\w-]+)'
+    _RETURN_TYPE = 'video'
+
+
 class NownessBaseIE(LazyLoadExtractor):
     _module = 'yt_dlp.extractor.nowness'
     IE_NAME = 'NownessBase'
@@ -8319,31 +8132,6 @@ class NubilesPornIE(LazyLoadExtractor):
     _NETRC_MACHINE = 'nubiles-porn'
     age_limit = 18
     _RETURN_TYPE = 'video'
-
-
-class NuumBaseIE(LazyLoadExtractor):
-    _module = 'yt_dlp.extractor.nuum'
-    IE_NAME = 'NuumBase'
-
-
-class NuumLiveIE(NuumBaseIE):
-    _module = 'yt_dlp.extractor.nuum'
-    IE_NAME = 'nuum:live'
-    _VALID_URL = 'https?://nuum\\.ru/channel/(?P<id>[^/#?]+)/?(?:$|[#?])'
-
-
-class NuumMediaIE(NuumBaseIE):
-    _module = 'yt_dlp.extractor.nuum'
-    IE_NAME = 'nuum:media'
-    _VALID_URL = 'https?://nuum\\.ru/(?:streams|videos|clips)/(?P<id>[\\d]+)'
-    _RETURN_TYPE = 'video'
-
-
-class NuumTabIE(NuumBaseIE):
-    _module = 'yt_dlp.extractor.nuum'
-    IE_NAME = 'nuum:tab'
-    _VALID_URL = 'https?://nuum\\.ru/channel/(?P<id>[^/#?]+)/(?P<type>streams|videos|clips)'
-    _RETURN_TYPE = 'playlist'
 
 
 class NuvidIE(LazyLoadExtractor):
@@ -8512,13 +8300,6 @@ class OnetPlIE(LazyLoadExtractor):
     _RETURN_TYPE = 'video'
 
 
-class OnionStudiosIE(LazyLoadExtractor):
-    _module = 'yt_dlp.extractor.onionstudios'
-    IE_NAME = 'OnionStudios'
-    _VALID_URL = 'https?://(?:www\\.)?onionstudios\\.com/(?:video(?:s/[^/]+-|/)|embed\\?.*\\bid=)(?P<id>\\d+)(?!-)'
-    _RETURN_TYPE = 'video'
-
-
 class OnsenIE(LazyLoadExtractor):
     _module = 'yt_dlp.extractor.onsen'
     IE_NAME = 'onsen'
@@ -8526,6 +8307,15 @@ class OnsenIE(LazyLoadExtractor):
     IE_DESC = 'インターネットラジオステーション＜音泉＞'
     _NETRC_MACHINE = 'onsen'
     _RETURN_TYPE = 'any'
+
+    @classmethod
+    def get_temp_id(cls, url):
+        import base64
+        import urllib.parse
+
+        if c := urllib.parse.parse_qs(urllib.parse.urlparse(url).query).get('c'):
+            return base64.urlsafe_b64decode(f'{c[-1]}===').decode()
+        return super().get_temp_id(url)
 
 
 class OpenRecBaseIE(LazyLoadExtractor):
@@ -8561,22 +8351,15 @@ class OpencastBaseIE(LazyLoadExtractor):
 class OpencastIE(OpencastBaseIE):
     _module = 'yt_dlp.extractor.opencast'
     IE_NAME = 'Opencast'
-    _VALID_URL = '(?x)\n        https?://(?P<host>(?:\n                            opencast\\.informatik\\.kit\\.edu|\n                            electures\\.uni-muenster\\.de|\n                            oc-presentation\\.ltcc\\.tuwien\\.ac\\.at|\n                            medien\\.ph-noe\\.ac\\.at|\n                            oc-video\\.ruhr-uni-bochum\\.de|\n                            oc-video1\\.ruhr-uni-bochum\\.de|\n                            opencast\\.informatik\\.uni-goettingen\\.de|\n                            heicast\\.uni-heidelberg\\.de|\n                            opencast\\.hawk\\.de:8080|\n                            opencast\\.hs-osnabrueck\\.de|\n                            video[0-9]+\\.virtuos\\.uni-osnabrueck\\.de|\n                            opencast\\.uni-koeln\\.de|\n                            media\\.opencast\\.hochschule-rhein-waal\\.de|\n                            matterhorn\\.dce\\.harvard\\.edu|\n                            hs-harz\\.opencast\\.uni-halle\\.de|\n                            videocampus\\.urz\\.uni-leipzig\\.de|\n                            media\\.uct\\.ac\\.za|\n                            vid\\.igb\\.illinois\\.edu|\n                            cursosabertos\\.c3sl\\.ufpr\\.br|\n                            mcmedia\\.missioncollege\\.org|\n                            clases\\.odon\\.edu\\.uy\n                        ))/paella/ui/watch\\.html\\?\n        (?:[^#]+&)?id=(?P<id>[\\da-fA-F]{8}-[\\da-fA-F]{4}-[\\da-fA-F]{4}-[\\da-fA-F]{4}-[\\da-fA-F]{12})'
+    _VALID_URL = '(?x)\n        https?://(?P<host>(?:\n                            opencast\\.informatik\\.kit\\.edu|\n                            electures\\.uni-muenster\\.de|\n                            oc-presentation\\.ltcc\\.tuwien\\.ac\\.at|\n                            medien\\.ph-noe\\.ac\\.at|\n                            oc-video\\.ruhr-uni-bochum\\.de|\n                            oc-video1\\.ruhr-uni-bochum\\.de|\n                            opencast\\.informatik\\.uni-goettingen\\.de|\n                            heicast\\.uni-heidelberg\\.de|\n                            opencast\\.hawk\\.de:8080|\n                            opencast\\.hs-osnabrueck\\.de|\n                            video[0-9]+\\.virtuos\\.uni-osnabrueck\\.de|\n                            opencast\\.uni-koeln\\.de|\n                            media\\.opencast\\.hochschule-rhein-waal\\.de|\n                            matterhorn\\.dce\\.harvard\\.edu|\n                            hs-harz\\.opencast\\.uni-halle\\.de|\n                            videocampus\\.urz\\.uni-leipzig\\.de|\n                            media\\.uct\\.ac\\.za|\n                            vid\\.igb\\.illinois\\.edu|\n                            cursosabertos\\.c3sl\\.ufpr\\.br|\n                            mcmedia\\.missioncollege\\.org|\n                            clases\\.odon\\.edu\\.uy|\n                            oc-p\\.uni-jena\\.de\n                        ))/paella[0-9]*/ui/watch\\.html\\?\n        (?:[^#]+&)?id=(?P<id>[\\da-fA-F]{8}-[\\da-fA-F]{4}-[\\da-fA-F]{4}-[\\da-fA-F]{4}-[\\da-fA-F]{12})'
     _RETURN_TYPE = 'video'
 
 
 class OpencastPlaylistIE(OpencastBaseIE):
     _module = 'yt_dlp.extractor.opencast'
     IE_NAME = 'OpencastPlaylist'
-    _VALID_URL = '(?x)\n        https?://(?P<host>(?:\n                            opencast\\.informatik\\.kit\\.edu|\n                            electures\\.uni-muenster\\.de|\n                            oc-presentation\\.ltcc\\.tuwien\\.ac\\.at|\n                            medien\\.ph-noe\\.ac\\.at|\n                            oc-video\\.ruhr-uni-bochum\\.de|\n                            oc-video1\\.ruhr-uni-bochum\\.de|\n                            opencast\\.informatik\\.uni-goettingen\\.de|\n                            heicast\\.uni-heidelberg\\.de|\n                            opencast\\.hawk\\.de:8080|\n                            opencast\\.hs-osnabrueck\\.de|\n                            video[0-9]+\\.virtuos\\.uni-osnabrueck\\.de|\n                            opencast\\.uni-koeln\\.de|\n                            media\\.opencast\\.hochschule-rhein-waal\\.de|\n                            matterhorn\\.dce\\.harvard\\.edu|\n                            hs-harz\\.opencast\\.uni-halle\\.de|\n                            videocampus\\.urz\\.uni-leipzig\\.de|\n                            media\\.uct\\.ac\\.za|\n                            vid\\.igb\\.illinois\\.edu|\n                            cursosabertos\\.c3sl\\.ufpr\\.br|\n                            mcmedia\\.missioncollege\\.org|\n                            clases\\.odon\\.edu\\.uy\n                        ))(?:\n            /engage/ui/index\\.html\\?(?:[^#]+&)?epFrom=|\n            /ltitools/index\\.html\\?(?:[^#]+&)?series=\n        )(?P<id>[\\da-fA-F]{8}-[\\da-fA-F]{4}-[\\da-fA-F]{4}-[\\da-fA-F]{4}-[\\da-fA-F]{12})'
+    _VALID_URL = '(?x)\n        https?://(?P<host>(?:\n                            opencast\\.informatik\\.kit\\.edu|\n                            electures\\.uni-muenster\\.de|\n                            oc-presentation\\.ltcc\\.tuwien\\.ac\\.at|\n                            medien\\.ph-noe\\.ac\\.at|\n                            oc-video\\.ruhr-uni-bochum\\.de|\n                            oc-video1\\.ruhr-uni-bochum\\.de|\n                            opencast\\.informatik\\.uni-goettingen\\.de|\n                            heicast\\.uni-heidelberg\\.de|\n                            opencast\\.hawk\\.de:8080|\n                            opencast\\.hs-osnabrueck\\.de|\n                            video[0-9]+\\.virtuos\\.uni-osnabrueck\\.de|\n                            opencast\\.uni-koeln\\.de|\n                            media\\.opencast\\.hochschule-rhein-waal\\.de|\n                            matterhorn\\.dce\\.harvard\\.edu|\n                            hs-harz\\.opencast\\.uni-halle\\.de|\n                            videocampus\\.urz\\.uni-leipzig\\.de|\n                            media\\.uct\\.ac\\.za|\n                            vid\\.igb\\.illinois\\.edu|\n                            cursosabertos\\.c3sl\\.ufpr\\.br|\n                            mcmedia\\.missioncollege\\.org|\n                            clases\\.odon\\.edu\\.uy|\n                            oc-p\\.uni-jena\\.de\n                        ))(?:\n            /engage/ui/index\\.html\\?(?:[^#]+&)?epFrom=|\n            /ltitools/index\\.html\\?(?:[^#]+&)?series=\n        )(?P<id>[\\da-fA-F]{8}-[\\da-fA-F]{4}-[\\da-fA-F]{4}-[\\da-fA-F]{4}-[\\da-fA-F]{12})'
     _RETURN_TYPE = 'playlist'
-
-
-class OraTVIE(LazyLoadExtractor):
-    _module = 'yt_dlp.extractor.ora'
-    IE_NAME = 'OraTV'
-    _VALID_URL = 'https?://(?:www\\.)?(?:ora\\.tv|unsafespeech\\.com)/([^/]+/)*(?P<id>[^/\\?#]+)'
-    _RETURN_TYPE = 'video'
 
 
 class OsnatelTVBaseIE(ZattooPlatformBaseIE):
@@ -8749,6 +8532,14 @@ class PalcoMP3VideoIE(PalcoMP3BaseIE):
     _RETURN_TYPE = 'video'
 
 
+class PandaTvIE(LazyLoadExtractor):
+    _module = 'yt_dlp.extractor.pandatv'
+    IE_NAME = 'PandaTv'
+    _VALID_URL = 'https?://(?:www\\.|m\\.)?pandalive\\.co\\.kr/play/(?P<id>\\w+)'
+    IE_DESC = 'pandalive.co.kr (팬더티비)'
+    _RETURN_TYPE = 'video'
+
+
 class PanoptoBaseIE(LazyLoadExtractor):
     _module = 'yt_dlp.extractor.panopto'
     IE_NAME = 'PanoptoBase'
@@ -8822,7 +8613,7 @@ class PartiBaseIE(LazyLoadExtractor):
 class PartiLivestreamIE(PartiBaseIE):
     _module = 'yt_dlp.extractor.parti'
     IE_NAME = 'parti:livestream'
-    _VALID_URL = 'https?://(?:www\\.)?parti\\.com/creator/(?P<service>[\\w]+)/(?P<id>[\\w/-]+)'
+    _VALID_URL = 'https?://(?:www\\.)?parti\\.com/(?!video/)(?P<id>[\\w/-]+)'
     _RETURN_TYPE = 'video'
 
 
@@ -9030,35 +8821,6 @@ class PinterestIE(PinterestBaseIE):
     _RETURN_TYPE = 'video'
 
 
-class PiramideTVChannelIE(LazyLoadExtractor):
-    _module = 'yt_dlp.extractor.piramidetv'
-    IE_NAME = 'PiramideTVChannel'
-    _VALID_URL = 'https?://piramide\\.tv/channel/(?P<id>[\\w-]+)'
-    _RETURN_TYPE = 'playlist'
-
-
-class PiramideTVIE(LazyLoadExtractor):
-    _module = 'yt_dlp.extractor.piramidetv'
-    IE_NAME = 'PiramideTV'
-    _VALID_URL = 'https?://piramide\\.tv/video/(?P<id>[\\w-]+)'
-    _RETURN_TYPE = 'video'
-
-
-class PlVideoIE(LazyLoadExtractor):
-    _module = 'yt_dlp.extractor.plvideo'
-    IE_NAME = 'PlVideo'
-    _VALID_URL = 'https?://(?:www\\.)?plvideo\\.ru/(?:watch\\?(?:[^#]+&)?v=|shorts/)(?P<id>[\\w-]+)'
-    IE_DESC = 'Платформа'
-    _RETURN_TYPE = 'video'
-
-
-class PlanetMarathiIE(LazyLoadExtractor):
-    _module = 'yt_dlp.extractor.planetmarathi'
-    IE_NAME = 'PlanetMarathi'
-    _VALID_URL = 'https?://(?:www\\.)?planetmarathi\\.com/titles/(?P<id>[^/#&?$]+)'
-    _RETURN_TYPE = 'playlist'
-
-
 class PlatziBaseIE(LazyLoadExtractor):
     _module = 'yt_dlp.extractor.platzi'
     IE_NAME = 'PlatziBase'
@@ -9082,14 +8844,6 @@ class PlatziIE(PlatziBaseIE):
     IE_NAME = 'Platzi'
     _VALID_URL = '(?x)\n                    https?://\n                        (?:\n                            platzi\\.com/clases|           # es version\n                            courses\\.platzi\\.com/classes  # en version\n                        )/[^/]+/(?P<id>\\d+)-[^/?\\#&]+\n                    '
     _NETRC_MACHINE = 'platzi'
-    _RETURN_TYPE = 'video'
-
-
-class PlayPlusTVIE(LazyLoadExtractor):
-    _module = 'yt_dlp.extractor.playplustv'
-    IE_NAME = 'PlayPlusTV'
-    _VALID_URL = 'https?://(?:www\\.)?playplus\\.(?:com|tv)/VOD/(?P<project_id>[0-9]+)/(?P<id>[0-9a-f]{32})'
-    _NETRC_MACHINE = 'playplustv'
     _RETURN_TYPE = 'video'
 
 
@@ -9121,13 +8875,6 @@ class PlaytvakIE(LazyLoadExtractor):
     IE_NAME = 'Playtvak'
     _VALID_URL = 'https?://(?:.+?\\.)?(?:playtvak|idnes|lidovky|metro)\\.cz/.*\\?(?:c|idvideo)=(?P<id>[^&]+)'
     IE_DESC = 'Playtvak.cz, iDNES.cz and Lidovky.cz'
-    _RETURN_TYPE = 'video'
-
-
-class PlaywireIE(LazyLoadExtractor):
-    _module = 'yt_dlp.extractor.playwire'
-    IE_NAME = 'Playwire'
-    _VALID_URL = 'https?://(?:config|cdn)\\.playwire\\.com(?:/v2)?/(?P<publisher_id>\\d+)/(?:videos/v2|embed|config)/(?P<id>\\d+)'
     _RETURN_TYPE = 'video'
 
 
@@ -9318,7 +9065,7 @@ class PornHubBaseIE(LazyLoadExtractor):
 class PornHubIE(PornHubBaseIE):
     _module = 'yt_dlp.extractor.pornhub'
     IE_NAME = 'PornHub'
-    _VALID_URL = '(?x)\n                    https?://\n                        (?:\n                            (?:[^/]+\\.)?\n                            (?:(?P<host>pornhub(?:premium)?\\.(?:com|net|org))|pornhubvybmsymdol4iibwgwtkpwmeyd6luq2gxajgjzfjvotyt5zhyd\\.onion)\n                            /(?:(?:view_video\\.php|video/show)\\?viewkey=|embed/)|\n                            (?:www\\.)?thumbzilla\\.com/video/\n                        )\n                        (?P<id>[\\da-z]+)\n                    '
+    _VALID_URL = '(?x)\n                    https?://\n                        (?:\n                            (?:[a-zA-Z0-9.-]+\\.)?\n                            (?:(?P<host>pornhub(?:premium)?\\.(?:com|net|org))|pornhubvybmsymdol4iibwgwtkpwmeyd6luq2gxajgjzfjvotyt5zhyd\\.onion)\n                            /(?:(?:view_video\\.php|video/show)\\?viewkey=|embed/)|\n                            (?:www\\.)?thumbzilla\\.com/video/\n                        )\n                        (?P<id>[\\da-z]+)\n                    '
     IE_DESC = 'PornHub and Thumbzilla'
     _NETRC_MACHINE = 'pornhub'
     age_limit = 18
@@ -9362,7 +9109,7 @@ class PornHubPlaylistIE(PornHubPlaylistBaseIE):
 class PornHubUserIE(PornHubPlaylistBaseIE):
     _module = 'yt_dlp.extractor.pornhub'
     IE_NAME = 'PornHubUser'
-    _VALID_URL = '(?P<url>https?://(?:[^/]+\\.)?(?:(?P<host>pornhub(?:premium)?\\.(?:com|net|org))|pornhubvybmsymdol4iibwgwtkpwmeyd6luq2gxajgjzfjvotyt5zhyd\\.onion)/(?:(?:user|channel)s|model|pornstar)/(?P<id>[^/?#&]+))(?:[?#&]|/(?!videos)|$)'
+    _VALID_URL = '(?P<url>https?://(?:[a-zA-Z0-9.-]+\\.)?(?:(?P<host>pornhub(?:premium)?\\.(?:com|net|org))|pornhubvybmsymdol4iibwgwtkpwmeyd6luq2gxajgjzfjvotyt5zhyd\\.onion)/(?:(?:user|channel)s|model|pornstar)/(?P<id>[^/?#&]+))(?:[?#&]|/(?!videos)|$)'
     _NETRC_MACHINE = 'pornhub'
     _RETURN_TYPE = 'playlist'
 
@@ -9469,19 +9216,6 @@ class PressTVIE(LazyLoadExtractor):
     _RETURN_TYPE = 'video'
 
 
-class ProSiebenSat1BaseIE(LazyLoadExtractor):
-    _module = 'yt_dlp.extractor.prosiebensat1'
-    IE_NAME = 'ProSiebenSat1Base'
-
-
-class ProSiebenSat1IE(ProSiebenSat1BaseIE):
-    _module = 'yt_dlp.extractor.prosiebensat1'
-    IE_NAME = 'prosiebensat1'
-    _VALID_URL = '(?x)\n                    https?://\n                        (?:www\\.)?\n                        (?:\n                            (?:beta\\.)?\n                            (?:\n                                prosieben(?:maxx)?|sixx|sat1(?:gold)?|kabeleins(?:doku)?|the-voice-of-germany|advopedia\n                            )\\.(?:de|at|ch)|\n                            ran\\.de|fem\\.com|advopedia\\.de|galileo\\.tv/video\n                        )\n                        /(?P<id>.+)\n                    '
-    IE_DESC = 'ProSiebenSat.1 Digital'
-    _RETURN_TYPE = 'any'
-
-
 class ProjectVeritasIE(LazyLoadExtractor):
     _module = 'yt_dlp.extractor.projectveritas'
     IE_NAME = 'ProjectVeritas'
@@ -9502,13 +9236,6 @@ class PuhuTVSerieIE(LazyLoadExtractor):
     IE_NAME = 'puhutv:serie'
     _VALID_URL = 'https?://(?:www\\.)?puhutv\\.com/(?P<id>[^/?#&]+)-detay'
     _RETURN_TYPE = 'playlist'
-
-
-class Puls4IE(ProSiebenSat1BaseIE):
-    _module = 'yt_dlp.extractor.puls4'
-    IE_NAME = 'Puls4'
-    _VALID_URL = 'https?://(?:www\\.)?puls4\\.com/(?P<id>[^?#&]+)'
-    _RETURN_TYPE = 'video'
 
 
 class PyvideoIE(LazyLoadExtractor):
@@ -9736,13 +9463,6 @@ class RENTVIE(LazyLoadExtractor):
     _RETURN_TYPE = 'video'
 
 
-class RMCDecouverteIE(LazyLoadExtractor):
-    _module = 'yt_dlp.extractor.rmcdecouverte'
-    IE_NAME = 'RMCDecouverte'
-    _VALID_URL = 'https?://rmcdecouverte\\.bfmtv\\.com/(?:[^?#]*_(?P<id>\\d+)|mediaplayer-direct)/?(?:[#?]|$)'
-    _RETURN_TYPE = 'video'
-
-
 class RTBFIE(RedBeeBaseIE):
     _module = 'yt_dlp.extractor.redbee'
     IE_NAME = 'RTBF'
@@ -9816,8 +9536,8 @@ class RTNewsIE(LazyLoadExtractor):
 class RTPIE(LazyLoadExtractor):
     _module = 'yt_dlp.extractor.rtp'
     IE_NAME = 'RTP'
-    _VALID_URL = 'https?://(?:www\\.)?rtp\\.pt/play/(?:[^/#?]+/)?p(?P<program_id>\\d+)/(?P<id>e\\d+)'
-    _RETURN_TYPE = 'video'
+    _VALID_URL = 'https?://(?:www\\.)?rtp\\.pt/play/(?:[^/#?]+/)?(?P<program_id>p\\d+)/(?P<episode_id>e\\d+)(?:/[^/#?]+/(?P<asset_id>\\d+))?'
+    _RETURN_TYPE = 'any'
 
 
 class RTRFMIE(LazyLoadExtractor):
@@ -9984,20 +9704,6 @@ class RadioCanadaIE(LazyLoadExtractor):
     IE_NAME = 'radiocanada'
     _VALID_URL = '(?:radiocanada:|https?://ici\\.radio-canada\\.ca/widgets/mediaconsole/)(?P<app_code>[^:/]+)[:/](?P<id>[0-9]+)'
     _RETURN_TYPE = 'video'
-
-
-class RadioComercialIE(LazyLoadExtractor):
-    _module = 'yt_dlp.extractor.radiocomercial'
-    IE_NAME = 'RadioComercial'
-    _VALID_URL = 'https?://(?:www\\.)?radiocomercial\\.pt/podcasts/[^/?#]+/t?(?P<season>\\d+)/(?P<id>[\\w-]+)'
-    _RETURN_TYPE = 'video'
-
-
-class RadioComercialPlaylistIE(LazyLoadExtractor):
-    _module = 'yt_dlp.extractor.radiocomercial'
-    IE_NAME = 'RadioComercialPlaylist'
-    _VALID_URL = 'https?://(?:www\\.)?radiocomercial\\.pt/podcasts/(?P<id>[\\w-]+)(?:/t?(?P<season>\\d+))?/?(?:$|[?#])'
-    _RETURN_TYPE = 'playlist'
 
 
 class RadioDeIE(LazyLoadExtractor):
@@ -10229,13 +9935,6 @@ class RedBullTVRrnContentIE(LazyLoadExtractor):
     _VALID_URL = 'https?://(?:www\\.)?redbull\\.com/(?P<region>[a-z]{2,3})-(?P<lang>[a-z]{2})/tv/(?:video|live|film)/(?P<id>rrn:content:[^:]+:[\\da-f]{8}-[\\da-f]{4}-[\\da-f]{4}-[\\da-f]{4}-[\\da-f]{12})'
 
 
-class RedCDNLivxIE(LazyLoadExtractor):
-    _module = 'yt_dlp.extractor.redge'
-    IE_NAME = 'redcdnlivx'
-    _VALID_URL = 'https?://[^.]+\\.(?:dcs\\.redcdn|atmcdn)\\.pl/(?:live(?:dash|hls|ss)|nvr)/o2/(?P<tenant>[^/?#]+)/(?P<id>[^?#]+)\\.livx'
-    _RETURN_TYPE = 'video'
-
-
 class RedGifsBaseIE(LazyLoadExtractor):
     _module = 'yt_dlp.extractor.redgifs'
     IE_NAME = 'RedGifsBase'
@@ -10302,13 +10001,6 @@ class ReverbNationIE(LazyLoadExtractor):
     _module = 'yt_dlp.extractor.reverbnation'
     IE_NAME = 'ReverbNation'
     _VALID_URL = 'https?://(?:www\\.)?reverbnation\\.com/.*?/song/(?P<id>\\d+).*?$'
-    _RETURN_TYPE = 'video'
-
-
-class RheinMainTVIE(LazyLoadExtractor):
-    _module = 'yt_dlp.extractor.rheinmaintv'
-    IE_NAME = 'RheinMainTV'
-    _VALID_URL = 'https?://(?:www\\.)?rheinmaintv\\.de/sendungen/(?:[\\w-]+/)*(?P<video_id>(?P<display_id>[\\w-]+)/vom-\\d{2}\\.\\d{2}\\.\\d{4}(?:/\\d+)?)'
     _RETURN_TYPE = 'video'
 
 
@@ -10676,29 +10368,6 @@ class SBSIE(LazyLoadExtractor):
     _RETURN_TYPE = 'video'
 
 
-class SCTEBaseIE(LazyLoadExtractor):
-    _module = 'yt_dlp.extractor.scte'
-    IE_NAME = 'SCTEBase'
-    _NETRC_MACHINE = 'scte'
-
-
-class SCTECourseIE(SCTEBaseIE):
-    _module = 'yt_dlp.extractor.scte'
-    IE_NAME = 'SCTECourse'
-    _VALID_URL = 'https?://learning\\.scte\\.org/(?:mod/sub)?course/view\\.php?.*?\\bid=(?P<id>\\d+)'
-    _WORKING = False
-    _NETRC_MACHINE = 'scte'
-
-
-class SCTEIE(SCTEBaseIE):
-    _module = 'yt_dlp.extractor.scte'
-    IE_NAME = 'SCTE'
-    _VALID_URL = 'https?://learning\\.scte\\.org/mod/scorm/view\\.php?.*?\\bid=(?P<id>\\d+)'
-    _WORKING = False
-    _NETRC_MACHINE = 'scte'
-    _RETURN_TYPE = 'playlist'
-
-
 class SRGSSRIE(LazyLoadExtractor):
     _module = 'yt_dlp.extractor.srgssr'
     IE_NAME = 'SRGSSR'
@@ -10775,13 +10444,6 @@ class SVTSeriesIE(SVTBaseIE):
     @classmethod
     def suitable(cls, url):
         return False if SVTPlayIE.suitable(url) else super().suitable(url)
-
-
-class SYVDKIE(LazyLoadExtractor):
-    _module = 'yt_dlp.extractor.syvdk'
-    IE_NAME = 'SYVDK'
-    _VALID_URL = 'https?://(?:www\\.)?24syv\\.dk/episode/(?P<id>[\\w-]+)'
-    _RETURN_TYPE = 'video'
 
 
 class SafariBaseIE(LazyLoadExtractor):
@@ -10889,6 +10551,13 @@ class SapoIE(LazyLoadExtractor):
     _RETURN_TYPE = 'video'
 
 
+class SaucePlusChannelIE(FloatplaneChannelBaseIE):
+    _module = 'yt_dlp.extractor.sauceplus'
+    IE_NAME = 'SaucePlusChannel'
+    _VALID_URL = 'https?://(?:(?:www|beta)\\.)?sauceplus\\.com/channel/(?P<id>[\\w-]+)/home(?:/(?P<channel>[\\w-]+))?'
+    _RETURN_TYPE = 'playlist'
+
+
 class SaucePlusIE(FloatplaneBaseIE):
     _module = 'yt_dlp.extractor.sauceplus'
     IE_NAME = 'SaucePlus'
@@ -10977,6 +10646,7 @@ class SejmIE(LazyLoadExtractor):
     _module = 'yt_dlp.extractor.sejmpl'
     IE_NAME = 'sejm'
     _VALID_URL = ('https?://(?:www\\.)?sejm\\.gov\\.pl/[Ss]ejm(?P<term>\\d+)\\.nsf/transmisje(?:_arch)?\\.xsp(?:\\?[^#]*)?#(?P<id>[\\dA-F]+)', 'https?://(?:www\\.)?sejm\\.gov\\.pl/[Ss]ejm(?P<term>\\d+)\\.nsf/transmisje(?:_arch)?\\.xsp\\?(?:[^#]+&)?unid=(?P<id>[\\dA-F]+)', 'https?://sejm-embed\\.redcdn\\.pl/[Ss]ejm(?P<term>\\d+)\\.nsf/VideoFrame\\.xsp/(?P<id>[\\dA-F]+)')
+    _WORKING = False
     _RETURN_TYPE = 'playlist'
 
 
@@ -11007,14 +10677,6 @@ class SenateISVPIE(LazyLoadExtractor):
     IE_NAME = 'senate.gov:isvp'
     _VALID_URL = 'https?://(?:www\\.)?senate\\.gov/isvp/?\\?(?P<qs>.+)'
     _RETURN_TYPE = 'video'
-
-
-class SendtoNewsIE(LazyLoadExtractor):
-    _module = 'yt_dlp.extractor.sendtonews'
-    IE_NAME = 'SendtoNews'
-    _VALID_URL = 'https?://embed\\.sendtonews\\.com/player2/embedplayer\\.php\\?.*\\bSC=(?P<id>[0-9A-Za-z-]+)'
-    _WORKING = False
-    _RETURN_TYPE = 'playlist'
 
 
 class ServusIE(LazyLoadExtractor):
@@ -11079,12 +10741,6 @@ class SharePointIE(LazyLoadExtractor):
     IE_NAME = 'SharePoint'
     _VALID_URL = ['https?://[\\w-]+\\.sharepoint\\.com/:v:/[a-z]/(?:[^/?#]+/)*(?P<id>[^/?#]{46})/?(?:$|[?#])', 'https?://[\\w-]+\\.sharepoint\\.com/(?!:v:)(?:[^/?#]+/)*stream\\.aspx\\?(?:[^#]+&)?id=(?P<id>[^&#]+)']
     _RETURN_TYPE = 'video'
-
-
-class ShareVideosEmbedIE(LazyLoadExtractor):
-    _module = 'yt_dlp.extractor.sharevideos'
-    IE_NAME = 'ShareVideosEmbed'
-    _VALID_URL = False
 
 
 class ShemarooMeIE(LazyLoadExtractor):
@@ -11364,13 +11020,6 @@ class SnapchatSpotlightIE(LazyLoadExtractor):
     _RETURN_TYPE = 'video'
 
 
-class SnotrIE(LazyLoadExtractor):
-    _module = 'yt_dlp.extractor.snotr'
-    IE_NAME = 'Snotr'
-    _VALID_URL = 'http?://(?:www\\.)?snotr\\.com/video/(?P<id>\\d+)/([\\w]+)'
-    _RETURN_TYPE = 'video'
-
-
 class SoftWhiteUnderbellyIE(LazyLoadExtractor):
     _module = 'yt_dlp.extractor.softwhiteunderbelly'
     IE_NAME = 'SoftWhiteUnderbelly'
@@ -11437,7 +11086,7 @@ class SoundcloudPlaylistBaseIE(SoundcloudBaseIE):
 class SoundcloudPlaylistIE(SoundcloudPlaylistBaseIE):
     _module = 'yt_dlp.extractor.soundcloud'
     IE_NAME = 'soundcloud:playlist'
-    _VALID_URL = 'https?://api(?:-v2)?\\.soundcloud\\.com/playlists/(?P<id>[0-9]+)(?:/?\\?secret_token=(?P<token>[^&]+?))?$'
+    _VALID_URL = 'https?://api(?:-v2)?\\.soundcloud\\.com/playlists/(?:soundcloud(?:%3A|:)playlists(?:%3A|:))?(?P<id>[0-9]+)(?:/?\\?secret_token=(?P<token>[^&]+?))?$'
     _NETRC_MACHINE = 'soundcloud'
     _RETURN_TYPE = 'playlist'
 
@@ -11619,8 +11268,8 @@ class SportBoxIE(LazyLoadExtractor):
 
 class SportDeutschlandIE(LazyLoadExtractor):
     _module = 'yt_dlp.extractor.sportdeutschland'
-    IE_NAME = 'SportDeutschland'
-    _VALID_URL = 'https?://(?:player\\.)?sportdeutschland\\.tv/(?P<id>(?:[^/?#]+/)?[^?#/&]+)'
+    IE_NAME = 'sporteurope'
+    _VALID_URL = 'https?://(?:player\\.)?sporteurope\\.tv/(?P<id>(?:[^/?#]+/)?[^?#/&]+)'
     _RETURN_TYPE = 'any'
 
 
@@ -11636,13 +11285,6 @@ class SpreakerShowIE(LazyLoadExtractor):
     IE_NAME = 'SpreakerShow'
     _VALID_URL = ['https?://api\\.spreaker\\.com/show/(?P<id>\\d+)', 'https?://(?:www\\.)?spreaker\\.com/podcast/[\\w-]+--(?P<id>[\\d]+)', 'https?://(?:www\\.)?spreaker\\.com/show/(?P<id>\\d+)/episodes/feed']
     _RETURN_TYPE = 'playlist'
-
-
-class SpringboardPlatformIE(LazyLoadExtractor):
-    _module = 'yt_dlp.extractor.springboardplatform'
-    IE_NAME = 'SpringboardPlatform'
-    _VALID_URL = '(?x)\n                    https?://\n                        cms\\.springboardplatform\\.com/\n                        (?:\n                            (?:previews|embed_iframe)/(?P<index>\\d+)/video/(?P<id>\\d+)|\n                            xml_feeds_advanced/index/(?P<index_2>\\d+)/rss3/(?P<id_2>\\d+)\n                        )\n                    '
-    _RETURN_TYPE = 'video'
 
 
 class SproutVideoIE(LazyLoadExtractor):
@@ -11688,14 +11330,6 @@ class StagePlusVODConcertIE(LazyLoadExtractor):
     _RETURN_TYPE = 'playlist'
 
 
-class StanfordOpenClassroomIE(LazyLoadExtractor):
-    _module = 'yt_dlp.extractor.stanfordoc'
-    IE_NAME = 'stanfordoc'
-    _VALID_URL = 'https?://openclassroom\\.stanford\\.edu(?P<path>/?|(/MainFolder/(?:HomePage|CoursePage|VideoPage)\\.php([?]course=(?P<course>[^&]+)(&video=(?P<video>[^&]+))?(&.*)?)?))$'
-    IE_DESC = 'Stanford Open ClassRoom'
-    _RETURN_TYPE = 'video'
-
-
 class StarTVIE(LazyLoadExtractor):
     _module = 'yt_dlp.extractor.startv'
     IE_NAME = 'startv'
@@ -11729,25 +11363,6 @@ class SteamIE(LazyLoadExtractor):
     _module = 'yt_dlp.extractor.steam'
     IE_NAME = 'Steam'
     _VALID_URL = 'https?://store\\.steampowered\\.com(?:/agecheck)?/app/(?P<id>\\d+)/?(?:[^?/#]+/?)?(?:[?#]|$)'
-    _RETURN_TYPE = 'playlist'
-
-
-class StitcherBaseIE(LazyLoadExtractor):
-    _module = 'yt_dlp.extractor.stitcher'
-    IE_NAME = 'StitcherBase'
-
-
-class StitcherIE(StitcherBaseIE):
-    _module = 'yt_dlp.extractor.stitcher'
-    IE_NAME = 'Stitcher'
-    _VALID_URL = 'https?://(?:www\\.)?stitcher\\.com/(?:podcast|show)/(?:[^/]+/)+e(?:pisode)?/(?:[^/#?&]+-)?(?P<id>\\d+)'
-    _RETURN_TYPE = 'video'
-
-
-class StitcherShowIE(StitcherBaseIE):
-    _module = 'yt_dlp.extractor.stitcher'
-    IE_NAME = 'StitcherShow'
-    _VALID_URL = 'https?://(?:www\\.)?stitcher\\.com/(?:podcast|show)/(?P<id>[^/#?&]+)/?(?:[?#&]|$)'
     _RETURN_TYPE = 'playlist'
 
 
@@ -11802,13 +11417,6 @@ class StreetVoiceIE(LazyLoadExtractor):
     _module = 'yt_dlp.extractor.streetvoice'
     IE_NAME = 'StreetVoice'
     _VALID_URL = 'https?://(?:.+?\\.)?streetvoice\\.com/[^/]+/songs/(?P<id>[0-9]+)'
-    _RETURN_TYPE = 'video'
-
-
-class StretchInternetIE(LazyLoadExtractor):
-    _module = 'yt_dlp.extractor.stretchinternet'
-    IE_NAME = 'StretchInternet'
-    _VALID_URL = 'https?://portal\\.stretchinternet\\.com/[^/]+/(?:portal|full)\\.htm\\?.*?\\beventId=(?P<id>\\d+)'
     _RETURN_TYPE = 'video'
 
 
@@ -11870,13 +11478,6 @@ class SverigesRadioPublicationIE(SverigesRadioBaseIE):
     _module = 'yt_dlp.extractor.sverigesradio'
     IE_NAME = 'sverigesradio:publication'
     _VALID_URL = 'https?://(?:www\\.)?sverigesradio\\.se/(?:sida/)?(?:artikel|gruppsida)(?:\\.aspx\\?.*?\\bartikel=(?P<id>[0-9]+)|/(?P<slug>[\\w-]+))'
-    _RETURN_TYPE = 'video'
-
-
-class SwearnetEpisodeIE(VidyardBaseIE):
-    _module = 'yt_dlp.extractor.swearnet'
-    IE_NAME = 'SwearnetEpisode'
-    _VALID_URL = 'https?://www\\.swearnet\\.com/shows/(?P<id>[\\w-]+)/seasons/(?P<season_num>\\d+)/episodes/(?P<episode_num>\\d+)'
     _RETURN_TYPE = 'video'
 
 
@@ -12054,8 +11655,7 @@ class TV5UnisBaseIE(LazyLoadExtractor):
 class TV5UnisIE(TV5UnisBaseIE):
     _module = 'yt_dlp.extractor.tv5unis'
     IE_NAME = 'tv5unis'
-    _VALID_URL = 'https?://(?:www\\.)?tv5unis\\.ca/videos/(?P<id>[^/]+)(?:/saisons/(?P<season_number>\\d+)/episodes/(?P<episode_number>\\d+))?/?(?:[?#&]|$)'
-    _WORKING = False
+    _VALID_URL = 'https?://(?:www\\.)?tv5unis\\.ca/videos/(?P<id>[^/?#]+)(?:/saisons/(?P<season_number>\\d+)/episodes/(?P<episode_number>\\d+))?/?(?:[?#&]|$)'
     age_limit = 8
     _RETURN_TYPE = 'video'
 
@@ -12063,8 +11663,7 @@ class TV5UnisIE(TV5UnisBaseIE):
 class TV5UnisVideoIE(TV5UnisBaseIE):
     _module = 'yt_dlp.extractor.tv5unis'
     IE_NAME = 'tv5unis:video'
-    _VALID_URL = 'https?://(?:www\\.)?tv5unis\\.ca/videos/[^/]+/(?P<id>\\d+)'
-    _WORKING = False
+    _VALID_URL = 'https?://(?:www\\.)?tv5unis\\.ca/videos/[^/?#]+/(?P<id>\\d+)'
     _RETURN_TYPE = 'video'
 
 
@@ -12148,9 +11747,9 @@ class TVN24IE(LazyLoadExtractor):
 
 class TVNoeIE(LazyLoadExtractor):
     _module = 'yt_dlp.extractor.tvnoe'
-    IE_NAME = 'TVNoe'
-    _VALID_URL = 'https?://(?:www\\.)?tvnoe\\.cz/video/(?P<id>[0-9]+)'
-    _WORKING = False
+    IE_NAME = 'tvnoe'
+    _VALID_URL = 'https?://(?:www\\.)?tvnoe\\.cz/porad/(?P<id>[\\w-]+)'
+    IE_DESC = 'Televize Noe'
     _RETURN_TYPE = 'video'
 
 
@@ -12235,18 +11834,18 @@ class TVPlayIE(LazyLoadExtractor):
     _RETURN_TYPE = 'video'
 
 
-class TVPlayerIE(LazyLoadExtractor):
-    _module = 'yt_dlp.extractor.tvplayer'
-    IE_NAME = 'TVPlayer'
-    _VALID_URL = 'https?://(?:www\\.)?tvplayer\\.com/watch/(?P<id>[^/?#]+)'
-    _RETURN_TYPE = 'video'
-
-
 class TVerIE(StreaksBaseIE):
     _module = 'yt_dlp.extractor.tver'
     IE_NAME = 'TVer'
     _VALID_URL = 'https?://(?:www\\.)?tver\\.jp/(?:(?P<type>lp|corner|series|episodes?|feature)/)+(?P<id>[a-zA-Z0-9]+)'
     _RETURN_TYPE = 'any'
+
+
+class TVerOlympicIE(StreaksBaseIE):
+    _module = 'yt_dlp.extractor.tver'
+    IE_NAME = 'tver:olympic'
+    _VALID_URL = 'https?://(?:www\\.)?tver\\.jp/olympic/milanocortina2026/(?P<type>live|video)/play/(?P<id>\\w+)'
+    _RETURN_TYPE = 'video'
 
 
 class TagesschauIE(LazyLoadExtractor):
@@ -12295,6 +11894,32 @@ class TapTapPostIntlIE(TapTapIntlBaseIE):
     _RETURN_TYPE = 'playlist'
 
 
+class TarangPlusBaseIE(LazyLoadExtractor):
+    _module = 'yt_dlp.extractor.tarangplus'
+    IE_NAME = 'TarangPlusBase'
+
+
+class TarangPlusEpisodesIE(TarangPlusBaseIE):
+    _module = 'yt_dlp.extractor.tarangplus'
+    IE_NAME = 'tarangplus:episodes'
+    _VALID_URL = 'https?://(?:www\\.)?tarangplus\\.in/(?P<type>[^#?/]+)/(?P<id>[^#?/]+)/episodes/?(?:$|[?#])'
+    _RETURN_TYPE = 'playlist'
+
+
+class TarangPlusPlaylistIE(TarangPlusBaseIE):
+    _module = 'yt_dlp.extractor.tarangplus'
+    IE_NAME = 'tarangplus:playlist'
+    _VALID_URL = 'https?://(?:www\\.)?tarangplus\\.in/(?P<id>[^#?/]+)/all/?(?:$|[?#])'
+    _RETURN_TYPE = 'playlist'
+
+
+class TarangPlusVideoIE(TarangPlusBaseIE):
+    _module = 'yt_dlp.extractor.tarangplus'
+    IE_NAME = 'tarangplus:video'
+    _VALID_URL = 'https?://(?:www\\.)?tarangplus\\.in/(?:movies|[^#?/]+/[^#?/]+)/(?!episodes)(?P<id>[^#?/]+)'
+    _RETURN_TYPE = 'video'
+
+
 class TassIE(LazyLoadExtractor):
     _module = 'yt_dlp.extractor.tass'
     IE_NAME = 'Tass'
@@ -12312,7 +11937,7 @@ class TeachableBaseIE(LazyLoadExtractor):
 class TeachableCourseIE(TeachableBaseIE):
     _module = 'yt_dlp.extractor.teachable'
     IE_NAME = 'TeachableCourse'
-    _VALID_URL = '(?x)\n                        (?:\n                            teachable:https?://(?P<site_t>[^/]+)|\n                            https?://(?:www\\.)?(?P<site>v1\\.upskillcourses\\.com|gns3\\.teachable\\.com|academyhacker\\.com|stackskills\\.com|market\\.saleshacker\\.com|learnability\\.org|edurila\\.com|courses\\.workitdaily\\.com)\n                        )\n                        /(?:courses|p)/(?:enrolled/)?(?P<id>[^/?#&]+)\n                    '
+    _VALID_URL = '(?x)\n                        (?:\n                            teachable:https?://(?P<site_t>[a-zA-Z0-9.-]+)|\n                            https?://(?:www\\.)?(?P<site>v1\\.upskillcourses\\.com|gns3\\.teachable\\.com|academyhacker\\.com|stackskills\\.com|market\\.saleshacker\\.com|learnability\\.org|edurila\\.com|courses\\.workitdaily\\.com)\n                        )\n                        /(?:courses|p)/(?:enrolled/)?(?P<id>[^/?#&]+)\n                    '
     _NETRC_MACHINE = 'teachable'
     _RETURN_TYPE = 'playlist'
 
@@ -12324,7 +11949,7 @@ class TeachableCourseIE(TeachableBaseIE):
 class TeachableIE(TeachableBaseIE):
     _module = 'yt_dlp.extractor.teachable'
     IE_NAME = 'Teachable'
-    _VALID_URL = '(?x)\n                    (?:\n                        teachable:https?://(?P<site_t>[^/]+)|\n                        https?://(?:www\\.)?(?P<site>v1\\.upskillcourses\\.com|gns3\\.teachable\\.com|academyhacker\\.com|stackskills\\.com|market\\.saleshacker\\.com|learnability\\.org|edurila\\.com|courses\\.workitdaily\\.com)\n                    )\n                    /courses/[^/]+/lectures/(?P<id>\\d+)\n                    '
+    _VALID_URL = '(?x)\n                    (?:\n                        teachable:https?://(?P<site_t>[a-zA-Z0-9.-]+)|\n                        https?://(?:www\\.)?(?P<site>v1\\.upskillcourses\\.com|gns3\\.teachable\\.com|academyhacker\\.com|stackskills\\.com|market\\.saleshacker\\.com|learnability\\.org|edurila\\.com|courses\\.workitdaily\\.com)\n                    )\n                    /courses/[^/]+/lectures/(?P<id>\\d+)\n                    '
     _WORKING = False
     _NETRC_MACHINE = 'teachable'
     _RETURN_TYPE = 'video'
@@ -12538,13 +12163,6 @@ class TelewebionIE(LazyLoadExtractor):
     _RETURN_TYPE = 'video'
 
 
-class TempoIE(LazyLoadExtractor):
-    _module = 'yt_dlp.extractor.tempo'
-    IE_NAME = 'Tempo'
-    _VALID_URL = 'https?://video\\.tempo\\.co/\\w+/\\d+/(?P<id>[\\w-]+)'
-    _RETURN_TYPE = 'video'
-
-
 class TenPlayIE(LazyLoadExtractor):
     _module = 'yt_dlp.extractor.tenplay'
     IE_NAME = '10play'
@@ -12576,6 +12194,31 @@ class TestURLIE(LazyLoadExtractor):
     IE_DESC = False
 
 
+class FrontoBaseIE(LazyLoadExtractor):
+    _module = 'yt_dlp.extractor.frontro'
+    IE_NAME = 'FrontoBase'
+
+
+class FrontroGroupBaseIE(FrontoBaseIE):
+    _module = 'yt_dlp.extractor.frontro'
+    IE_NAME = 'FrontroGroupBase'
+
+
+class TheChosenGroupIE(FrontroGroupBaseIE):
+    _module = 'yt_dlp.extractor.thechosen'
+    IE_NAME = 'TheChosenGroup'
+    _VALID_URL = 'https?://(?:www\\.)?watch\\.thechosen\\.tv/group/(?P<id>[0-9]+)'
+    _WORKING = False
+    _RETURN_TYPE = 'playlist'
+
+
+class TheChosenIE(LazyLoadExtractor):
+    _module = 'yt_dlp.extractor.thechosen'
+    IE_NAME = 'TheChosen'
+    _VALID_URL = 'https?://(?:www\\.)?watch\\.thechosen\\.tv/(?:video|watch)/(?P<id>[0-9]+)'
+    _RETURN_TYPE = 'video'
+
+
 class TheGuardianPodcastIE(LazyLoadExtractor):
     _module = 'yt_dlp.extractor.theguardian'
     IE_NAME = 'TheGuardianPodcast'
@@ -12594,13 +12237,6 @@ class TheHighWireIE(LazyLoadExtractor):
     _module = 'yt_dlp.extractor.thehighwire'
     IE_NAME = 'TheHighWire'
     _VALID_URL = 'https?://(?:www\\.)?thehighwire\\.com/ark-videos/(?P<id>[^/?#]+)'
-    _RETURN_TYPE = 'video'
-
-
-class TheHoleTvIE(LazyLoadExtractor):
-    _module = 'yt_dlp.extractor.theholetv'
-    IE_NAME = 'TheHoleTv'
-    _VALID_URL = 'https?://(?:www\\.)?the-hole\\.tv/episodes/(?P<id>[\\w-]+)'
     _RETURN_TYPE = 'video'
 
 
@@ -12762,7 +12398,7 @@ class ThisAmericanLifeIE(LazyLoadExtractor):
 class ThisOldHouseIE(LazyLoadExtractor):
     _module = 'yt_dlp.extractor.thisoldhouse'
     IE_NAME = 'ThisOldHouse'
-    _VALID_URL = 'https?://(?:www\\.)?thisoldhouse\\.com/(?:watch|how-to|tv-episode|(?:[^/?#]+/)?\\d+)/(?P<id>[^/?#]+)'
+    _VALID_URL = '(?x)\n            https?://(?:www\\.)?thisoldhouse\\.com/(?:\n                watch|\n                how-to|\n                tv-episode|\n                (?:[^/?#]+/)?\\d+|\n                (?P<ask>ask-this-old-house)\n            )/(?P<id>(?(ask)season-\\d+/episode-\\d+|[^/?#]+))\n        '
     _NETRC_MACHINE = 'thisoldhouse'
     _RETURN_TYPE = 'video'
 
@@ -12951,48 +12587,11 @@ class ToypicsUserIE(LazyLoadExtractor):
     _RETURN_TYPE = 'playlist'
 
 
-class TrailerAddictIE(LazyLoadExtractor):
-    _module = 'yt_dlp.extractor.traileraddict'
-    IE_NAME = 'TrailerAddict'
-    _VALID_URL = '(?:https?://)?(?:www\\.)?traileraddict\\.com/(?:trailer|clip)/(?P<movie>.+?)/(?P<trailer_name>.+)'
-    _WORKING = False
-    _RETURN_TYPE = 'video'
-
-
 class TravelChannelIE(DiscoveryPlusBaseIE):
     _module = 'yt_dlp.extractor.dplay'
     IE_NAME = 'TravelChannel'
     _VALID_URL = 'https?://(?:watch\\.)?travelchannel\\.com/video/(?P<id>[^/]+/[^/?#]+)'
     _RETURN_TYPE = 'video'
-
-
-class TrillerBaseIE(LazyLoadExtractor):
-    _module = 'yt_dlp.extractor.triller'
-    IE_NAME = 'TrillerBase'
-    _NETRC_MACHINE = 'triller'
-
-
-class TrillerIE(TrillerBaseIE):
-    _module = 'yt_dlp.extractor.triller'
-    IE_NAME = 'Triller'
-    _VALID_URL = '(?x)\n            https?://(?:www\\.)?triller\\.co/\n            @(?P<username>[\\w.]+)/video/(?P<id>[\\da-f]{8}-(?:[\\da-f]{4}-){3}[\\da-f]{12})\n        '
-    _NETRC_MACHINE = 'triller'
-    _RETURN_TYPE = 'video'
-
-
-class TrillerShortIE(LazyLoadExtractor):
-    _module = 'yt_dlp.extractor.triller'
-    IE_NAME = 'TrillerShort'
-    _VALID_URL = 'https?://v\\.triller\\.co/(?P<id>\\w+)'
-    _RETURN_TYPE = 'video'
-
-
-class TrillerUserIE(TrillerBaseIE):
-    _module = 'yt_dlp.extractor.triller'
-    IE_NAME = 'TrillerUser'
-    _VALID_URL = 'https?://(?:www\\.)?triller\\.co/@(?P<id>[\\w.]+)/?(?:$|[#?])'
-    _NETRC_MACHINE = 'triller'
-    _RETURN_TYPE = 'playlist'
 
 
 class TrovoBaseIE(LazyLoadExtractor):
@@ -13089,7 +12688,7 @@ class TubeTuGrazBaseIE(LazyLoadExtractor):
 class TubeTuGrazIE(TubeTuGrazBaseIE):
     _module = 'yt_dlp.extractor.tubetugraz'
     IE_NAME = 'TubeTuGraz'
-    _VALID_URL = '(?x)\n        https?://tube\\.tugraz\\.at/paella/ui/watch.html\\?id=\n        (?P<id>[0-9a-fA-F]{8}-(?:[0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12})\n    '
+    _VALID_URL = '(?x)\n        https?://tube\\.tugraz\\.at/(?:\n            paella/ui/watch\\.html\\?(?:[^#]*&)?id=|\n            portal/watch/\n        )(?P<id>[0-9a-fA-F]{8}-(?:[0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12})\n    '
     IE_DESC = 'tube.tugraz.at'
     _NETRC_MACHINE = 'tubetugraz'
     _RETURN_TYPE = 'video'
@@ -13106,7 +12705,7 @@ class TubeTuGrazSeriesIE(TubeTuGrazBaseIE):
 class TubiTvIE(LazyLoadExtractor):
     _module = 'yt_dlp.extractor.tubitv'
     IE_NAME = 'tubitv'
-    _VALID_URL = 'https?://(?:www\\.)?tubitv\\.com/(?P<type>video|movies|tv-shows)/(?P<id>\\d+)'
+    _VALID_URL = 'https?://(?:www\\.)?tubitv\\.com/(?:[a-z]{2}-[a-z]{2}/)?(?P<type>video|movies|tv-shows)/(?P<id>\\d+)'
     _NETRC_MACHINE = 'tubitv'
     _RETURN_TYPE = 'video'
 
@@ -13177,6 +12776,13 @@ class TvigleIE(LazyLoadExtractor):
     _VALID_URL = 'https?://(?:www\\.)?(?:tvigle\\.ru/(?:[^/]+/)+(?P<display_id>[^/]+)/$|cloud\\.tvigle\\.ru/video/(?P<id>\\d+))'
     IE_DESC = 'Интернет-телевидение Tvigle.ru'
     age_limit = 12
+    _RETURN_TYPE = 'video'
+
+
+class TvoIE(LazyLoadExtractor):
+    _module = 'yt_dlp.extractor.tvo'
+    IE_NAME = 'TVO'
+    _VALID_URL = 'https?://(?:www\\.)?tvo\\.org/video(?:/documentaries)?/(?P<id>[\\w-]+)'
     _RETURN_TYPE = 'video'
 
 
@@ -13268,7 +12874,7 @@ class TwitchClipsIE(TwitchBaseIE):
 
 class TwitchCollectionIE(TwitchBaseIE):
     _module = 'yt_dlp.extractor.twitch'
-    IE_NAME = 'TwitchCollection'
+    IE_NAME = 'twitch:collection'
     _VALID_URL = 'https?://(?:(?:www|go|m)\\.)?twitch\\.tv/collections/(?P<id>[^/]+)'
     _NETRC_MACHINE = 'twitch'
     _RETURN_TYPE = 'playlist'
@@ -13308,7 +12914,7 @@ class TwitchStreamIE(TwitchVideosBaseIE):
 
 class TwitchVideosClipsIE(TwitchPlaylistBaseIE):
     _module = 'yt_dlp.extractor.twitch'
-    IE_NAME = 'TwitchVideosClips'
+    IE_NAME = 'twitch:videos:clips'
     _VALID_URL = 'https?://(?:(?:www|go|m)\\.)?twitch\\.tv/(?P<id>[^/]+)/(?:clips|videos/*?\\?.*?\\bfilter=clips)'
     _NETRC_MACHINE = 'twitch'
     _RETURN_TYPE = 'playlist'
@@ -13316,7 +12922,7 @@ class TwitchVideosClipsIE(TwitchPlaylistBaseIE):
 
 class TwitchVideosCollectionsIE(TwitchPlaylistBaseIE):
     _module = 'yt_dlp.extractor.twitch'
-    IE_NAME = 'TwitchVideosCollections'
+    IE_NAME = 'twitch:videos:collections'
     _VALID_URL = 'https?://(?:(?:www|go|m)\\.)?twitch\\.tv/(?P<id>[^/]+)/videos/*?\\?.*?\\bfilter=collections'
     _NETRC_MACHINE = 'twitch'
     _RETURN_TYPE = 'playlist'
@@ -13324,7 +12930,7 @@ class TwitchVideosCollectionsIE(TwitchPlaylistBaseIE):
 
 class TwitchVideosIE(TwitchVideosBaseIE):
     _module = 'yt_dlp.extractor.twitch'
-    IE_NAME = 'TwitchVideos'
+    IE_NAME = 'twitch:videos'
     _VALID_URL = 'https?://(?:(?:www|go|m)\\.)?twitch\\.tv/(?P<id>[^/]+)/(?:videos|profile)'
     _NETRC_MACHINE = 'twitch'
     _RETURN_TYPE = 'playlist'
@@ -13349,14 +12955,12 @@ class TwitchVodIE(TwitchBaseIE):
 class TwitterBaseIE(LazyLoadExtractor):
     _module = 'yt_dlp.extractor.twitter'
     IE_NAME = 'TwitterBase'
-    _NETRC_MACHINE = 'twitter'
 
 
 class TwitterAmplifyIE(TwitterBaseIE):
     _module = 'yt_dlp.extractor.twitter'
     IE_NAME = 'twitter:amplify'
     _VALID_URL = 'https?://amp\\.twimg\\.com/v/(?P<id>[0-9a-f\\-]{36})'
-    _NETRC_MACHINE = 'twitter'
     _RETURN_TYPE = 'video'
 
 
@@ -13364,7 +12968,6 @@ class TwitterBroadcastIE(TwitterBaseIE, PeriscopeBaseIE):
     _module = 'yt_dlp.extractor.twitter'
     IE_NAME = 'twitter:broadcast'
     _VALID_URL = 'https?://(?:(?:www|m(?:obile)?)\\.)?(?:(?:twitter|x)\\.com|twitter3e4tixl4xyajtrzo62zg5vztmjuricljdp2c5kshju4avyoid\\.onion)/i/(?P<type>broadcasts|events)/(?P<id>\\w+)'
-    _NETRC_MACHINE = 'twitter'
     _RETURN_TYPE = 'video'
 
 
@@ -13379,7 +12982,6 @@ class TwitterIE(TwitterBaseIE):
     _module = 'yt_dlp.extractor.twitter'
     IE_NAME = 'twitter'
     _VALID_URL = 'https?://(?:(?:www|m(?:obile)?)\\.)?(?:(?:twitter|x)\\.com|twitter3e4tixl4xyajtrzo62zg5vztmjuricljdp2c5kshju4avyoid\\.onion)/(?:(?:i/web|[^/]+)/status|statuses)/(?P<id>\\d+)(?:/(?:video|photo)/(?P<index>\\d+))?'
-    _NETRC_MACHINE = 'twitter'
     age_limit = 18
     _RETURN_TYPE = 'any'
 
@@ -13388,14 +12990,12 @@ class TwitterShortenerIE(TwitterBaseIE):
     _module = 'yt_dlp.extractor.twitter'
     IE_NAME = 'twitter:shortener'
     _VALID_URL = 'https?://t\\.co/(?P<id>[^?#]+)|tco:(?P<eid>[^?#]+)'
-    _NETRC_MACHINE = 'twitter'
 
 
 class TwitterSpacesIE(TwitterBaseIE):
     _module = 'yt_dlp.extractor.twitter'
     IE_NAME = 'twitter:spaces'
     _VALID_URL = 'https?://(?:(?:www|m(?:obile)?)\\.)?(?:(?:twitter|x)\\.com|twitter3e4tixl4xyajtrzo62zg5vztmjuricljdp2c5kshju4avyoid\\.onion)/i/spaces/(?P<id>[0-9a-zA-Z]{13})'
-    _NETRC_MACHINE = 'twitter'
     _RETURN_TYPE = 'video'
 
 
@@ -13420,25 +13020,11 @@ class ImgGamingBaseIE(LazyLoadExtractor):
     IE_NAME = 'ImgGamingBase'
 
 
-class UFCArabiaIE(ImgGamingBaseIE):
-    _module = 'yt_dlp.extractor.ufctv'
-    IE_NAME = 'UFCArabia'
-    _VALID_URL = 'https?://(?P<domain>(?:(?:app|www)\\.)?ufcarabia\\.(?:ae|com))/(?P<type>live|playlist|video)/(?P<id>\\d+)(?:\\?.*?\\bplaylistId=(?P<playlist_id>\\d+))?'
-    _NETRC_MACHINE = 'ufcarabia'
-
-
 class UFCTVIE(ImgGamingBaseIE):
     _module = 'yt_dlp.extractor.ufctv'
     IE_NAME = 'UFCTV'
     _VALID_URL = 'https?://(?P<domain>(?:(?:app|www)\\.)?(?:ufc\\.tv|(?:ufc)?fightpass\\.com)|ufcfightpass\\.img(?:dge|gaming)\\.com)/(?P<type>live|playlist|video)/(?P<id>\\d+)(?:\\?.*?\\bplaylistId=(?P<playlist_id>\\d+))?'
     _NETRC_MACHINE = 'ufctv'
-
-
-class UKTVPlayIE(LazyLoadExtractor):
-    _module = 'yt_dlp.extractor.uktvplay'
-    IE_NAME = 'UKTVPlay'
-    _VALID_URL = 'https?://uktvplay\\.(?:uktv\\.)?co\\.uk/(?:.+?\\?.*?\\bvideo=|([^/]+/)*)(?P<id>\\d+)'
-    _RETURN_TYPE = 'video'
 
 
 class UMGDeIE(LazyLoadExtractor):
@@ -13604,10 +13190,12 @@ class UstudioIE(LazyLoadExtractor):
     _RETURN_TYPE = 'video'
 
 
-class UtreonIE(LazyLoadExtractor):
-    _module = 'yt_dlp.extractor.utreon'
-    IE_NAME = 'playeur'
-    _VALID_URL = 'https?://(?:www\\.)?(?:utreon|playeur)\\.com/v/(?P<id>[\\w-]+)'
+class VGTVIE(LazyLoadExtractor):
+    _module = 'yt_dlp.extractor.vgtv'
+    IE_NAME = 'VGTV'
+    _VALID_URL = '(?x)\n                    (?:https?://(?:www\\.)?\n                    (?P<host>\n                        tv.vg.no|vgtv.no|bt.no/tv|aftenbladet.no/tv|fvn.no/fvntv|aftenposten.no/webtv|ap.vgtv.no/webtv|tv.aftonbladet.se|tv.aftonbladet.se/abtv|www.aftonbladet.se/tv\n                    )\n                    /?\n                    (?:\n                        (?:\\#!/)?(?:video|live)/|\n                        embed?.*id=|\n                        a(?:rticles)?/\n                    )|\n                    (?P<appname>\n                        vgtv|bttv|satv|fvntv|aptv|abtv\n                    ):)\n                    (?P<id>\\d+)\n                    '
+    _WORKING = False
+    IE_DESC = 'VGTV, BTTV, FTV, Aftenposten and Aftonbladet'
     _RETURN_TYPE = 'video'
 
 
@@ -13680,13 +13268,6 @@ class VKWallPostIE(VKBaseIE):
     _VALID_URL = 'https?://(?:(?:(?:(?:m|new)\\.)?vk\\.com/(?:[^?]+\\?.*\\bw=)?wall(?P<id>-?\\d+_\\d+)))'
     _NETRC_MACHINE = 'vk'
     _RETURN_TYPE = 'playlist'
-
-
-class VODPlIE(OnetBaseIE):
-    _module = 'yt_dlp.extractor.vodpl'
-    IE_NAME = 'VODPl'
-    _VALID_URL = 'https?://vod\\.pl/(?:[^/]+/)+(?P<id>[0-9a-zA-Z]+)'
-    _RETURN_TYPE = 'video'
 
 
 class VODPlatformIE(LazyLoadExtractor):
@@ -13787,20 +13368,6 @@ class VTXTVRecordingsIE(VTXTVBaseIE):
     IE_NAME = 'VTXTVRecordings'
     _VALID_URL = '(?x)https?://(?:www\\.)?vtxtv\\.ch/(?:\n        [^?#]+\\?(?:[^#]+&)?recording=(?P<vid2>\\d+)\n        (?P<vid1>)\n    )'
     _NETRC_MACHINE = 'vtxtv'
-
-
-class VVVVIDIE(LazyLoadExtractor):
-    _module = 'yt_dlp.extractor.vvvvid'
-    IE_NAME = 'VVVVID'
-    _VALID_URL = 'https?://(?:www\\.)?vvvvid\\.it/(?:#!)?(?:show|anime|film|series)/(?P<show_id>\\d+)/[^/]+/(?P<season_id>\\d+)/(?P<id>[0-9]+)'
-    _RETURN_TYPE = 'video'
-
-
-class VVVVIDShowIE(VVVVIDIE):
-    _module = 'yt_dlp.extractor.vvvvid'
-    IE_NAME = 'VVVVIDShow'
-    _VALID_URL = '(?P<base_url>https?://(?:www\\.)?vvvvid\\.it/(?:#!)?(?:show|anime|film|series)/(?P<id>\\d+)(?:/(?P<show_title>[^/?&#]+))?)/?(?:[?#&]|$)'
-    _RETURN_TYPE = 'playlist'
 
 
 class Varzesh3IE(LazyLoadExtractor):
@@ -13905,51 +13472,11 @@ class VideaIE(LazyLoadExtractor):
     _RETURN_TYPE = 'video'
 
 
-class VideoDetectiveIE(LazyLoadExtractor):
-    _module = 'yt_dlp.extractor.videodetective'
-    IE_NAME = 'VideoDetective'
-    _VALID_URL = 'https?://(?:www\\.)?videodetective\\.com/[^/]+/[^/]+/(?P<id>\\d+)'
-    _RETURN_TYPE = 'video'
-
-
-class VideoKenBaseIE(LazyLoadExtractor):
-    _module = 'yt_dlp.extractor.videoken'
-    IE_NAME = 'VideoKenBase'
-
-
-class VideoKenCategoryIE(VideoKenBaseIE):
-    _module = 'yt_dlp.extractor.videoken'
-    IE_NAME = 'VideoKenCategory'
-    _VALID_URL = 'https?://(?P<host>videos\\.icts\\.res\\.in|videos\\.cncf\\.io|videos\\.neurips\\.cc)/category/(?P<id>\\d+)/?(?:$|[?#])'
-    _RETURN_TYPE = 'playlist'
-
-
-class VideoKenIE(VideoKenBaseIE):
-    _module = 'yt_dlp.extractor.videoken'
-    IE_NAME = 'VideoKen'
-    _VALID_URL = 'https?://(?P<host>videos\\.icts\\.res\\.in|videos\\.cncf\\.io|videos\\.neurips\\.cc)/(?:(?:topic|category)/[^/#?]+/)?video/(?P<id>[\\w-]+)'
-    _RETURN_TYPE = 'video'
-
-
-class VideoKenPlayerIE(VideoKenBaseIE):
+class VideoKenPlayerIE(LazyLoadExtractor):
     _module = 'yt_dlp.extractor.videoken'
     IE_NAME = 'VideoKenPlayer'
     _VALID_URL = 'https?://player\\.videoken\\.com/embed/slideslive-(?P<id>\\d+)'
     _RETURN_TYPE = 'video'
-
-
-class VideoKenPlaylistIE(VideoKenBaseIE):
-    _module = 'yt_dlp.extractor.videoken'
-    IE_NAME = 'VideoKenPlaylist'
-    _VALID_URL = 'https?://(?P<host>videos\\.icts\\.res\\.in|videos\\.cncf\\.io|videos\\.neurips\\.cc)/(?:category/\\d+/)?playlist/(?P<id>\\d+)'
-    _RETURN_TYPE = 'playlist'
-
-
-class VideoKenTopicIE(VideoKenBaseIE):
-    _module = 'yt_dlp.extractor.videoken'
-    IE_NAME = 'VideoKenTopic'
-    _VALID_URL = 'https?://(?P<host>videos\\.icts\\.res\\.in|videos\\.cncf\\.io|videos\\.neurips\\.cc)/topic/(?P<id>[^/#?]+)/?(?:$|[?#])'
-    _RETURN_TYPE = 'playlist'
 
 
 class VideoPressIE(LazyLoadExtractor):
@@ -13964,51 +13491,6 @@ class VideocampusSachsenIE(LazyLoadExtractor):
     IE_NAME = 'ViMP'
     _VALID_URL = '(?x)https?://(?P<host>bergauf\\.tv|campus\\.demo\\.vimp\\.com|corporate\\.demo\\.vimp\\.com|dancehalldatabase\\.com|drehzahl\\.tv|educhannel\\.hs\\-gesundheit\\.de|emedia\\.ls\\.haw\\-hamburg\\.de|globale\\-evolution\\.net|hohu\\.tv|htvideos\\.hightechhigh\\.org|k210039\\.vimp\\.mivitec\\.net|media\\.cmslegal\\.com|media\\.fh\\-swf\\.de|media\\.hs\\-furtwangen\\.de|media\\.hwr\\-berlin\\.de|mediathek\\.dkfz\\.de|mediathek\\.htw\\-berlin\\.de|mediathek\\.polizei\\-bw\\.de|medien\\.hs\\-merseburg\\.de|mitmedia\\.manukau\\.ac\\.nz|mportal\\.europa\\-uni\\.de|pacific\\.demo\\.vimp\\.com|slctv\\.com|streaming\\.prairiesouth\\.ca|tube\\.isbonline\\.cn|univideo\\.uni\\-kassel\\.de|ursula2\\.genetics\\.emory\\.edu|ursulablicklevideoarchiv\\.com|v\\.agrarumweltpaedagogik\\.at|video\\.eplay\\-tv\\.de|video\\.fh\\-dortmund\\.de|video\\.hs\\-nb\\.de|video\\.hs\\-offenburg\\.de|video\\.hs\\-pforzheim\\.de|video\\.hspv\\.nrw\\.de|video\\.irtshdf\\.fr|video\\.pareygo\\.de|video\\.tu\\-dortmund\\.de|video\\.tu\\-freiberg\\.de|videocampus\\.sachsen\\.de|videoportal\\.uni\\-freiburg\\.de|videoportal\\.vm\\.uni\\-freiburg\\.de|videos\\.duoc\\.cl|videos\\.uni\\-paderborn\\.de|vimp\\-bemus\\.udk\\-berlin\\.de|vimp\\.aekwl\\.de|vimp\\.hs\\-mittweida\\.de|vimp\\.landesfilmdienste\\.de|vimp\\.oth\\-regensburg\\.de|vimp\\.ph\\-heidelberg\\.de|vimp\\.sma\\-events\\.com|vimp\\.weka\\-fachmedien\\.de|vimpdesk\\.com|webtv\\.univ\\-montp3\\.fr|www\\.b\\-tu\\.de/media|www\\.bergauf\\.tv|www\\.bigcitytv\\.de|www\\.cad\\-videos\\.de|www\\.drehzahl\\.tv|www\\.hohu\\.tv|www\\.hsbi\\.de/medienportal|www\\.logistic\\.tv|www\\.orvovideo\\.com|www\\.printtube\\.co\\.uk|www\\.rwe\\.tv|www\\.salzi\\.tv|www\\.signtube\\.co\\.uk|www\\.twb\\-power\\.com|www\\.wenglor\\-media\\.com|www2\\.univ\\-sba\\.dz)/(?:\n        m/(?P<tmp_id>[0-9a-f]+)|\n        (?:category/)?video/(?P<display_id>[\\w-]+)/(?P<id>[0-9a-f]{32})|\n        media/embed.*(?:\\?|&)key=(?P<embed_id>[0-9a-f]{32}&?)\n    )'
     _RETURN_TYPE = 'video'
-
-
-class VideofyMeIE(LazyLoadExtractor):
-    _module = 'yt_dlp.extractor.videofyme'
-    IE_NAME = 'videofy.me'
-    _VALID_URL = 'https?://(?:www\\.videofy\\.me/.+?|p\\.videofy\\.me/v)/(?P<id>\\d+)(&|#|$)'
-    _WORKING = False
-    _RETURN_TYPE = 'video'
-
-
-class VideomoreIE(LazyLoadExtractor):
-    _module = 'yt_dlp.extractor.videomore'
-    IE_NAME = 'videomore'
-    _VALID_URL = '(?x)\n                    videomore:(?P<sid>\\d+)$|\n                    https?://\n                        (?:\n                            videomore\\.ru/\n                            (?:\n                                embed|\n                                [^/]+/[^/]+\n                            )/|\n                            (?:\n                                (?:player\\.)?videomore\\.ru|\n                                siren\\.more\\.tv/player\n                            )/[^/]*\\?.*?\\btrack_id=|\n                            odysseus\\.more.tv/player/(?P<partner_id>\\d+)/\n                        )\n                        (?P<id>\\d+)\n                        (?:[/?#&]|\\.(?:xml|json)|$)\n                    '
-    age_limit = 16
-    _RETURN_TYPE = 'video'
-
-
-class VideomoreBaseIE(LazyLoadExtractor):
-    _module = 'yt_dlp.extractor.videomore'
-    IE_NAME = 'VideomoreBase'
-
-
-class VideomoreSeasonIE(VideomoreBaseIE):
-    _module = 'yt_dlp.extractor.videomore'
-    IE_NAME = 'videomore:season'
-    _VALID_URL = 'https?://(?:videomore\\.ru|more\\.tv)/(?!embed)(?P<id>[^/]+/[^/?#&]+)(?:/*|[?#&].*?)$'
-    _RETURN_TYPE = 'playlist'
-
-    @classmethod
-    def suitable(cls, url):
-        return (False if (VideomoreIE.suitable(url) or VideomoreVideoIE.suitable(url))
-                else super().suitable(url))
-
-
-class VideomoreVideoIE(VideomoreBaseIE):
-    _module = 'yt_dlp.extractor.videomore'
-    IE_NAME = 'videomore:video'
-    _VALID_URL = 'https?://(?:videomore\\.ru|more\\.tv)/(?P<id>(?:(?:[^/]+/){2})?[^/?#&]+)(?:/*|[?#&].*?)$'
-    age_limit = 16
-    _RETURN_TYPE = 'video'
-
-    @classmethod
-    def suitable(cls, url):
-        return False if VideomoreIE.suitable(url) else super().suitable(url)
 
 
 class VidflexIE(LazyLoadExtractor):
@@ -14197,20 +13679,6 @@ class VimeoWatchLaterIE(VimeoChannelIE):
     _NETRC_MACHINE = 'vimeo'
 
 
-class VimmIE(LazyLoadExtractor):
-    _module = 'yt_dlp.extractor.vimm'
-    IE_NAME = 'Vimm:stream'
-    _VALID_URL = 'https?://(?:www\\.)?vimm\\.tv/(?:c/)?(?P<id>[0-9a-z-]+)$'
-    _RETURN_TYPE = 'video'
-
-
-class VimmRecordingIE(LazyLoadExtractor):
-    _module = 'yt_dlp.extractor.vimm'
-    IE_NAME = 'Vimm:recording'
-    _VALID_URL = 'https?://(?:www\\.)?vimm\\.tv/c/(?P<channel_id>[0-9a-z-]+)\\?v=(?P<video_id>[0-9A-Za-z]+)'
-    _RETURN_TYPE = 'video'
-
-
 class ViouslyIE(LazyLoadExtractor):
     _module = 'yt_dlp.extractor.viously'
     IE_NAME = 'Viously'
@@ -14222,6 +13690,14 @@ class ViqeoIE(LazyLoadExtractor):
     IE_NAME = 'Viqeo'
     _VALID_URL = '(?x)\n                        (?:\n                            viqeo:|\n                            https?://cdn\\.viqeo\\.tv/embed/*\\?.*?\\bvid=|\n                            https?://api\\.viqeo\\.tv/v\\d+/data/startup?.*?\\bvideo(?:%5B%5D|\\[\\])=\n                        )\n                        (?P<id>[\\da-f]+)\n                    '
     _WORKING = False
+    _RETURN_TYPE = 'video'
+
+
+class VisirIE(LazyLoadExtractor):
+    _module = 'yt_dlp.extractor.visir'
+    IE_NAME = 'Visir'
+    _VALID_URL = 'https?://(?:www\\.)?visir\\.is/(?P<type>k|player)/(?P<id>[\\da-f-]+)(?:/(?P<slug>[\\w.-]+))?'
+    IE_DESC = 'Vísir'
     _RETURN_TYPE = 'video'
 
 
@@ -14297,10 +13773,34 @@ class VoicyIE(VoicyBaseIE):
     _RETURN_TYPE = 'playlist'
 
 
-class VolejTVIE(LazyLoadExtractor):
+class VolejTVBaseIE(LazyLoadExtractor):
     _module = 'yt_dlp.extractor.volejtv'
-    IE_NAME = 'VolejTV'
-    _VALID_URL = 'https?://volej\\.tv/video/(?P<id>\\d+)'
+    IE_NAME = 'VolejTVBase'
+
+
+class VolejTVPlaylistBaseIE(VolejTVBaseIE):
+    _module = 'yt_dlp.extractor.volejtv'
+    IE_NAME = 'VolejTVPlaylistBase'
+
+
+class VolejTVCategoryPlaylistIE(VolejTVPlaylistBaseIE):
+    _module = 'yt_dlp.extractor.volejtv'
+    IE_NAME = 'volejtv:category'
+    _VALID_URL = 'https?://volej\\.tv/kategorie/(?P<id>[^/$?]+)'
+    _RETURN_TYPE = 'playlist'
+
+
+class VolejTVClubPlaylistIE(VolejTVPlaylistBaseIE):
+    _module = 'yt_dlp.extractor.volejtv'
+    IE_NAME = 'volejtv:club'
+    _VALID_URL = 'https?://volej\\.tv/klub/(?P<id>\\d+)'
+    _RETURN_TYPE = 'playlist'
+
+
+class VolejTVIE(VolejTVBaseIE):
+    _module = 'yt_dlp.extractor.volejtv'
+    IE_NAME = 'volejtv:match'
+    _VALID_URL = 'https?://volej\\.tv/match/(?P<id>\\d+)'
     _RETURN_TYPE = 'video'
 
 
@@ -14360,13 +13860,6 @@ class VrtNUIE(VRTBaseIE):
     _RETURN_TYPE = 'video'
 
 
-class VuClipIE(LazyLoadExtractor):
-    _module = 'yt_dlp.extractor.vuclip'
-    IE_NAME = 'VuClip'
-    _VALID_URL = 'https?://(?:m\\.)?vuclip\\.com/w\\?.*?cid=(?P<id>[0-9]+)'
-    _RETURN_TYPE = 'video'
-
-
 class WDRElefantIE(LazyLoadExtractor):
     _module = 'yt_dlp.extractor.wdr'
     IE_NAME = 'WDRElefant'
@@ -14378,14 +13871,6 @@ class WDRIE(LazyLoadExtractor):
     _module = 'yt_dlp.extractor.wdr'
     IE_NAME = 'WDR'
     _VALID_URL = '(?x)https?://\n        (?:deviceids-medp\\.wdr\\.de/ondemand/\\d+/|\n           kinder\\.wdr\\.de/(?!mediathek/)[^#?]+-)\n        (?P<id>\\d+)\\.(?:js|assetjsonp)\n    '
-    _RETURN_TYPE = 'video'
-
-
-class WDRMobileIE(LazyLoadExtractor):
-    _module = 'yt_dlp.extractor.wdr'
-    IE_NAME = 'wdr:mobile'
-    _VALID_URL = '(?x)\n        https?://mobile-ondemand\\.wdr\\.de/\n        .*?/fsk(?P<age_limit>[0-9]+)\n        /[0-9]+/[0-9]+/\n        (?P<id>[0-9]+)_(?P<title>[0-9]+)'
-    _WORKING = False
     _RETURN_TYPE = 'video'
 
 
@@ -14676,14 +14161,6 @@ class WeverseMomentIE(WeverseBaseIE):
     _RETURN_TYPE = 'video'
 
 
-class WeyyakIE(LazyLoadExtractor):
-    _module = 'yt_dlp.extractor.weyyak'
-    IE_NAME = 'Weyyak'
-    _VALID_URL = 'https?://weyyak\\.com/(?P<lang>\\w+)/(?:player/)?(?P<type>episode|movie)/(?P<id>\\d+)'
-    age_limit = 15
-    _RETURN_TYPE = 'video'
-
-
 class WhoWatchIE(LazyLoadExtractor):
     _module = 'yt_dlp.extractor.whowatch'
     IE_NAME = 'whowatch'
@@ -14700,7 +14177,7 @@ class WhypIE(LazyLoadExtractor):
 class WikimediaIE(LazyLoadExtractor):
     _module = 'yt_dlp.extractor.wikimedia'
     IE_NAME = 'wikimedia.org'
-    _VALID_URL = 'https?://commons\\.wikimedia\\.org/wiki/File:(?P<id>[^/#?]+)\\.\\w+'
+    _VALID_URL = 'https?://commons\\.wikimedia\\.org/wiki/File:(?P<id>[^/#?]+)'
     _RETURN_TYPE = 'video'
 
 
@@ -14948,26 +14425,10 @@ class XinpianchangIE(LazyLoadExtractor):
     _RETURN_TYPE = 'video'
 
 
-class XstreamIE(LazyLoadExtractor):
-    _module = 'yt_dlp.extractor.xstream'
-    IE_NAME = 'Xstream'
-    _VALID_URL = '(?x)\n                    (?:\n                        xstream:|\n                        https?://frontend\\.xstream\\.(?:dk|net)/\n                    )\n                    (?P<partner_id>[^/]+)\n                    (?:\n                        :|\n                        /feed/video/\\?.*?\\bid=\n                    )\n                    (?P<id>\\d+)\n                    '
-    _RETURN_TYPE = 'video'
-
-
-class VGTVIE(XstreamIE):
-    _module = 'yt_dlp.extractor.vgtv'
-    IE_NAME = 'VGTV'
-    _VALID_URL = '(?x)\n                    (?:https?://(?:www\\.)?\n                    (?P<host>\n                        tv.vg.no|vgtv.no|bt.no/tv|aftenbladet.no/tv|fvn.no/fvntv|aftenposten.no/webtv|ap.vgtv.no/webtv|tv.aftonbladet.se|tv.aftonbladet.se/abtv|www.aftonbladet.se/tv\n                    )\n                    /?\n                    (?:\n                        (?:\\#!/)?(?:video|live)/|\n                        embed?.*id=|\n                        a(?:rticles)?/\n                    )|\n                    (?P<appname>\n                        vgtv|bttv|satv|fvntv|aptv|abtv\n                    ):)\n                    (?P<id>\\d+)\n                    '
-    IE_DESC = 'VGTV, BTTV, FTV, Aftenposten and Aftonbladet'
-    _RETURN_TYPE = 'video'
-
-
 class YahooIE(LazyLoadExtractor):
     _module = 'yt_dlp.extractor.yahoo'
-    IE_NAME = 'Yahoo'
+    IE_NAME = 'yahoo'
     _VALID_URL = '(?P<url>https?://(?:(?P<country>[a-zA-Z]{2}(?:-[a-zA-Z]{2})?|malaysia)\\.)?(?:[\\da-zA-Z_-]+\\.)?yahoo\\.com/(?:[^/]+/)*(?P<id>[^?&#]*-[0-9]+(?:-[a-z]+)?)\\.html)'
-    IE_DESC = 'Yahoo screen and movies'
     _RETURN_TYPE = 'any'
 
 
@@ -14976,7 +14437,6 @@ class AolIE(YahooIE):
     IE_NAME = 'aol.com'
     _VALID_URL = '(?:aol-video:|https?://(?:www\\.)?aol\\.(?:com|ca|co\\.uk|de|jp)/video/(?:[^/]+/)*)(?P<id>\\d{9}|[0-9a-f]{24}|[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12})'
     _WORKING = False
-    IE_DESC = 'Yahoo screen and movies'
     _RETURN_TYPE = 'video'
 
 
@@ -14990,9 +14450,8 @@ class YahooJapanNewsIE(LazyLoadExtractor):
 
 class YahooSearchIE(LazyLoadSearchExtractor):
     _module = 'yt_dlp.extractor.yahoo'
-    IE_NAME = 'screen.yahoo:search'
+    IE_NAME = 'yahoo:search'
     _VALID_URL = 'yvsearch(?P<prefix>|[1-9][0-9]*|all):(?P<query>[\\s\\S]+)'
-    IE_DESC = 'Yahoo screen search'
     SEARCH_KEY = 'yvsearch'
     _RETURN_TYPE = 'playlist'
 
@@ -15099,6 +14558,13 @@ class YappyProfileIE(LazyLoadExtractor):
     IE_NAME = 'YappyProfile'
     _VALID_URL = 'https?://yappy\\.media/profile/(?P<id>\\w+)'
     _RETURN_TYPE = 'playlist'
+
+
+class YfanefaIE(LazyLoadExtractor):
+    _module = 'yt_dlp.extractor.yfanefa'
+    IE_NAME = 'yfanefa'
+    _VALID_URL = 'https?://(?:www\\.)?yfanefa\\.com/(?P<id>[^?#]+)'
+    _RETURN_TYPE = 'video'
 
 
 class YleAreenaIE(LazyLoadExtractor):
@@ -15226,233 +14692,12 @@ class YoukuShowIE(LazyLoadExtractor):
     _RETURN_TYPE = 'playlist'
 
 
-class YoutubeBaseInfoExtractor(LazyLoadExtractor):
-    _module = 'yt_dlp.extractor.youtube'
-    IE_NAME = 'YoutubeBaseInfoExtract'
-    _NETRC_MACHINE = 'youtube'
-
-
-class YoutubeTabBaseInfoExtractor(YoutubeBaseInfoExtractor):
-    _module = 'yt_dlp.extractor.youtube'
-    IE_NAME = 'YoutubeTabBaseInfoExtract'
-    _NETRC_MACHINE = 'youtube'
-
-
-class YoutubeClipIE(YoutubeTabBaseInfoExtractor):
-    _module = 'yt_dlp.extractor.youtube'
-    IE_NAME = 'youtube:clip'
-    _VALID_URL = 'https?://(?:www\\.)?youtube\\.com/clip/(?P<id>[^/?#]+)'
-    _NETRC_MACHINE = 'youtube'
-    _RETURN_TYPE = 'video'
-
-
-class YoutubeConsentRedirectIE(YoutubeBaseInfoExtractor):
-    _module = 'yt_dlp.extractor.youtube'
-    IE_NAME = 'youtube:consent'
-    _VALID_URL = 'https?://consent\\.youtube\\.com/m\\?'
-    IE_DESC = False
-    _NETRC_MACHINE = 'youtube'
-    _RETURN_TYPE = 'video'
-
-
-class YoutubeFavouritesIE(YoutubeBaseInfoExtractor):
-    _module = 'yt_dlp.extractor.youtube'
-    IE_NAME = 'youtube:favorites'
-    _VALID_URL = ':ytfav(?:ou?rite)?s?'
-    IE_DESC = 'YouTube liked videos; ":ytfav" keyword (requires cookies)'
-    _NETRC_MACHINE = 'youtube'
-
-
-class YoutubeFeedsInfoExtractor(YoutubeBaseInfoExtractor):
-    _module = 'yt_dlp.extractor.youtube'
-    IE_NAME = 'youtube:feeds'
-    _NETRC_MACHINE = 'youtube'
-
-
-class YoutubeHistoryIE(YoutubeFeedsInfoExtractor):
-    _module = 'yt_dlp.extractor.youtube'
-    IE_NAME = 'youtube:history'
-    _VALID_URL = ':ythis(?:tory)?'
-    IE_DESC = 'Youtube watch history; ":ythis" keyword (requires cookies)'
-    _NETRC_MACHINE = 'youtube'
-
-
-class YoutubeIE(YoutubeBaseInfoExtractor):
-    _module = 'yt_dlp.extractor.youtube'
-    IE_NAME = 'youtube'
-    _VALID_URL = '(?x)^\n                     (\n                         (?:https?://|//)                                    # http(s):// or protocol-independent URL\n                         (?:(?:(?:(?:\\w+\\.)?[yY][oO][uU][tT][uU][bB][eE](?:-nocookie|kids)?\\.com|\n                            (?:www\\.)?deturl\\.com/www\\.youtube\\.com|\n                            (?:www\\.)?pwnyoutube\\.com|\n                            (?:www\\.)?hooktube\\.com|\n                            (?:www\\.)?yourepeat\\.com|\n                            tube\\.majestyc\\.net|\n                            (?:www\\.)?redirect\\.invidious\\.io|(?:(?:www|dev)\\.)?invidio\\.us|(?:www\\.)?invidious\\.pussthecat\\.org|(?:www\\.)?invidious\\.zee\\.li|(?:www\\.)?invidious\\.ethibox\\.fr|(?:www\\.)?iv\\.ggtyler\\.dev|(?:www\\.)?inv\\.vern\\.i2p|(?:www\\.)?am74vkcrjp2d5v36lcdqgsj2m6x36tbrkhsruoegwfcizzabnfgf5zyd\\.onion|(?:www\\.)?inv\\.riverside\\.rocks|(?:www\\.)?invidious\\.silur\\.me|(?:www\\.)?inv\\.bp\\.projectsegfau\\.lt|(?:www\\.)?invidious\\.g4c3eya4clenolymqbpgwz3q3tawoxw56yhzk4vugqrl6dtu3ejvhjid\\.onion|(?:www\\.)?invidious\\.slipfox\\.xyz|(?:www\\.)?invidious\\.esmail5pdn24shtvieloeedh7ehz3nrwcdivnfhfcedl7gf4kwddhkqd\\.onion|(?:www\\.)?inv\\.vernccvbvyi5qhfzyqengccj7lkove6bjot2xhh5kajhwvidqafczrad\\.onion|(?:www\\.)?invidious\\.tiekoetter\\.com|(?:www\\.)?iv\\.odysfvr23q5wgt7i456o5t3trw2cw5dgn56vbjfbq2m7xsc5vqbqpcyd\\.onion|(?:www\\.)?invidious\\.nerdvpn\\.de|(?:www\\.)?invidious\\.weblibre\\.org|(?:www\\.)?inv\\.odyssey346\\.dev|(?:www\\.)?invidious\\.dhusch\\.de|(?:www\\.)?iv\\.melmac\\.space|(?:www\\.)?watch\\.thekitty\\.zone|(?:www\\.)?invidious\\.privacydev\\.net|(?:www\\.)?ng27owmagn5amdm7l5s3rsqxwscl5ynppnis5dqcasogkyxcfqn7psid\\.onion|(?:www\\.)?invidious\\.drivet\\.xyz|(?:www\\.)?vid\\.priv\\.au|(?:www\\.)?euxxcnhsynwmfidvhjf6uzptsmh4dipkmgdmcmxxuo7tunp3ad2jrwyd\\.onion|(?:www\\.)?inv\\.vern\\.cc|(?:www\\.)?invidious\\.esmailelbob\\.xyz|(?:www\\.)?invidious\\.sethforprivacy\\.com|(?:www\\.)?yt\\.oelrichsgarcia\\.de|(?:www\\.)?yt\\.artemislena\\.eu|(?:www\\.)?invidious\\.flokinet\\.to|(?:www\\.)?invidious\\.baczek\\.me|(?:www\\.)?y\\.com\\.sb|(?:www\\.)?invidious\\.epicsite\\.xyz|(?:www\\.)?invidious\\.lidarshield\\.cloud|(?:www\\.)?yt\\.funami\\.tech|(?:www\\.)?invidious\\.3o7z6yfxhbw7n3za4rss6l434kmv55cgw2vuziwuigpwegswvwzqipyd\\.onion|(?:www\\.)?osbivz6guyeahrwp2lnwyjk2xos342h4ocsxyqrlaopqjuhwn2djiiyd\\.onion|(?:www\\.)?u2cvlit75owumwpy4dj2hsmvkq7nvrclkpht7xgyye2pyoxhpmclkrad\\.onion|(?:(?:www|no)\\.)?invidiou\\.sh|(?:(?:www|fi)\\.)?invidious\\.snopyta\\.org|(?:www\\.)?invidious\\.kabi\\.tk|(?:www\\.)?invidious\\.mastodon\\.host|(?:www\\.)?invidious\\.zapashcanon\\.fr|(?:www\\.)?(?:invidious(?:-us)?|piped)\\.kavin\\.rocks|(?:www\\.)?invidious\\.tinfoil-hat\\.net|(?:www\\.)?invidious\\.himiko\\.cloud|(?:www\\.)?invidious\\.reallyancient\\.tech|(?:www\\.)?invidious\\.tube|(?:www\\.)?invidiou\\.site|(?:www\\.)?invidious\\.site|(?:www\\.)?invidious\\.xyz|(?:www\\.)?invidious\\.nixnet\\.xyz|(?:www\\.)?invidious\\.048596\\.xyz|(?:www\\.)?invidious\\.drycat\\.fr|(?:www\\.)?inv\\.skyn3t\\.in|(?:www\\.)?tube\\.poal\\.co|(?:www\\.)?tube\\.connect\\.cafe|(?:www\\.)?vid\\.wxzm\\.sx|(?:www\\.)?vid\\.mint\\.lgbt|(?:www\\.)?vid\\.puffyan\\.us|(?:www\\.)?yewtu\\.be|(?:www\\.)?yt\\.elukerio\\.org|(?:www\\.)?yt\\.lelux\\.fi|(?:www\\.)?invidious\\.ggc-project\\.de|(?:www\\.)?yt\\.maisputain\\.ovh|(?:www\\.)?ytprivate\\.com|(?:www\\.)?invidious\\.13ad\\.de|(?:www\\.)?invidious\\.toot\\.koeln|(?:www\\.)?invidious\\.fdn\\.fr|(?:www\\.)?watch\\.nettohikari\\.com|(?:www\\.)?invidious\\.namazso\\.eu|(?:www\\.)?invidious\\.silkky\\.cloud|(?:www\\.)?invidious\\.exonip\\.de|(?:www\\.)?invidious\\.riverside\\.rocks|(?:www\\.)?invidious\\.blamefran\\.net|(?:www\\.)?invidious\\.moomoo\\.de|(?:www\\.)?ytb\\.trom\\.tf|(?:www\\.)?yt\\.cyberhost\\.uk|(?:www\\.)?kgg2m7yk5aybusll\\.onion|(?:www\\.)?qklhadlycap4cnod\\.onion|(?:www\\.)?axqzx4s6s54s32yentfqojs3x5i7faxza6xo3ehd4bzzsg2ii4fv2iid\\.onion|(?:www\\.)?c7hqkpkpemu6e7emz5b4vyz7idjgdvgaaa3dyimmeojqbgpea3xqjoid\\.onion|(?:www\\.)?fz253lmuao3strwbfbmx46yu7acac2jz27iwtorgmbqlkurlclmancad\\.onion|(?:www\\.)?invidious\\.l4qlywnpwqsluw65ts7md3khrivpirse744un3x7mlskqauz5pyuzgqd\\.onion|(?:www\\.)?owxfohz4kjyv25fvlqilyxast7inivgiktls3th44jhk3ej3i7ya\\.b32\\.i2p|(?:www\\.)?4l2dgddgsrkf2ous66i6seeyi6etzfgrue332grh2n7madpwopotugyd\\.onion|(?:www\\.)?w6ijuptxiku4xpnnaetxvnkc5vqcdu7mgns2u77qefoixi63vbvnpnqd\\.onion|(?:www\\.)?kbjggqkzv65ivcqj6bumvp337z6264huv5kpkwuv6gu5yjiskvan7fad\\.onion|(?:www\\.)?grwp24hodrefzvjjuccrkw3mjq4tzhaaq32amf33dzpmuxe7ilepcmad\\.onion|(?:www\\.)?hpniueoejy4opn7bc4ftgazyqjoeqwlvh2uiku2xqku6zpoa4bf5ruid\\.onion|(?:www\\.)?piped\\.kavin\\.rocks|(?:www\\.)?piped\\.tokhmi\\.xyz|(?:www\\.)?piped\\.syncpundit\\.io|(?:www\\.)?piped\\.mha\\.fi|(?:www\\.)?watch\\.whatever\\.social|(?:www\\.)?piped\\.garudalinux\\.org|(?:www\\.)?piped\\.rivo\\.lol|(?:www\\.)?piped-libre\\.kavin\\.rocks|(?:www\\.)?yt\\.jae\\.fi|(?:www\\.)?piped\\.mint\\.lgbt|(?:www\\.)?il\\.ax|(?:www\\.)?piped\\.esmailelbob\\.xyz|(?:www\\.)?piped\\.projectsegfau\\.lt|(?:www\\.)?piped\\.privacydev\\.net|(?:www\\.)?piped\\.palveluntarjoaja\\.eu|(?:www\\.)?piped\\.smnz\\.de|(?:www\\.)?piped\\.adminforge\\.de|(?:www\\.)?watch\\.whatevertinfoil\\.de|(?:www\\.)?piped\\.qdi\\.fi|(?:(?:www|cf)\\.)?piped\\.video|(?:www\\.)?piped\\.aeong\\.one|(?:www\\.)?piped\\.moomoo\\.me|(?:www\\.)?piped\\.chauvet\\.pro|(?:www\\.)?watch\\.leptons\\.xyz|(?:www\\.)?pd\\.vern\\.cc|(?:www\\.)?piped\\.hostux\\.net|(?:www\\.)?piped\\.lunar\\.icu|(?:www\\.)?hyperpipe\\.surge\\.sh|(?:www\\.)?hyperpipe\\.esmailelbob\\.xyz|(?:www\\.)?listen\\.whatever\\.social|(?:www\\.)?music\\.adminforge\\.de|\n                            youtube\\.googleapis\\.com)/                        # the various hostnames, with wildcard subdomains\n                         (?:.*?\\#/)?                                          # handle anchor (#/) redirect urls\n                         (?:                                                  # the various things that can precede the ID:\n                             (?:(?:v|embed|e|shorts|live)/(?!videoseries|live_stream))  # v/ or embed/ or e/ or shorts/\n                             |(?:                                             # or the v= param in all its forms\n                                 (?:(?:watch|movie)(?:_popup)?(?:\\.php)?/?)?  # preceding watch(_popup|.php) or nothing (like /?v=xxxx)\n                                 (?:\\?|\\#!?)                                  # the params delimiter ? or # or #!\n                                 (?:.*?[&;])??                                # any other preceding param (like /?s=tuff&v=xxxx or ?s=tuff&amp;v=V36LpHqtcDY)\n                                 v=\n                             )\n                         ))\n                         |(?:\n                            youtu\\.be|                                        # just youtu.be/xxxx\n                            vid\\.plus|                                        # or vid.plus/xxxx\n                            zwearz\\.com/watch|                                # or zwearz.com/watch/xxxx\n                            (?:www\\.)?redirect\\.invidious\\.io|(?:(?:www|dev)\\.)?invidio\\.us|(?:www\\.)?invidious\\.pussthecat\\.org|(?:www\\.)?invidious\\.zee\\.li|(?:www\\.)?invidious\\.ethibox\\.fr|(?:www\\.)?iv\\.ggtyler\\.dev|(?:www\\.)?inv\\.vern\\.i2p|(?:www\\.)?am74vkcrjp2d5v36lcdqgsj2m6x36tbrkhsruoegwfcizzabnfgf5zyd\\.onion|(?:www\\.)?inv\\.riverside\\.rocks|(?:www\\.)?invidious\\.silur\\.me|(?:www\\.)?inv\\.bp\\.projectsegfau\\.lt|(?:www\\.)?invidious\\.g4c3eya4clenolymqbpgwz3q3tawoxw56yhzk4vugqrl6dtu3ejvhjid\\.onion|(?:www\\.)?invidious\\.slipfox\\.xyz|(?:www\\.)?invidious\\.esmail5pdn24shtvieloeedh7ehz3nrwcdivnfhfcedl7gf4kwddhkqd\\.onion|(?:www\\.)?inv\\.vernccvbvyi5qhfzyqengccj7lkove6bjot2xhh5kajhwvidqafczrad\\.onion|(?:www\\.)?invidious\\.tiekoetter\\.com|(?:www\\.)?iv\\.odysfvr23q5wgt7i456o5t3trw2cw5dgn56vbjfbq2m7xsc5vqbqpcyd\\.onion|(?:www\\.)?invidious\\.nerdvpn\\.de|(?:www\\.)?invidious\\.weblibre\\.org|(?:www\\.)?inv\\.odyssey346\\.dev|(?:www\\.)?invidious\\.dhusch\\.de|(?:www\\.)?iv\\.melmac\\.space|(?:www\\.)?watch\\.thekitty\\.zone|(?:www\\.)?invidious\\.privacydev\\.net|(?:www\\.)?ng27owmagn5amdm7l5s3rsqxwscl5ynppnis5dqcasogkyxcfqn7psid\\.onion|(?:www\\.)?invidious\\.drivet\\.xyz|(?:www\\.)?vid\\.priv\\.au|(?:www\\.)?euxxcnhsynwmfidvhjf6uzptsmh4dipkmgdmcmxxuo7tunp3ad2jrwyd\\.onion|(?:www\\.)?inv\\.vern\\.cc|(?:www\\.)?invidious\\.esmailelbob\\.xyz|(?:www\\.)?invidious\\.sethforprivacy\\.com|(?:www\\.)?yt\\.oelrichsgarcia\\.de|(?:www\\.)?yt\\.artemislena\\.eu|(?:www\\.)?invidious\\.flokinet\\.to|(?:www\\.)?invidious\\.baczek\\.me|(?:www\\.)?y\\.com\\.sb|(?:www\\.)?invidious\\.epicsite\\.xyz|(?:www\\.)?invidious\\.lidarshield\\.cloud|(?:www\\.)?yt\\.funami\\.tech|(?:www\\.)?invidious\\.3o7z6yfxhbw7n3za4rss6l434kmv55cgw2vuziwuigpwegswvwzqipyd\\.onion|(?:www\\.)?osbivz6guyeahrwp2lnwyjk2xos342h4ocsxyqrlaopqjuhwn2djiiyd\\.onion|(?:www\\.)?u2cvlit75owumwpy4dj2hsmvkq7nvrclkpht7xgyye2pyoxhpmclkrad\\.onion|(?:(?:www|no)\\.)?invidiou\\.sh|(?:(?:www|fi)\\.)?invidious\\.snopyta\\.org|(?:www\\.)?invidious\\.kabi\\.tk|(?:www\\.)?invidious\\.mastodon\\.host|(?:www\\.)?invidious\\.zapashcanon\\.fr|(?:www\\.)?(?:invidious(?:-us)?|piped)\\.kavin\\.rocks|(?:www\\.)?invidious\\.tinfoil-hat\\.net|(?:www\\.)?invidious\\.himiko\\.cloud|(?:www\\.)?invidious\\.reallyancient\\.tech|(?:www\\.)?invidious\\.tube|(?:www\\.)?invidiou\\.site|(?:www\\.)?invidious\\.site|(?:www\\.)?invidious\\.xyz|(?:www\\.)?invidious\\.nixnet\\.xyz|(?:www\\.)?invidious\\.048596\\.xyz|(?:www\\.)?invidious\\.drycat\\.fr|(?:www\\.)?inv\\.skyn3t\\.in|(?:www\\.)?tube\\.poal\\.co|(?:www\\.)?tube\\.connect\\.cafe|(?:www\\.)?vid\\.wxzm\\.sx|(?:www\\.)?vid\\.mint\\.lgbt|(?:www\\.)?vid\\.puffyan\\.us|(?:www\\.)?yewtu\\.be|(?:www\\.)?yt\\.elukerio\\.org|(?:www\\.)?yt\\.lelux\\.fi|(?:www\\.)?invidious\\.ggc-project\\.de|(?:www\\.)?yt\\.maisputain\\.ovh|(?:www\\.)?ytprivate\\.com|(?:www\\.)?invidious\\.13ad\\.de|(?:www\\.)?invidious\\.toot\\.koeln|(?:www\\.)?invidious\\.fdn\\.fr|(?:www\\.)?watch\\.nettohikari\\.com|(?:www\\.)?invidious\\.namazso\\.eu|(?:www\\.)?invidious\\.silkky\\.cloud|(?:www\\.)?invidious\\.exonip\\.de|(?:www\\.)?invidious\\.riverside\\.rocks|(?:www\\.)?invidious\\.blamefran\\.net|(?:www\\.)?invidious\\.moomoo\\.de|(?:www\\.)?ytb\\.trom\\.tf|(?:www\\.)?yt\\.cyberhost\\.uk|(?:www\\.)?kgg2m7yk5aybusll\\.onion|(?:www\\.)?qklhadlycap4cnod\\.onion|(?:www\\.)?axqzx4s6s54s32yentfqojs3x5i7faxza6xo3ehd4bzzsg2ii4fv2iid\\.onion|(?:www\\.)?c7hqkpkpemu6e7emz5b4vyz7idjgdvgaaa3dyimmeojqbgpea3xqjoid\\.onion|(?:www\\.)?fz253lmuao3strwbfbmx46yu7acac2jz27iwtorgmbqlkurlclmancad\\.onion|(?:www\\.)?invidious\\.l4qlywnpwqsluw65ts7md3khrivpirse744un3x7mlskqauz5pyuzgqd\\.onion|(?:www\\.)?owxfohz4kjyv25fvlqilyxast7inivgiktls3th44jhk3ej3i7ya\\.b32\\.i2p|(?:www\\.)?4l2dgddgsrkf2ous66i6seeyi6etzfgrue332grh2n7madpwopotugyd\\.onion|(?:www\\.)?w6ijuptxiku4xpnnaetxvnkc5vqcdu7mgns2u77qefoixi63vbvnpnqd\\.onion|(?:www\\.)?kbjggqkzv65ivcqj6bumvp337z6264huv5kpkwuv6gu5yjiskvan7fad\\.onion|(?:www\\.)?grwp24hodrefzvjjuccrkw3mjq4tzhaaq32amf33dzpmuxe7ilepcmad\\.onion|(?:www\\.)?hpniueoejy4opn7bc4ftgazyqjoeqwlvh2uiku2xqku6zpoa4bf5ruid\\.onion|(?:www\\.)?piped\\.kavin\\.rocks|(?:www\\.)?piped\\.tokhmi\\.xyz|(?:www\\.)?piped\\.syncpundit\\.io|(?:www\\.)?piped\\.mha\\.fi|(?:www\\.)?watch\\.whatever\\.social|(?:www\\.)?piped\\.garudalinux\\.org|(?:www\\.)?piped\\.rivo\\.lol|(?:www\\.)?piped-libre\\.kavin\\.rocks|(?:www\\.)?yt\\.jae\\.fi|(?:www\\.)?piped\\.mint\\.lgbt|(?:www\\.)?il\\.ax|(?:www\\.)?piped\\.esmailelbob\\.xyz|(?:www\\.)?piped\\.projectsegfau\\.lt|(?:www\\.)?piped\\.privacydev\\.net|(?:www\\.)?piped\\.palveluntarjoaja\\.eu|(?:www\\.)?piped\\.smnz\\.de|(?:www\\.)?piped\\.adminforge\\.de|(?:www\\.)?watch\\.whatevertinfoil\\.de|(?:www\\.)?piped\\.qdi\\.fi|(?:(?:www|cf)\\.)?piped\\.video|(?:www\\.)?piped\\.aeong\\.one|(?:www\\.)?piped\\.moomoo\\.me|(?:www\\.)?piped\\.chauvet\\.pro|(?:www\\.)?watch\\.leptons\\.xyz|(?:www\\.)?pd\\.vern\\.cc|(?:www\\.)?piped\\.hostux\\.net|(?:www\\.)?piped\\.lunar\\.icu|(?:www\\.)?hyperpipe\\.surge\\.sh|(?:www\\.)?hyperpipe\\.esmailelbob\\.xyz|(?:www\\.)?listen\\.whatever\\.social|(?:www\\.)?music\\.adminforge\\.de\n                         )/\n                         |(?:www\\.)?cleanvideosearch\\.com/media/action/yt/watch\\?videoId=\n                         )\n                     )?                                                       # all until now is optional -> you can pass the naked ID\n                     (?P<id>[0-9A-Za-z_-]{11})                              # here is it! the YouTube video ID\n                     (?(1).+)?                                                # if we found the ID, everything can follow\n                     (?:\\#|$)'
-    IE_DESC = 'YouTube'
-    _NETRC_MACHINE = 'youtube'
-    age_limit = 18
-    _RETURN_TYPE = 'video'
-
-    @classmethod
-    def suitable(cls, url):
-        from yt_dlp.utils import parse_qs
-
-        qs = parse_qs(url)
-        if qs.get('list', [None])[0]:
-            return False
-        return super().suitable(url)
-
-
-class YoutubeLivestreamEmbedIE(YoutubeBaseInfoExtractor):
-    _module = 'yt_dlp.extractor.youtube'
-    IE_NAME = 'YoutubeLivestreamEmbed'
-    _VALID_URL = 'https?://(?:\\w+\\.)?youtube\\.com/embed/live_stream/?\\?(?:[^#]+&)?channel=(?P<id>[^&#]+)'
-    IE_DESC = 'YouTube livestream embeds'
-    _NETRC_MACHINE = 'youtube'
-
-
-class YoutubeMusicSearchURLIE(YoutubeTabBaseInfoExtractor):
-    _module = 'yt_dlp.extractor.youtube'
-    IE_NAME = 'youtube:music:search_url'
-    _VALID_URL = 'https?://music\\.youtube\\.com/search\\?([^#]+&)?(?:search_query|q)=(?:[^&]+)(?:[&#]|$)'
-    IE_DESC = 'YouTube music search URLs with selectable sections, e.g. #songs'
-    _NETRC_MACHINE = 'youtube'
-    _RETURN_TYPE = 'playlist'
-
-
-class YoutubeNotificationsIE(YoutubeTabBaseInfoExtractor):
-    _module = 'yt_dlp.extractor.youtube'
-    IE_NAME = 'youtube:notif'
-    _VALID_URL = ':ytnotif(?:ication)?s?'
-    IE_DESC = 'YouTube notifications; ":ytnotif" keyword (requires cookies)'
-    _NETRC_MACHINE = 'youtube'
-
-
-class YoutubePlaylistIE(YoutubeBaseInfoExtractor):
-    _module = 'yt_dlp.extractor.youtube'
-    IE_NAME = 'youtube:playlist'
-    _VALID_URL = '(?x)(?:\n                        (?:https?://)?\n                        (?:\\w+\\.)?\n                        (?:\n                            (?:\n                                youtube(?:kids)?\\.com|\n                                (?:www\\.)?redirect\\.invidious\\.io|(?:(?:www|dev)\\.)?invidio\\.us|(?:www\\.)?invidious\\.pussthecat\\.org|(?:www\\.)?invidious\\.zee\\.li|(?:www\\.)?invidious\\.ethibox\\.fr|(?:www\\.)?iv\\.ggtyler\\.dev|(?:www\\.)?inv\\.vern\\.i2p|(?:www\\.)?am74vkcrjp2d5v36lcdqgsj2m6x36tbrkhsruoegwfcizzabnfgf5zyd\\.onion|(?:www\\.)?inv\\.riverside\\.rocks|(?:www\\.)?invidious\\.silur\\.me|(?:www\\.)?inv\\.bp\\.projectsegfau\\.lt|(?:www\\.)?invidious\\.g4c3eya4clenolymqbpgwz3q3tawoxw56yhzk4vugqrl6dtu3ejvhjid\\.onion|(?:www\\.)?invidious\\.slipfox\\.xyz|(?:www\\.)?invidious\\.esmail5pdn24shtvieloeedh7ehz3nrwcdivnfhfcedl7gf4kwddhkqd\\.onion|(?:www\\.)?inv\\.vernccvbvyi5qhfzyqengccj7lkove6bjot2xhh5kajhwvidqafczrad\\.onion|(?:www\\.)?invidious\\.tiekoetter\\.com|(?:www\\.)?iv\\.odysfvr23q5wgt7i456o5t3trw2cw5dgn56vbjfbq2m7xsc5vqbqpcyd\\.onion|(?:www\\.)?invidious\\.nerdvpn\\.de|(?:www\\.)?invidious\\.weblibre\\.org|(?:www\\.)?inv\\.odyssey346\\.dev|(?:www\\.)?invidious\\.dhusch\\.de|(?:www\\.)?iv\\.melmac\\.space|(?:www\\.)?watch\\.thekitty\\.zone|(?:www\\.)?invidious\\.privacydev\\.net|(?:www\\.)?ng27owmagn5amdm7l5s3rsqxwscl5ynppnis5dqcasogkyxcfqn7psid\\.onion|(?:www\\.)?invidious\\.drivet\\.xyz|(?:www\\.)?vid\\.priv\\.au|(?:www\\.)?euxxcnhsynwmfidvhjf6uzptsmh4dipkmgdmcmxxuo7tunp3ad2jrwyd\\.onion|(?:www\\.)?inv\\.vern\\.cc|(?:www\\.)?invidious\\.esmailelbob\\.xyz|(?:www\\.)?invidious\\.sethforprivacy\\.com|(?:www\\.)?yt\\.oelrichsgarcia\\.de|(?:www\\.)?yt\\.artemislena\\.eu|(?:www\\.)?invidious\\.flokinet\\.to|(?:www\\.)?invidious\\.baczek\\.me|(?:www\\.)?y\\.com\\.sb|(?:www\\.)?invidious\\.epicsite\\.xyz|(?:www\\.)?invidious\\.lidarshield\\.cloud|(?:www\\.)?yt\\.funami\\.tech|(?:www\\.)?invidious\\.3o7z6yfxhbw7n3za4rss6l434kmv55cgw2vuziwuigpwegswvwzqipyd\\.onion|(?:www\\.)?osbivz6guyeahrwp2lnwyjk2xos342h4ocsxyqrlaopqjuhwn2djiiyd\\.onion|(?:www\\.)?u2cvlit75owumwpy4dj2hsmvkq7nvrclkpht7xgyye2pyoxhpmclkrad\\.onion|(?:(?:www|no)\\.)?invidiou\\.sh|(?:(?:www|fi)\\.)?invidious\\.snopyta\\.org|(?:www\\.)?invidious\\.kabi\\.tk|(?:www\\.)?invidious\\.mastodon\\.host|(?:www\\.)?invidious\\.zapashcanon\\.fr|(?:www\\.)?(?:invidious(?:-us)?|piped)\\.kavin\\.rocks|(?:www\\.)?invidious\\.tinfoil-hat\\.net|(?:www\\.)?invidious\\.himiko\\.cloud|(?:www\\.)?invidious\\.reallyancient\\.tech|(?:www\\.)?invidious\\.tube|(?:www\\.)?invidiou\\.site|(?:www\\.)?invidious\\.site|(?:www\\.)?invidious\\.xyz|(?:www\\.)?invidious\\.nixnet\\.xyz|(?:www\\.)?invidious\\.048596\\.xyz|(?:www\\.)?invidious\\.drycat\\.fr|(?:www\\.)?inv\\.skyn3t\\.in|(?:www\\.)?tube\\.poal\\.co|(?:www\\.)?tube\\.connect\\.cafe|(?:www\\.)?vid\\.wxzm\\.sx|(?:www\\.)?vid\\.mint\\.lgbt|(?:www\\.)?vid\\.puffyan\\.us|(?:www\\.)?yewtu\\.be|(?:www\\.)?yt\\.elukerio\\.org|(?:www\\.)?yt\\.lelux\\.fi|(?:www\\.)?invidious\\.ggc-project\\.de|(?:www\\.)?yt\\.maisputain\\.ovh|(?:www\\.)?ytprivate\\.com|(?:www\\.)?invidious\\.13ad\\.de|(?:www\\.)?invidious\\.toot\\.koeln|(?:www\\.)?invidious\\.fdn\\.fr|(?:www\\.)?watch\\.nettohikari\\.com|(?:www\\.)?invidious\\.namazso\\.eu|(?:www\\.)?invidious\\.silkky\\.cloud|(?:www\\.)?invidious\\.exonip\\.de|(?:www\\.)?invidious\\.riverside\\.rocks|(?:www\\.)?invidious\\.blamefran\\.net|(?:www\\.)?invidious\\.moomoo\\.de|(?:www\\.)?ytb\\.trom\\.tf|(?:www\\.)?yt\\.cyberhost\\.uk|(?:www\\.)?kgg2m7yk5aybusll\\.onion|(?:www\\.)?qklhadlycap4cnod\\.onion|(?:www\\.)?axqzx4s6s54s32yentfqojs3x5i7faxza6xo3ehd4bzzsg2ii4fv2iid\\.onion|(?:www\\.)?c7hqkpkpemu6e7emz5b4vyz7idjgdvgaaa3dyimmeojqbgpea3xqjoid\\.onion|(?:www\\.)?fz253lmuao3strwbfbmx46yu7acac2jz27iwtorgmbqlkurlclmancad\\.onion|(?:www\\.)?invidious\\.l4qlywnpwqsluw65ts7md3khrivpirse744un3x7mlskqauz5pyuzgqd\\.onion|(?:www\\.)?owxfohz4kjyv25fvlqilyxast7inivgiktls3th44jhk3ej3i7ya\\.b32\\.i2p|(?:www\\.)?4l2dgddgsrkf2ous66i6seeyi6etzfgrue332grh2n7madpwopotugyd\\.onion|(?:www\\.)?w6ijuptxiku4xpnnaetxvnkc5vqcdu7mgns2u77qefoixi63vbvnpnqd\\.onion|(?:www\\.)?kbjggqkzv65ivcqj6bumvp337z6264huv5kpkwuv6gu5yjiskvan7fad\\.onion|(?:www\\.)?grwp24hodrefzvjjuccrkw3mjq4tzhaaq32amf33dzpmuxe7ilepcmad\\.onion|(?:www\\.)?hpniueoejy4opn7bc4ftgazyqjoeqwlvh2uiku2xqku6zpoa4bf5ruid\\.onion|(?:www\\.)?piped\\.kavin\\.rocks|(?:www\\.)?piped\\.tokhmi\\.xyz|(?:www\\.)?piped\\.syncpundit\\.io|(?:www\\.)?piped\\.mha\\.fi|(?:www\\.)?watch\\.whatever\\.social|(?:www\\.)?piped\\.garudalinux\\.org|(?:www\\.)?piped\\.rivo\\.lol|(?:www\\.)?piped-libre\\.kavin\\.rocks|(?:www\\.)?yt\\.jae\\.fi|(?:www\\.)?piped\\.mint\\.lgbt|(?:www\\.)?il\\.ax|(?:www\\.)?piped\\.esmailelbob\\.xyz|(?:www\\.)?piped\\.projectsegfau\\.lt|(?:www\\.)?piped\\.privacydev\\.net|(?:www\\.)?piped\\.palveluntarjoaja\\.eu|(?:www\\.)?piped\\.smnz\\.de|(?:www\\.)?piped\\.adminforge\\.de|(?:www\\.)?watch\\.whatevertinfoil\\.de|(?:www\\.)?piped\\.qdi\\.fi|(?:(?:www|cf)\\.)?piped\\.video|(?:www\\.)?piped\\.aeong\\.one|(?:www\\.)?piped\\.moomoo\\.me|(?:www\\.)?piped\\.chauvet\\.pro|(?:www\\.)?watch\\.leptons\\.xyz|(?:www\\.)?pd\\.vern\\.cc|(?:www\\.)?piped\\.hostux\\.net|(?:www\\.)?piped\\.lunar\\.icu|(?:www\\.)?hyperpipe\\.surge\\.sh|(?:www\\.)?hyperpipe\\.esmailelbob\\.xyz|(?:www\\.)?listen\\.whatever\\.social|(?:www\\.)?music\\.adminforge\\.de\n                            )\n                            /.*?\\?.*?\\blist=\n                        )?\n                        (?P<id>(?:(?:PL|LL|EC|UU|FL|RD|UL|TL|PU|OLAK5uy_)[0-9A-Za-z-_]{10,}|RDMM|WL|LL|LM))\n                     )'
-    IE_DESC = 'YouTube playlists'
-    _NETRC_MACHINE = 'youtube'
-    _RETURN_TYPE = 'playlist'
-
-    @classmethod
-    def suitable(cls, url):
-        if YoutubeTabIE.suitable(url):
-            return False
-        from yt_dlp.utils import parse_qs
-        qs = parse_qs(url)
-        if qs.get('v', [None])[0]:
-            return False
-        return super().suitable(url)
-
-
-class YoutubeRecommendedIE(YoutubeFeedsInfoExtractor):
-    _module = 'yt_dlp.extractor.youtube'
-    IE_NAME = 'youtube:recommended'
-    _VALID_URL = 'https?://(?:www\\.)?youtube\\.com/?(?:[?#]|$)|:ytrec(?:ommended)?'
-    IE_DESC = 'YouTube recommended videos; ":ytrec" keyword'
-    _NETRC_MACHINE = 'youtube'
-
-
-class YoutubeSearchDateIE(YoutubeTabBaseInfoExtractor, LazyLoadSearchExtractor):
-    _module = 'yt_dlp.extractor.youtube'
-    IE_NAME = 'youtube:search:date'
-    _VALID_URL = 'ytsearchdate(?P<prefix>|[1-9][0-9]*|all):(?P<query>[\\s\\S]+)'
-    IE_DESC = 'YouTube search, newest videos first'
-    _NETRC_MACHINE = 'youtube'
-    SEARCH_KEY = 'ytsearchdate'
-    _RETURN_TYPE = 'playlist'
-
-
-class YoutubeSearchIE(YoutubeTabBaseInfoExtractor, LazyLoadSearchExtractor):
-    _module = 'yt_dlp.extractor.youtube'
-    IE_NAME = 'youtube:search'
-    _VALID_URL = 'ytsearch(?P<prefix>|[1-9][0-9]*|all):(?P<query>[\\s\\S]+)'
-    IE_DESC = 'YouTube search'
-    _NETRC_MACHINE = 'youtube'
-    SEARCH_KEY = 'ytsearch'
-    _RETURN_TYPE = 'playlist'
-
-
-class YoutubeSearchURLIE(YoutubeTabBaseInfoExtractor):
-    _module = 'yt_dlp.extractor.youtube'
-    IE_NAME = 'youtube:search_url'
-    _VALID_URL = 'https?://(?:www\\.)?youtube\\.com/(?:results|search)\\?([^#]+&)?(?:search_query|q)=(?:[^&]+)(?:[&#]|$)'
-    IE_DESC = 'YouTube search URLs with sorting and filter support'
-    _NETRC_MACHINE = 'youtube'
-    _RETURN_TYPE = 'playlist'
-
-
-class YoutubeShortsAudioPivotIE(YoutubeBaseInfoExtractor):
-    _module = 'yt_dlp.extractor.youtube'
-    IE_NAME = 'youtube:shorts:pivot:audio'
-    _VALID_URL = 'https?://(?:www\\.)?youtube\\.com/source/(?P<id>[\\w-]{11})/shorts'
-    IE_DESC = 'YouTube Shorts audio pivot (Shorts using audio of a given video)'
-    _NETRC_MACHINE = 'youtube'
-
-
-class YoutubeSubscriptionsIE(YoutubeFeedsInfoExtractor):
-    _module = 'yt_dlp.extractor.youtube'
-    IE_NAME = 'youtube:subscriptions'
-    _VALID_URL = ':ytsub(?:scription)?s?'
-    IE_DESC = 'YouTube subscriptions feed; ":ytsubs" keyword (requires cookies)'
-    _NETRC_MACHINE = 'youtube'
-
-
-class YoutubeTabIE(YoutubeTabBaseInfoExtractor):
-    _module = 'yt_dlp.extractor.youtube'
-    IE_NAME = 'youtube:tab'
-    _VALID_URL = '(?x:\n        https?://\n            (?!consent\\.)(?:\\w+\\.)?\n            (?:\n                youtube(?:kids)?\\.com|\n                (?:www\\.)?redirect\\.invidious\\.io|(?:(?:www|dev)\\.)?invidio\\.us|(?:www\\.)?invidious\\.pussthecat\\.org|(?:www\\.)?invidious\\.zee\\.li|(?:www\\.)?invidious\\.ethibox\\.fr|(?:www\\.)?iv\\.ggtyler\\.dev|(?:www\\.)?inv\\.vern\\.i2p|(?:www\\.)?am74vkcrjp2d5v36lcdqgsj2m6x36tbrkhsruoegwfcizzabnfgf5zyd\\.onion|(?:www\\.)?inv\\.riverside\\.rocks|(?:www\\.)?invidious\\.silur\\.me|(?:www\\.)?inv\\.bp\\.projectsegfau\\.lt|(?:www\\.)?invidious\\.g4c3eya4clenolymqbpgwz3q3tawoxw56yhzk4vugqrl6dtu3ejvhjid\\.onion|(?:www\\.)?invidious\\.slipfox\\.xyz|(?:www\\.)?invidious\\.esmail5pdn24shtvieloeedh7ehz3nrwcdivnfhfcedl7gf4kwddhkqd\\.onion|(?:www\\.)?inv\\.vernccvbvyi5qhfzyqengccj7lkove6bjot2xhh5kajhwvidqafczrad\\.onion|(?:www\\.)?invidious\\.tiekoetter\\.com|(?:www\\.)?iv\\.odysfvr23q5wgt7i456o5t3trw2cw5dgn56vbjfbq2m7xsc5vqbqpcyd\\.onion|(?:www\\.)?invidious\\.nerdvpn\\.de|(?:www\\.)?invidious\\.weblibre\\.org|(?:www\\.)?inv\\.odyssey346\\.dev|(?:www\\.)?invidious\\.dhusch\\.de|(?:www\\.)?iv\\.melmac\\.space|(?:www\\.)?watch\\.thekitty\\.zone|(?:www\\.)?invidious\\.privacydev\\.net|(?:www\\.)?ng27owmagn5amdm7l5s3rsqxwscl5ynppnis5dqcasogkyxcfqn7psid\\.onion|(?:www\\.)?invidious\\.drivet\\.xyz|(?:www\\.)?vid\\.priv\\.au|(?:www\\.)?euxxcnhsynwmfidvhjf6uzptsmh4dipkmgdmcmxxuo7tunp3ad2jrwyd\\.onion|(?:www\\.)?inv\\.vern\\.cc|(?:www\\.)?invidious\\.esmailelbob\\.xyz|(?:www\\.)?invidious\\.sethforprivacy\\.com|(?:www\\.)?yt\\.oelrichsgarcia\\.de|(?:www\\.)?yt\\.artemislena\\.eu|(?:www\\.)?invidious\\.flokinet\\.to|(?:www\\.)?invidious\\.baczek\\.me|(?:www\\.)?y\\.com\\.sb|(?:www\\.)?invidious\\.epicsite\\.xyz|(?:www\\.)?invidious\\.lidarshield\\.cloud|(?:www\\.)?yt\\.funami\\.tech|(?:www\\.)?invidious\\.3o7z6yfxhbw7n3za4rss6l434kmv55cgw2vuziwuigpwegswvwzqipyd\\.onion|(?:www\\.)?osbivz6guyeahrwp2lnwyjk2xos342h4ocsxyqrlaopqjuhwn2djiiyd\\.onion|(?:www\\.)?u2cvlit75owumwpy4dj2hsmvkq7nvrclkpht7xgyye2pyoxhpmclkrad\\.onion|(?:(?:www|no)\\.)?invidiou\\.sh|(?:(?:www|fi)\\.)?invidious\\.snopyta\\.org|(?:www\\.)?invidious\\.kabi\\.tk|(?:www\\.)?invidious\\.mastodon\\.host|(?:www\\.)?invidious\\.zapashcanon\\.fr|(?:www\\.)?(?:invidious(?:-us)?|piped)\\.kavin\\.rocks|(?:www\\.)?invidious\\.tinfoil-hat\\.net|(?:www\\.)?invidious\\.himiko\\.cloud|(?:www\\.)?invidious\\.reallyancient\\.tech|(?:www\\.)?invidious\\.tube|(?:www\\.)?invidiou\\.site|(?:www\\.)?invidious\\.site|(?:www\\.)?invidious\\.xyz|(?:www\\.)?invidious\\.nixnet\\.xyz|(?:www\\.)?invidious\\.048596\\.xyz|(?:www\\.)?invidious\\.drycat\\.fr|(?:www\\.)?inv\\.skyn3t\\.in|(?:www\\.)?tube\\.poal\\.co|(?:www\\.)?tube\\.connect\\.cafe|(?:www\\.)?vid\\.wxzm\\.sx|(?:www\\.)?vid\\.mint\\.lgbt|(?:www\\.)?vid\\.puffyan\\.us|(?:www\\.)?yewtu\\.be|(?:www\\.)?yt\\.elukerio\\.org|(?:www\\.)?yt\\.lelux\\.fi|(?:www\\.)?invidious\\.ggc-project\\.de|(?:www\\.)?yt\\.maisputain\\.ovh|(?:www\\.)?ytprivate\\.com|(?:www\\.)?invidious\\.13ad\\.de|(?:www\\.)?invidious\\.toot\\.koeln|(?:www\\.)?invidious\\.fdn\\.fr|(?:www\\.)?watch\\.nettohikari\\.com|(?:www\\.)?invidious\\.namazso\\.eu|(?:www\\.)?invidious\\.silkky\\.cloud|(?:www\\.)?invidious\\.exonip\\.de|(?:www\\.)?invidious\\.riverside\\.rocks|(?:www\\.)?invidious\\.blamefran\\.net|(?:www\\.)?invidious\\.moomoo\\.de|(?:www\\.)?ytb\\.trom\\.tf|(?:www\\.)?yt\\.cyberhost\\.uk|(?:www\\.)?kgg2m7yk5aybusll\\.onion|(?:www\\.)?qklhadlycap4cnod\\.onion|(?:www\\.)?axqzx4s6s54s32yentfqojs3x5i7faxza6xo3ehd4bzzsg2ii4fv2iid\\.onion|(?:www\\.)?c7hqkpkpemu6e7emz5b4vyz7idjgdvgaaa3dyimmeojqbgpea3xqjoid\\.onion|(?:www\\.)?fz253lmuao3strwbfbmx46yu7acac2jz27iwtorgmbqlkurlclmancad\\.onion|(?:www\\.)?invidious\\.l4qlywnpwqsluw65ts7md3khrivpirse744un3x7mlskqauz5pyuzgqd\\.onion|(?:www\\.)?owxfohz4kjyv25fvlqilyxast7inivgiktls3th44jhk3ej3i7ya\\.b32\\.i2p|(?:www\\.)?4l2dgddgsrkf2ous66i6seeyi6etzfgrue332grh2n7madpwopotugyd\\.onion|(?:www\\.)?w6ijuptxiku4xpnnaetxvnkc5vqcdu7mgns2u77qefoixi63vbvnpnqd\\.onion|(?:www\\.)?kbjggqkzv65ivcqj6bumvp337z6264huv5kpkwuv6gu5yjiskvan7fad\\.onion|(?:www\\.)?grwp24hodrefzvjjuccrkw3mjq4tzhaaq32amf33dzpmuxe7ilepcmad\\.onion|(?:www\\.)?hpniueoejy4opn7bc4ftgazyqjoeqwlvh2uiku2xqku6zpoa4bf5ruid\\.onion|(?:www\\.)?piped\\.kavin\\.rocks|(?:www\\.)?piped\\.tokhmi\\.xyz|(?:www\\.)?piped\\.syncpundit\\.io|(?:www\\.)?piped\\.mha\\.fi|(?:www\\.)?watch\\.whatever\\.social|(?:www\\.)?piped\\.garudalinux\\.org|(?:www\\.)?piped\\.rivo\\.lol|(?:www\\.)?piped-libre\\.kavin\\.rocks|(?:www\\.)?yt\\.jae\\.fi|(?:www\\.)?piped\\.mint\\.lgbt|(?:www\\.)?il\\.ax|(?:www\\.)?piped\\.esmailelbob\\.xyz|(?:www\\.)?piped\\.projectsegfau\\.lt|(?:www\\.)?piped\\.privacydev\\.net|(?:www\\.)?piped\\.palveluntarjoaja\\.eu|(?:www\\.)?piped\\.smnz\\.de|(?:www\\.)?piped\\.adminforge\\.de|(?:www\\.)?watch\\.whatevertinfoil\\.de|(?:www\\.)?piped\\.qdi\\.fi|(?:(?:www|cf)\\.)?piped\\.video|(?:www\\.)?piped\\.aeong\\.one|(?:www\\.)?piped\\.moomoo\\.me|(?:www\\.)?piped\\.chauvet\\.pro|(?:www\\.)?watch\\.leptons\\.xyz|(?:www\\.)?pd\\.vern\\.cc|(?:www\\.)?piped\\.hostux\\.net|(?:www\\.)?piped\\.lunar\\.icu|(?:www\\.)?hyperpipe\\.surge\\.sh|(?:www\\.)?hyperpipe\\.esmailelbob\\.xyz|(?:www\\.)?listen\\.whatever\\.social|(?:www\\.)?music\\.adminforge\\.de\n            )/\n            (?:\n                (?P<channel_type>channel|c|user|browse)/|\n                (?P<not_channel>\n                    feed/|hashtag/|\n                    (?:playlist|watch)\\?.*?\\blist=\n                )|\n                (?!(?:channel|c|user|playlist|watch|w|v|embed|e|live|watch_popup|clip|shorts|movies|results|search|shared|hashtag|trending|explore|feed|feeds|browse|oembed|get_video_info|iframe_api|s/player|source|storefront|oops|index|account|t/terms|about|upload|signin|logout)\\b)  # Direct URLs\n            )\n            (?P<id>[^/?\\#&]+)\n    )'
-    IE_DESC = 'YouTube Tabs'
-    _NETRC_MACHINE = 'youtube'
-    _RETURN_TYPE = 'any'
-
-    @classmethod
-    def suitable(cls, url):
-        return False if YoutubeIE.suitable(url) else super().suitable(url)
-
-
-class YoutubeTruncatedIDIE(YoutubeBaseInfoExtractor):
-    _module = 'yt_dlp.extractor.youtube'
-    IE_NAME = 'youtube:truncated_id'
-    _VALID_URL = 'https?://(?:www\\.)?youtube\\.com/watch\\?v=(?P<id>[0-9A-Za-z_-]{1,10})$'
-    IE_DESC = False
-    _NETRC_MACHINE = 'youtube'
-
-
-class YoutubeTruncatedURLIE(YoutubeBaseInfoExtractor):
-    _module = 'yt_dlp.extractor.youtube'
-    IE_NAME = 'youtube:truncated_url'
-    _VALID_URL = '(?x)\n        (?:https?://)?\n        (?:\\w+\\.)?[yY][oO][uU][tT][uU][bB][eE](?:-nocookie)?\\.com/\n        (?:watch\\?(?:\n            feature=[a-z_]+|\n            annotation_id=annotation_[^&]+|\n            x-yt-cl=[0-9]+|\n            hl=[^&]*|\n            t=[0-9]+\n        )?\n        |\n            attribution_link\\?a=[^&]+\n        )\n        $\n    '
-    IE_DESC = False
-    _NETRC_MACHINE = 'youtube'
-
-
-class YoutubeWatchLaterIE(YoutubeBaseInfoExtractor):
-    _module = 'yt_dlp.extractor.youtube'
-    IE_NAME = 'youtube:watchlater'
-    _VALID_URL = ':ytwatchlater'
-    IE_DESC = 'Youtube watch later list; ":ytwatchlater" keyword (requires cookies)'
-    _NETRC_MACHINE = 'youtube'
-
-
 class YoutubeWebArchiveIE(LazyLoadExtractor):
     _module = 'yt_dlp.extractor.archiveorg'
     IE_NAME = 'web.archive:youtube'
     _VALID_URL = '(?x)(?:(?P<prefix>ytarchive:)|\n            (?:https?://)?web\\.archive\\.org/\n            (?:web/)?(?:(?P<date>[0-9]{14})?[0-9A-Za-z_*]*/)?  # /web and the version index is optional\n            (?:https?(?::|%3[Aa])//)?(?:\n                (?:\\w+\\.)?youtube\\.com(?::(?:80|443))?/watch(?:\\.php)?(?:\\?|%3[fF])(?:[^\\#]+(?:&|%26))?v(?:=|%3[dD])  # Youtube URL\n                |(?:wayback-fakeurl\\.archive\\.org/yt/)  # Or the internal fake url\n            )\n        )(?P<id>[0-9A-Za-z_-]{11})\n        (?(prefix)\n            (?::(?P<date2>[0-9]{14}))?$|\n            (?:%26|[#&]|$)\n        )'
     IE_DESC = 'web.archive.org saved youtube videos, "ytarchive:" prefix'
     _RETURN_TYPE = 'video'
-
-
-class YoutubeYtBeIE(YoutubeBaseInfoExtractor):
-    _module = 'yt_dlp.extractor.youtube'
-    IE_NAME = 'YoutubeYtBe'
-    _VALID_URL = 'https?://youtu\\.be/(?P<id>[0-9A-Za-z_-]{11})/*?.*?\\blist=(?P<playlist_id>(?:(?:PL|LL|EC|UU|FL|RD|UL|TL|PU|OLAK5uy_)[0-9A-Za-z-_]{10,}|RDMM|WL|LL|LM))'
-    IE_DESC = 'youtu.be'
-    _NETRC_MACHINE = 'youtube'
-    _RETURN_TYPE = 'video'
-
-
-class YoutubeYtUserIE(YoutubeBaseInfoExtractor):
-    _module = 'yt_dlp.extractor.youtube'
-    IE_NAME = 'youtube:user'
-    _VALID_URL = 'ytuser:(?P<id>.+)'
-    IE_DESC = 'YouTube user videos; "ytuser:" prefix'
-    _NETRC_MACHINE = 'youtube'
 
 
 class ZDFChannelIE(ZDFBaseIE):
@@ -15469,7 +14714,7 @@ class ZDFChannelIE(ZDFBaseIE):
 class ZDFIE(ZDFBaseIE):
     _module = 'yt_dlp.extractor.zdf'
     IE_NAME = 'zdf'
-    _VALID_URL = ['https?://(?:www\\.)?zdf\\.de/(?:video|play)/(?:[^/?#]+/)*(?P<id>[^/?#]+)', 'https?://(?:www\\.)?zdf\\.de/(?:[^/?#]+/)*(?P<id>[^/?#]+)\\.html']
+    _VALID_URL = ['https?://(?:www\\.)?zdf\\.de/(?:video|play)/(?:[^/?#]+/)*(?P<id>[^/?#]+)', 'https?://(?:www\\.)?zdf\\.de/(?:[^/?#]+/)*(?P<id>[^/?#]+)\\.html', 'https?://(?:www\\.)?(?:zdfheute|logo)\\.de/(?:[^/?#]+/)*(?P<id>[^/?#]+)\\.html']
     _RETURN_TYPE = 'video'
 
 
@@ -15495,7 +14740,7 @@ class ZaikoIE(ZaikoBaseIE):
 class ZapiksIE(LazyLoadExtractor):
     _module = 'yt_dlp.extractor.zapiks'
     IE_NAME = 'Zapiks'
-    _VALID_URL = 'https?://(?:www\\.)?zapiks\\.(?:fr|com)/(?:(?:[a-z]{2}/)?(?P<display_id>.+?)\\.html|index\\.php\\?.*\\bmedia_id=(?P<id>\\d+))'
+    _VALID_URL = ['https?://(?:www\\.)?zapiks\\.(?:com|fr)/(?P<id>[\\w-]+)\\.html', 'https?://(?:www\\.)?zapiks\\.fr/index\\.php\\?(?:[^#]+&)?media_id=(?P<id>\\d+)']
     _RETURN_TYPE = 'video'
 
 
@@ -15536,21 +14781,6 @@ class ZattooRecordingsIE(ZattooBaseIE):
     IE_NAME = 'ZattooRecordings'
     _VALID_URL = '(?x)https?://(?:www\\.)?zattoo\\.com/(?:\n        [^?#]+\\?(?:[^#]+&)?recording=(?P<vid2>\\d+)\n        (?P<vid1>)\n    )'
     _NETRC_MACHINE = 'zattoo'
-
-
-class Zee5IE(LazyLoadExtractor):
-    _module = 'yt_dlp.extractor.zee5'
-    IE_NAME = 'Zee5'
-    _VALID_URL = '(?x)\n                     (?:\n                        zee5:|\n                        https?://(?:www\\.)?zee5\\.com/(?:[^#?]+/)?\n                        (?:\n                            (?:tv-shows|kids|web-series|zee5originals)(?:/[^#/?]+){3}\n                            |(?:movies|kids|videos|news|music-videos)/(?!kids-shows)[^#/?]+\n                        )/(?P<display_id>[^#/?]+)/\n                     )\n                     (?P<id>[^#/?]+)/?(?:$|[?#])\n                     '
-    _NETRC_MACHINE = 'zee5'
-    _RETURN_TYPE = 'video'
-
-
-class Zee5SeriesIE(LazyLoadExtractor):
-    _module = 'yt_dlp.extractor.zee5'
-    IE_NAME = 'zee5:series'
-    _VALID_URL = '(?x)\n                     (?:\n                        zee5:series:|\n                        https?://(?:www\\.)?zee5\\.com/(?:[^#?]+/)?\n                        (?:tv-shows|web-series|kids|zee5originals)/(?!kids-movies)(?:[^#/?]+/){2}\n                     )\n                     (?P<id>[^#/?]+)(?:/episodes)?/?(?:$|[?#])\n                     '
-    _RETURN_TYPE = 'playlist'
 
 
 class ZeeNewsIE(LazyLoadExtractor):
@@ -15704,4 +14934,4 @@ class GenericIE(LazyLoadExtractor):
     _RETURN_TYPE = 'any'
 
 
-_CLASS_LOOKUP = {'ABCIE': ABCIE, 'ABCIViewIE': ABCIViewIE, 'ABCIViewShowSeriesIE': ABCIViewShowSeriesIE, 'ABCOTVSClipsIE': ABCOTVSClipsIE, 'ABCOTVSIE': ABCOTVSIE, 'ACastChannelIE': ACastChannelIE, 'ACastIE': ACastIE, 'ADNIE': ADNIE, 'ADNSeasonIE': ADNSeasonIE, 'AMCNetworksIE': AMCNetworksIE, 'APAIE': APAIE, 'ARDBetaMediathekIE': ARDBetaMediathekIE, 'ARDIE': ARDIE, 'ARDMediathekCollectionIE': ARDMediathekCollectionIE, 'ATVAtIE': ATVAtIE, 'AWAANIE': AWAANIE, 'AWAANLiveIE': AWAANLiveIE, 'AWAANSeasonIE': AWAANSeasonIE, 'AWAANVideoIE': AWAANVideoIE, 'AZMedienIE': AZMedienIE, 'AbcNewsIE': AbcNewsIE, 'AbcNewsVideoIE': AbcNewsVideoIE, 'AbemaTVIE': AbemaTVIE, 'AbemaTVTitleIE': AbemaTVTitleIE, 'AcFunBangumiIE': AcFunBangumiIE, 'AcFunVideoIE': AcFunVideoIE, 'AcademicEarthCourseIE': AcademicEarthCourseIE, 'AdobeConnectIE': AdobeConnectIE, 'AdobeTVVideoIE': AdobeTVVideoIE, 'AdultSwimIE': AdultSwimIE, 'AeonCoIE': AeonCoIE, 'AfreecaTVCatchStoryIE': AfreecaTVCatchStoryIE, 'AfreecaTVIE': AfreecaTVIE, 'AfreecaTVLiveIE': AfreecaTVLiveIE, 'AfreecaTVUserIE': AfreecaTVUserIE, 'AirTVIE': AirTVIE, 'AitubeKZVideoIE': AitubeKZVideoIE, 'AlJazeeraIE': AlJazeeraIE, 'AliExpressLiveIE': AliExpressLiveIE, 'AllocineIE': AllocineIE, 'AllstarIE': AllstarIE, 'AllstarProfileIE': AllstarProfileIE, 'AlphaPornoIE': AlphaPornoIE, 'Alsace20TVEmbedIE': Alsace20TVEmbedIE, 'Alsace20TVIE': Alsace20TVIE, 'AltCensoredChannelIE': AltCensoredChannelIE, 'AltCensoredIE': AltCensoredIE, 'AluraIE': AluraIE, 'AluraCourseIE': AluraCourseIE, 'AmHistoryChannelIE': AmHistoryChannelIE, 'AmadeusTVIE': AmadeusTVIE, 'AmaraIE': AmaraIE, 'AmazonMiniTVIE': AmazonMiniTVIE, 'AmazonMiniTVSeasonIE': AmazonMiniTVSeasonIE, 'AmazonMiniTVSeriesIE': AmazonMiniTVSeriesIE, 'AmazonReviewsIE': AmazonReviewsIE, 'AmazonStoreIE': AmazonStoreIE, 'AmericasTestKitchenIE': AmericasTestKitchenIE, 'AmericasTestKitchenSeasonIE': AmericasTestKitchenSeasonIE, 'AnchorFMEpisodeIE': AnchorFMEpisodeIE, 'AngelIE': AngelIE, 'AnimalPlanetIE': AnimalPlanetIE, 'Ant1NewsGrArticleIE': Ant1NewsGrArticleIE, 'Ant1NewsGrEmbedIE': Ant1NewsGrEmbedIE, 'AntennaGrWatchIE': AntennaGrWatchIE, 'AnvatoIE': AnvatoIE, 'AparatIE': AparatIE, 'AppleConnectIE': AppleConnectIE, 'ApplePodcastsIE': ApplePodcastsIE, 'AppleTrailersIE': AppleTrailersIE, 'AppleTrailersSectionIE': AppleTrailersSectionIE, 'ArcPublishingIE': ArcPublishingIE, 'ArchiveOrgIE': ArchiveOrgIE, 'ArnesIE': ArnesIE, 'Art19IE': Art19IE, 'Art19ShowIE': Art19ShowIE, 'ArteTVCategoryIE': ArteTVCategoryIE, 'ArteTVEmbedIE': ArteTVEmbedIE, 'ArteTVIE': ArteTVIE, 'ArteTVPlaylistIE': ArteTVPlaylistIE, 'AsobiChannelIE': AsobiChannelIE, 'AsobiChannelTagURLIE': AsobiChannelTagURLIE, 'AsobiStageIE': AsobiStageIE, 'AtScaleConfEventIE': AtScaleConfEventIE, 'AtresPlayerIE': AtresPlayerIE, 'AudiMediaIE': AudiMediaIE, 'AudioBoomIE': AudioBoomIE, 'AudiodraftCustomIE': AudiodraftCustomIE, 'AudiodraftGenericIE': AudiodraftGenericIE, 'AudiomackAlbumIE': AudiomackAlbumIE, 'AudiomackIE': AudiomackIE, 'AudiusIE': AudiusIE, 'AudiusPlaylistIE': AudiusPlaylistIE, 'AudiusProfileIE': AudiusProfileIE, 'AudiusTrackIE': AudiusTrackIE, 'AxsIE': AxsIE, 'BBCCoUkArticleIE': BBCCoUkArticleIE, 'BBCCoUkIE': BBCCoUkIE, 'BBCCoUkIPlayerEpisodesIE': BBCCoUkIPlayerEpisodesIE, 'BBCCoUkIPlayerGroupIE': BBCCoUkIPlayerGroupIE, 'BBCCoUkPlaylistIE': BBCCoUkPlaylistIE, 'BBCIE': BBCIE, 'BBVTVIE': BBVTVIE, 'BBVTVLiveIE': BBVTVLiveIE, 'BBVTVRecordingsIE': BBVTVRecordingsIE, 'BFIPlayerIE': BFIPlayerIE, 'BFMTVArticleIE': BFMTVArticleIE, 'BFMTVIE': BFMTVIE, 'BFMTVLiveIE': BFMTVLiveIE, 'BRIE': BRIE, 'BTArticleIE': BTArticleIE, 'BTVPlusIE': BTVPlusIE, 'BTVestlendingenIE': BTVestlendingenIE, 'BYUtvIE': BYUtvIE, 'BaiduVideoIE': BaiduVideoIE, 'BanByeChannelIE': BanByeChannelIE, 'BanByeIE': BanByeIE, 'BandcampIE': BandcampIE, 'BandcampAlbumIE': BandcampAlbumIE, 'BandcampUserIE': BandcampUserIE, 'BandcampWeeklyIE': BandcampWeeklyIE, 'BandlabIE': BandlabIE, 'BandlabPlaylistIE': BandlabPlaylistIE, 'BannedVideoIE': BannedVideoIE, 'BeaconTvIE': BeaconTvIE, 'BeatBumpPlaylistIE': BeatBumpPlaylistIE, 'BeatBumpVideoIE': BeatBumpVideoIE, 'BeatportIE': BeatportIE, 'BeegIE': BeegIE, 'BehindKinkIE': BehindKinkIE, 'BerufeTVIE': BerufeTVIE, 'BetIE': BetIE, 'BibelTVLiveIE': BibelTVLiveIE, 'BibelTVSeriesIE': BibelTVSeriesIE, 'BibelTVVideoIE': BibelTVVideoIE, 'BigflixIE': BigflixIE, 'BigoIE': BigoIE, 'BildIE': BildIE, 'BiliBiliBangumiIE': BiliBiliBangumiIE, 'BiliBiliBangumiMediaIE': BiliBiliBangumiMediaIE, 'BiliBiliBangumiSeasonIE': BiliBiliBangumiSeasonIE, 'BiliBiliDynamicIE': BiliBiliDynamicIE, 'BiliBiliIE': BiliBiliIE, 'BiliBiliPlayerIE': BiliBiliPlayerIE, 'BiliBiliSearchIE': BiliBiliSearchIE, 'BiliIntlIE': BiliIntlIE, 'BiliIntlSeriesIE': BiliIntlSeriesIE, 'BiliLiveIE': BiliLiveIE, 'BilibiliAudioAlbumIE': BilibiliAudioAlbumIE, 'BilibiliAudioIE': BilibiliAudioIE, 'BilibiliCategoryIE': BilibiliCategoryIE, 'BilibiliCheeseIE': BilibiliCheeseIE, 'BilibiliCheeseSeasonIE': BilibiliCheeseSeasonIE, 'BilibiliCollectionListIE': BilibiliCollectionListIE, 'BilibiliFavoritesListIE': BilibiliFavoritesListIE, 'BilibiliPlaylistIE': BilibiliPlaylistIE, 'BilibiliSeriesListIE': BilibiliSeriesListIE, 'BilibiliSpaceAudioIE': BilibiliSpaceAudioIE, 'BilibiliSpaceVideoIE': BilibiliSpaceVideoIE, 'BilibiliWatchlaterIE': BilibiliWatchlaterIE, 'BioBioChileTVIE': BioBioChileTVIE, 'BitChuteChannelIE': BitChuteChannelIE, 'BitChuteIE': BitChuteIE, 'BlackboardCollaborateIE': BlackboardCollaborateIE, 'BlackboardCollaborateLaunchIE': BlackboardCollaborateLaunchIE, 'BleacherReportCMSIE': BleacherReportCMSIE, 'BleacherReportIE': BleacherReportIE, 'BlerpIE': BlerpIE, 'BlobIE': BlobIE, 'BloggerIE': BloggerIE, 'BloombergIE': BloombergIE, 'BlueskyIE': BlueskyIE, 'BokeCCIE': BokeCCIE, 'BongaCamsIE': BongaCamsIE, 'BoostyIE': BoostyIE, 'BostonGlobeIE': BostonGlobeIE, 'BoxCastVideoIE': BoxCastVideoIE, 'BoxIE': BoxIE, 'BpbIE': BpbIE, 'BrainPOPELLIE': BrainPOPELLIE, 'BrainPOPEspIE': BrainPOPEspIE, 'BrainPOPFrIE': BrainPOPFrIE, 'BrainPOPIE': BrainPOPIE, 'BrainPOPIlIE': BrainPOPIlIE, 'BrainPOPJrIE': BrainPOPJrIE, 'BravoTVIE': BravoTVIE, 'BreitBartIE': BreitBartIE, 'BrightcoveLegacyIE': BrightcoveLegacyIE, 'BrightcoveNewIE': BrightcoveNewIE, 'BrilliantpalaClassesIE': BrilliantpalaClassesIE, 'BrilliantpalaElearnIE': BrilliantpalaElearnIE, 'BundesligaIE': BundesligaIE, 'BundestagIE': BundestagIE, 'BunnyCdnIE': BunnyCdnIE, 'BusinessInsiderIE': BusinessInsiderIE, 'BuzzFeedIE': BuzzFeedIE, 'C56IE': C56IE, 'CAM4IE': CAM4IE, 'CBCGemIE': CBCGemIE, 'CBCGemLiveIE': CBCGemLiveIE, 'CBCGemPlaylistIE': CBCGemPlaylistIE, 'CBCIE': CBCIE, 'CBCListenIE': CBCListenIE, 'CBCPlayerIE': CBCPlayerIE, 'CBCPlayerPlaylistIE': CBCPlayerPlaylistIE, 'CBSLocalArticleIE': CBSLocalArticleIE, 'CBSLocalIE': CBSLocalIE, 'CBSLocalLiveIE': CBSLocalLiveIE, 'CBSNewsEmbedIE': CBSNewsEmbedIE, 'CBSNewsIE': CBSNewsIE, 'CBSNewsLiveIE': CBSNewsLiveIE, 'CBSNewsLiveVideoIE': CBSNewsLiveVideoIE, 'CBSSportsEmbedIE': CBSSportsEmbedIE, 'CBSSportsIE': CBSSportsIE, 'CCCIE': CCCIE, 'CCCPlaylistIE': CCCPlaylistIE, 'CCMAIE': CCMAIE, 'CCTVIE': CCTVIE, 'CDAFolderIE': CDAFolderIE, 'CDAIE': CDAIE, 'CGTNIE': CGTNIE, 'CHZZKLiveIE': CHZZKLiveIE, 'CHZZKVideoIE': CHZZKVideoIE, 'CJSWIE': CJSWIE, 'CNBCVideoIE': CNBCVideoIE, 'CNNIE': CNNIE, 'CNNIndonesiaIE': CNNIndonesiaIE, 'CONtvIE': CONtvIE, 'CPACIE': CPACIE, 'CPACPlaylistIE': CPACPlaylistIE, 'CPTwentyFourIE': CPTwentyFourIE, 'CSpanCongressIE': CSpanCongressIE, 'CSpanIE': CSpanIE, 'CTVNewsIE': CTVNewsIE, 'CaffeineTVIE': CaffeineTVIE, 'CallinIE': CallinIE, 'CaltransIE': CaltransIE, 'CamFMEpisodeIE': CamFMEpisodeIE, 'CamFMShowIE': CamFMShowIE, 'CamModelsIE': CamModelsIE, 'CamdemyFolderIE': CamdemyFolderIE, 'CamdemyIE': CamdemyIE, 'CamsodaIE': CamsodaIE, 'CamtasiaEmbedIE': CamtasiaEmbedIE, 'Canal1IE': Canal1IE, 'CanalAlphaIE': CanalAlphaIE, 'Canalc2IE': Canalc2IE, 'CanalplusIE': CanalplusIE, 'CanalsurmasIE': CanalsurmasIE, 'CaracolTvPlayIE': CaracolTvPlayIE, 'CellebriteIE': CellebriteIE, 'CeskaTelevizeIE': CeskaTelevizeIE, 'CharlieRoseIE': CharlieRoseIE, 'ChaturbateIE': ChaturbateIE, 'ChilloutzoneIE': ChilloutzoneIE, 'CinemaxIE': CinemaxIE, 'CinetecaMilanoIE': CinetecaMilanoIE, 'CineverseDetailsIE': CineverseDetailsIE, 'CineverseIE': CineverseIE, 'CiscoLiveSearchIE': CiscoLiveSearchIE, 'CiscoLiveSessionIE': CiscoLiveSessionIE, 'CiscoWebexIE': CiscoWebexIE, 'ClipRsIE': ClipRsIE, 'ClipchampIE': ClipchampIE, 'ClippitIE': ClippitIE, 'CloserToTruthIE': CloserToTruthIE, 'CloudflareStreamIE': CloudflareStreamIE, 'CloudyCDNIE': CloudyCDNIE, 'ClubicIE': ClubicIE, 'ClypIE': ClypIE, 'ComedyCentralIE': ComedyCentralIE, 'CommonMistakesIE': CommonMistakesIE, 'ConanClassicIE': ConanClassicIE, 'CondeNastIE': CondeNastIE, 'CookingChannelIE': CookingChannelIE, 'CoubIE': CoubIE, 'CozyTVIE': CozyTVIE, 'CrackedIE': CrackedIE, 'CraftsyIE': CraftsyIE, 'CrooksAndLiarsIE': CrooksAndLiarsIE, 'CrowdBunkerChannelIE': CrowdBunkerChannelIE, 'CrowdBunkerIE': CrowdBunkerIE, 'CrtvgIE': CrtvgIE, 'CtsNewsIE': CtsNewsIE, 'CultureUnpluggedIE': CultureUnpluggedIE, 'CuriosityStreamCollectionsIE': CuriosityStreamCollectionsIE, 'CuriosityStreamIE': CuriosityStreamIE, 'CuriosityStreamSeriesIE': CuriosityStreamSeriesIE, 'CybraryCourseIE': CybraryCourseIE, 'CybraryIE': CybraryIE, 'DBTVIE': DBTVIE, 'DFBIE': DFBIE, 'DHMIE': DHMIE, 'DLFCorpusIE': DLFCorpusIE, 'DLFIE': DLFIE, 'DLiveStreamIE': DLiveStreamIE, 'DLiveVODIE': DLiveVODIE, 'DPlayIE': DPlayIE, 'DRBonanzaIE': DRBonanzaIE, 'DRTVIE': DRTVIE, 'DRTVLiveIE': DRTVLiveIE, 'DRTVSeasonIE': DRTVSeasonIE, 'DRTVSeriesIE': DRTVSeriesIE, 'DTubeIE': DTubeIE, 'DVTVIE': DVTVIE, 'DWArticleIE': DWArticleIE, 'DWIE': DWIE, 'DacastPlaylistIE': DacastPlaylistIE, 'DacastVODIE': DacastVODIE, 'DagelijkseKostIE': DagelijkseKostIE, 'DailyMailIE': DailyMailIE, 'DailyWireIE': DailyWireIE, 'DailyWirePodcastIE': DailyWirePodcastIE, 'DailymotionIE': DailymotionIE, 'DailymotionPlaylistIE': DailymotionPlaylistIE, 'DailymotionSearchIE': DailymotionSearchIE, 'DailymotionUserIE': DailymotionUserIE, 'DamtomoRecordIE': DamtomoRecordIE, 'DamtomoVideoIE': DamtomoVideoIE, 'DangalPlayIE': DangalPlayIE, 'DangalPlaySeasonIE': DangalPlaySeasonIE, 'DaumClipIE': DaumClipIE, 'DaumIE': DaumIE, 'DaumPlaylistIE': DaumPlaylistIE, 'DaumUserIE': DaumUserIE, 'DaystarClipIE': DaystarClipIE, 'DctpTvIE': DctpTvIE, 'DemocracynowIE': DemocracynowIE, 'DestinationAmericaIE': DestinationAmericaIE, 'DetikEmbedIE': DetikEmbedIE, 'DeuxMIE': DeuxMIE, 'DeuxMNewsIE': DeuxMNewsIE, 'DigitalConcertHallIE': DigitalConcertHallIE, 'DigitallySpeakingIE': DigitallySpeakingIE, 'DigitekaIE': DigitekaIE, 'DigiviewIE': DigiviewIE, 'DiscogsReleasePlaylistIE': DiscogsReleasePlaylistIE, 'DiscoveryLifeIE': DiscoveryLifeIE, 'DiscoveryNetworksDeIE': DiscoveryNetworksDeIE, 'DiscoveryPlusIE': DiscoveryPlusIE, 'DiscoveryPlusIndiaIE': DiscoveryPlusIndiaIE, 'DiscoveryPlusIndiaShowIE': DiscoveryPlusIndiaShowIE, 'DiscoveryPlusItalyIE': DiscoveryPlusItalyIE, 'DiscoveryPlusItalyShowIE': DiscoveryPlusItalyShowIE, 'DisneyIE': DisneyIE, 'DouyinIE': DouyinIE, 'DouyuShowIE': DouyuShowIE, 'DouyuTVIE': DouyuTVIE, 'DrTalksIE': DrTalksIE, 'DrTuberIE': DrTuberIE, 'DreiSatIE': DreiSatIE, 'DroobleIE': DroobleIE, 'DropboxIE': DropboxIE, 'DropoutIE': DropoutIE, 'DropoutSeasonIE': DropoutSeasonIE, 'DubokuIE': DubokuIE, 'DubokuPlaylistIE': DubokuPlaylistIE, 'DumpertIE': DumpertIE, 'DuoplayIE': DuoplayIE, 'EMPFlixIE': EMPFlixIE, 'ERRJupiterIE': ERRJupiterIE, 'ERTFlixCodenameIE': ERTFlixCodenameIE, 'ERTFlixIE': ERTFlixIE, 'ERTWebtvEmbedIE': ERTWebtvEmbedIE, 'ESPNArticleIE': ESPNArticleIE, 'ESPNCricInfoIE': ESPNCricInfoIE, 'ESPNIE': ESPNIE, 'EUScreenIE': EUScreenIE, 'EWETVIE': EWETVIE, 'EWETVLiveIE': EWETVLiveIE, 'EWETVRecordingsIE': EWETVRecordingsIE, 'EbaumsWorldIE': EbaumsWorldIE, 'EbayIE': EbayIE, 'EggheadCourseIE': EggheadCourseIE, 'EggheadLessonIE': EggheadLessonIE, 'EggsArtistIE': EggsArtistIE, 'EggsIE': EggsIE, 'EightTracksIE': EightTracksIE, 'EinsUndEinsTVIE': EinsUndEinsTVIE, 'EinsUndEinsTVLiveIE': EinsUndEinsTVLiveIE, 'EinsUndEinsTVRecordingsIE': EinsUndEinsTVRecordingsIE, 'EitbIE': EitbIE, 'ElPaisIE': ElPaisIE, 'ElTreceTVIE': ElTreceTVIE, 'ElementorEmbedIE': ElementorEmbedIE, 'ElonetIE': ElonetIE, 'EmbedlyIE': EmbedlyIE, 'EpiconIE': EpiconIE, 'EpiconSeriesIE': EpiconSeriesIE, 'EpidemicSoundIE': EpidemicSoundIE, 'EplusIbIE': EplusIbIE, 'EpochIE': EpochIE, 'EpornerIE': EpornerIE, 'EroProfileAlbumIE': EroProfileAlbumIE, 'EroProfileIE': EroProfileIE, 'ErocastIE': ErocastIE, 'EttuTvIE': EttuTvIE, 'EuroParlWebstreamIE': EuroParlWebstreamIE, 'EuropaIE': EuropaIE, 'EuropeanTourIE': EuropeanTourIE, 'EurosportIE': EurosportIE, 'ExpressenIE': ExpressenIE, 'EyedoTVIE': EyedoTVIE, 'FC2EmbedIE': FC2EmbedIE, 'FC2IE': FC2IE, 'FC2LiveIE': FC2LiveIE, 'FOX9IE': FOX9IE, 'FOX9NewsIE': FOX9NewsIE, 'FOXIE': FOXIE, 'FacebookAdsIE': FacebookAdsIE, 'FacebookIE': FacebookIE, 'FacebookPluginsVideoIE': FacebookPluginsVideoIE, 'FacebookRedirectURLIE': FacebookRedirectURLIE, 'FacebookReelIE': FacebookReelIE, 'FancodeVodIE': FancodeVodIE, 'FancodeLiveIE': FancodeLiveIE, 'FathomIE': FathomIE, 'FaulioIE': FaulioIE, 'FaulioLiveIE': FaulioLiveIE, 'FazIE': FazIE, 'FczenitIE': FczenitIE, 'FifaIE': FifaIE, 'FilmOnChannelIE': FilmOnChannelIE, 'FilmOnIE': FilmOnIE, 'FilmwebIE': FilmwebIE, 'FirstTVIE': FirstTVIE, 'FiveTVIE': FiveTVIE, 'FiveThirtyEightIE': FiveThirtyEightIE, 'FlexTVIE': FlexTVIE, 'FlickrIE': FlickrIE, 'FloatplaneChannelIE': FloatplaneChannelIE, 'FloatplaneIE': FloatplaneIE, 'FolketingetIE': FolketingetIE, 'FoodNetworkIE': FoodNetworkIE, 'FootyRoomIE': FootyRoomIE, 'Formula1IE': Formula1IE, 'FourTubeIE': FourTubeIE, 'FoxNewsArticleIE': FoxNewsArticleIE, 'FoxNewsIE': FoxNewsIE, 'FoxNewsVideoIE': FoxNewsVideoIE, 'FoxSportsIE': FoxSportsIE, 'FptplayIE': FptplayIE, 'FrancaisFacileIE': FrancaisFacileIE, 'FranceCultureIE': FranceCultureIE, 'FranceInterIE': FranceInterIE, 'FranceTVIE': FranceTVIE, 'FranceTVInfoIE': FranceTVInfoIE, 'FranceTVSiteIE': FranceTVSiteIE, 'FreeTvIE': FreeTvIE, 'FreeTvMoviesIE': FreeTvMoviesIE, 'FreesoundIE': FreesoundIE, 'FreespeechIE': FreespeechIE, 'FrontendMastersCourseIE': FrontendMastersCourseIE, 'FrontendMastersIE': FrontendMastersIE, 'FrontendMastersLessonIE': FrontendMastersLessonIE, 'FujiTVFODPlus7IE': FujiTVFODPlus7IE, 'FunkIE': FunkIE, 'Funker530IE': Funker530IE, 'FuxIE': FuxIE, 'FuyinTVIE': FuyinTVIE, 'GBNewsIE': GBNewsIE, 'GDCVaultIE': GDCVaultIE, 'GMANetworkVideoIE': GMANetworkVideoIE, 'GPUTechConfIE': GPUTechConfIE, 'GabIE': GabIE, 'GabTVIE': GabTVIE, 'GaiaIE': GaiaIE, 'GameDevTVDashboardIE': GameDevTVDashboardIE, 'GameJoltCommunityIE': GameJoltCommunityIE, 'GameJoltGameIE': GameJoltGameIE, 'GameJoltGameSoundtrackIE': GameJoltGameSoundtrackIE, 'GameJoltIE': GameJoltIE, 'GameJoltSearchIE': GameJoltSearchIE, 'GameJoltUserIE': GameJoltUserIE, 'GameSpotIE': GameSpotIE, 'GameStarIE': GameStarIE, 'GaskrankIE': GaskrankIE, 'GazetaIE': GazetaIE, 'GediDigitalIE': GediDigitalIE, 'GeniusIE': GeniusIE, 'GeniusLyricsIE': GeniusLyricsIE, 'GermanupaIE': GermanupaIE, 'GetCourseRuIE': GetCourseRuIE, 'GetCourseRuPlayerIE': GetCourseRuPlayerIE, 'GettrIE': GettrIE, 'GettrStreamingIE': GettrStreamingIE, 'GiantBombIE': GiantBombIE, 'GlattvisionTVIE': GlattvisionTVIE, 'GlattvisionTVLiveIE': GlattvisionTVLiveIE, 'GlattvisionTVRecordingsIE': GlattvisionTVRecordingsIE, 'GlideIE': GlideIE, 'GlobalPlayerAudioEpisodeIE': GlobalPlayerAudioEpisodeIE, 'GlobalPlayerAudioIE': GlobalPlayerAudioIE, 'GlobalPlayerLiveIE': GlobalPlayerLiveIE, 'GlobalPlayerLivePlaylistIE': GlobalPlayerLivePlaylistIE, 'GlobalPlayerVideoIE': GlobalPlayerVideoIE, 'GloboArticleIE': GloboArticleIE, 'GloboIE': GloboIE, 'GlomexEmbedIE': GlomexEmbedIE, 'GlomexIE': GlomexIE, 'GoDiscoveryIE': GoDiscoveryIE, 'GoIE': GoIE, 'GoPlayIE': GoPlayIE, 'GoProIE': GoProIE, 'GoToStageIE': GoToStageIE, 'GodResourceIE': GodResourceIE, 'GodTubeIE': GodTubeIE, 'GofileIE': GofileIE, 'GolemIE': GolemIE, 'GoodGameIE': GoodGameIE, 'GoogleDriveFolderIE': GoogleDriveFolderIE, 'GoogleDriveIE': GoogleDriveIE, 'GooglePodcastsFeedIE': GooglePodcastsFeedIE, 'GooglePodcastsIE': GooglePodcastsIE, 'GoogleSearchIE': GoogleSearchIE, 'GoshgayIE': GoshgayIE, 'GraspopIE': GraspopIE, 'GronkhFeedIE': GronkhFeedIE, 'GronkhIE': GronkhIE, 'GronkhVodsIE': GronkhVodsIE, 'GrouponIE': GrouponIE, 'HBOIE': HBOIE, 'HGTVComShowIE': HGTVComShowIE, 'HGTVDeIE': HGTVDeIE, 'HGTVUsaIE': HGTVUsaIE, 'HKETVIE': HKETVIE, 'HRFernsehenIE': HRFernsehenIE, 'HRTiIE': HRTiIE, 'HRTiPlaylistIE': HRTiPlaylistIE, 'HSEProductIE': HSEProductIE, 'HSEShowIE': HSEShowIE, 'HTML5MediaEmbedIE': HTML5MediaEmbedIE, 'HarpodeonIE': HarpodeonIE, 'HearThisAtIE': HearThisAtIE, 'HeiseIE': HeiseIE, 'HellPornoIE': HellPornoIE, 'HetKlokhuisIE': HetKlokhuisIE, 'HiDiveIE': HiDiveIE, 'HistoricFilmsIE': HistoricFilmsIE, 'HitRecordIE': HitRecordIE, 'HollywoodReporterIE': HollywoodReporterIE, 'HollywoodReporterPlaylistIE': HollywoodReporterPlaylistIE, 'HolodexIE': HolodexIE, 'HotNewHipHopIE': HotNewHipHopIE, 'HotStarIE': HotStarIE, 'HotStarPrefixIE': HotStarPrefixIE, 'HotStarSeriesIE': HotStarSeriesIE, 'HrefLiRedirectIE': HrefLiRedirectIE, 'HuajiaoIE': HuajiaoIE, 'HuffPostIE': HuffPostIE, 'HungamaAlbumPlaylistIE': HungamaAlbumPlaylistIE, 'HungamaIE': HungamaIE, 'HungamaSongIE': HungamaSongIE, 'HuyaLiveIE': HuyaLiveIE, 'HuyaVideoIE': HuyaVideoIE, 'HypemIE': HypemIE, 'HytaleIE': HytaleIE, 'IGNArticleIE': IGNArticleIE, 'IGNIE': IGNIE, 'IGNVideoIE': IGNVideoIE, 'IHeartRadioIE': IHeartRadioIE, 'IHeartRadioPodcastIE': IHeartRadioPodcastIE, 'IPrimaCNNIE': IPrimaCNNIE, 'IPrimaIE': IPrimaIE, 'ITProTVCourseIE': ITProTVCourseIE, 'ITProTVIE': ITProTVIE, 'ITVBTCCIE': ITVBTCCIE, 'ITVIE': ITVIE, 'IVXPlayerIE': IVXPlayerIE, 'IcareusIE': IcareusIE, 'IchinanaLiveClipIE': IchinanaLiveClipIE, 'IchinanaLiveIE': IchinanaLiveIE, 'IchinanaLiveVODIE': IchinanaLiveVODIE, 'IdagioAlbumIE': IdagioAlbumIE, 'IdagioPersonalPlaylistIE': IdagioPersonalPlaylistIE, 'IdagioPlaylistIE': IdagioPlaylistIE, 'IdagioRecordingIE': IdagioRecordingIE, 'IdagioTrackIE': IdagioTrackIE, 'IdolPlusIE': IdolPlusIE, 'IflixEpisodeIE': IflixEpisodeIE, 'IflixSeriesIE': IflixSeriesIE, 'IlPostIE': IlPostIE, 'IltalehtiIE': IltalehtiIE, 'ImdbIE': ImdbIE, 'ImdbListIE': ImdbListIE, 'ImgurAlbumIE': ImgurAlbumIE, 'ImgurGalleryIE': ImgurGalleryIE, 'ImgurIE': ImgurIE, 'InaIE': InaIE, 'IncIE': IncIE, 'IndavideoEmbedIE': IndavideoEmbedIE, 'InfoQIE': InfoQIE, 'InstagramIE': InstagramIE, 'InstagramIOSIE': InstagramIOSIE, 'InstagramStoryIE': InstagramStoryIE, 'InstagramTagIE': InstagramTagIE, 'InstagramUserIE': InstagramUserIE, 'InternazionaleIE': InternazionaleIE, 'InternetVideoArchiveIE': InternetVideoArchiveIE, 'InvestigationDiscoveryIE': InvestigationDiscoveryIE, 'IqAlbumIE': IqAlbumIE, 'IqIE': IqIE, 'IqiyiIE': IqiyiIE, 'IslamChannelIE': IslamChannelIE, 'IslamChannelSeriesIE': IslamChannelSeriesIE, 'IsraelNationalNewsIE': IsraelNationalNewsIE, 'IviCompilationIE': IviCompilationIE, 'IviIE': IviIE, 'IvideonIE': IvideonIE, 'IvooxIE': IvooxIE, 'IwaraIE': IwaraIE, 'IwaraPlaylistIE': IwaraPlaylistIE, 'IwaraUserIE': IwaraUserIE, 'IxiguaIE': IxiguaIE, 'IzleseneIE': IzleseneIE, 'JStreamIE': JStreamIE, 'JTBCIE': JTBCIE, 'JTBCProgramIE': JTBCProgramIE, 'JWPlatformIE': JWPlatformIE, 'JamendoIE': JamendoIE, 'JamendoAlbumIE': JamendoAlbumIE, 'JeuxVideoIE': JeuxVideoIE, 'JioSaavnAlbumIE': JioSaavnAlbumIE, 'JioSaavnArtistIE': JioSaavnArtistIE, 'JioSaavnPlaylistIE': JioSaavnPlaylistIE, 'JioSaavnShowIE': JioSaavnShowIE, 'JioSaavnShowPlaylistIE': JioSaavnShowPlaylistIE, 'JioSaavnSongIE': JioSaavnSongIE, 'JojIE': JojIE, 'JoveIE': JoveIE, 'KTHIE': KTHIE, 'KakaoIE': KakaoIE, 'KalturaIE': KalturaIE, 'KankaNewsIE': KankaNewsIE, 'KaraoketvIE': KaraoketvIE, 'KatsomoIE': KatsomoIE, 'KelbyOneIE': KelbyOneIE, 'Kenh14PlaylistIE': Kenh14PlaylistIE, 'Kenh14VideoIE': Kenh14VideoIE, 'KhanAcademyIE': KhanAcademyIE, 'KhanAcademyUnitIE': KhanAcademyUnitIE, 'KickClipIE': KickClipIE, 'KickIE': KickIE, 'KickStarterIE': KickStarterIE, 'KickVODIE': KickVODIE, 'KickerIE': KickerIE, 'KikaIE': KikaIE, 'KikaPlaylistIE': KikaPlaylistIE, 'KinjaEmbedIE': KinjaEmbedIE, 'KinoPoiskIE': KinoPoiskIE, 'KnownDRMIE': KnownDRMIE, 'KnownPiracyIE': KnownPiracyIE, 'KommunetvIE': KommunetvIE, 'KompasVideoIE': KompasVideoIE, 'KooIE': KooIE, 'KrasViewIE': KrasViewIE, 'Ku6IE': Ku6IE, 'KukuluLiveIE': KukuluLiveIE, 'KuwoAlbumIE': KuwoAlbumIE, 'KuwoCategoryIE': KuwoCategoryIE, 'KuwoChartIE': KuwoChartIE, 'KuwoIE': KuwoIE, 'KuwoMvIE': KuwoMvIE, 'KuwoSingerIE': KuwoSingerIE, 'LA7IE': LA7IE, 'LA7PodcastEpisodeIE': LA7PodcastEpisodeIE, 'LA7PodcastIE': LA7PodcastIE, 'LBRYChannelIE': LBRYChannelIE, 'LBRYIE': LBRYIE, 'LBRYPlaylistIE': LBRYPlaylistIE, 'LCIIE': LCIIE, 'LEGOIE': LEGOIE, 'LRTRadioIE': LRTRadioIE, 'LRTStreamIE': LRTStreamIE, 'LRTVODIE': LRTVODIE, 'LSMLREmbedIE': LSMLREmbedIE, 'LSMLTVEmbedIE': LSMLTVEmbedIE, 'LSMReplayIE': LSMReplayIE, 'LaXarxaMesIE': LaXarxaMesIE, 'LaracastsIE': LaracastsIE, 'LaracastsPlaylistIE': LaracastsPlaylistIE, 'LastFMIE': LastFMIE, 'LastFMPlaylistIE': LastFMPlaylistIE, 'LastFMUserIE': LastFMUserIE, 'LcpIE': LcpIE, 'LcpPlayIE': LcpPlayIE, 'LeFigaroVideoEmbedIE': LeFigaroVideoEmbedIE, 'LeFigaroVideoSectionIE': LeFigaroVideoSectionIE, 'LeIE': LeIE, 'LePlaylistIE': LePlaylistIE, 'LearningOnScreenIE': LearningOnScreenIE, 'Lecture2GoIE': Lecture2GoIE, 'LecturioCourseIE': LecturioCourseIE, 'LecturioDeCourseIE': LecturioDeCourseIE, 'LecturioIE': LecturioIE, 'LemondeIE': LemondeIE, 'LentaIE': LentaIE, 'LetvCloudIE': LetvCloudIE, 'LiTVIE': LiTVIE, 'LibraryOfCongressIE': LibraryOfCongressIE, 'LibsynIE': LibsynIE, 'LifeEmbedIE': LifeEmbedIE, 'LifeNewsIE': LifeNewsIE, 'LikeeIE': LikeeIE, 'LikeeUserIE': LikeeUserIE, 'LinkedInEventsIE': LinkedInEventsIE, 'LinkedInIE': LinkedInIE, 'LinkedInLearningCourseIE': LinkedInLearningCourseIE, 'LinkedInLearningIE': LinkedInLearningIE, 'Liputan6IE': Liputan6IE, 'ListenNotesIE': ListenNotesIE, 'LiveJournalIE': LiveJournalIE, 'LivestreamIE': LivestreamIE, 'LivestreamOriginalIE': LivestreamOriginalIE, 'LivestreamShortenerIE': LivestreamShortenerIE, 'LivestreamfailsIE': LivestreamfailsIE, 'LnkIE': LnkIE, 'LocoIE': LocoIE, 'LoomFolderIE': LoomFolderIE, 'LoomIE': LoomIE, 'LoveHomePornIE': LoveHomePornIE, 'LumniIE': LumniIE, 'LyndaCourseIE': LyndaCourseIE, 'LyndaIE': LyndaIE, 'MBNIE': MBNIE, 'MDRIE': MDRIE, 'MGTVIE': MGTVIE, 'MLBArticleIE': MLBArticleIE, 'MLBIE': MLBIE, 'MLBTVIE': MLBTVIE, 'MLBVideoIE': MLBVideoIE, 'MLSSoccerIE': MLSSoccerIE, 'MNetTVIE': MNetTVIE, 'MNetTVLiveIE': MNetTVLiveIE, 'MNetTVRecordingsIE': MNetTVRecordingsIE, 'MSNIE': MSNIE, 'MTVIE': MTVIE, 'MTVUutisetArticleIE': MTVUutisetArticleIE, 'MaarivIE': MaarivIE, 'MagellanTVIE': MagellanTVIE, 'MagentaMusikIE': MagentaMusikIE, 'MailRuIE': MailRuIE, 'MailRuMusicIE': MailRuMusicIE, 'MailRuMusicSearchIE': MailRuMusicSearchIE, 'MainStreamingIE': MainStreamingIE, 'MangomoloLiveIE': MangomoloLiveIE, 'MangomoloVideoIE': MangomoloVideoIE, 'ManotoTVIE': ManotoTVIE, 'ManotoTVLiveIE': ManotoTVLiveIE, 'ManotoTVShowIE': ManotoTVShowIE, 'ManyVidsIE': ManyVidsIE, 'MaoriTVIE': MaoriTVIE, 'MarkizaIE': MarkizaIE, 'MarkizaPageIE': MarkizaPageIE, 'MassengeschmackTVIE': MassengeschmackTVIE, 'MastersIE': MastersIE, 'MatchTVIE': MatchTVIE, 'MaveIE': MaveIE, 'MeWatchIE': MeWatchIE, 'MedalTVIE': MedalTVIE, 'MediaKlikkIE': MediaKlikkIE, 'MediaStreamIE': MediaStreamIE, 'MediaWorksNZVODIE': MediaWorksNZVODIE, 'MediaiteIE': MediaiteIE, 'MedialaanIE': MedialaanIE, 'MediasetIE': MediasetIE, 'MediasetShowIE': MediasetShowIE, 'MediasiteCatalogIE': MediasiteCatalogIE, 'MediasiteIE': MediasiteIE, 'MediasiteNamedCatalogIE': MediasiteNamedCatalogIE, 'MediciIE': MediciIE, 'MegaTVComEmbedIE': MegaTVComEmbedIE, 'MegaTVComIE': MegaTVComIE, 'MegaphoneIE': MegaphoneIE, 'MeipaiIE': MeipaiIE, 'MelonVODIE': MelonVODIE, 'MetacriticIE': MetacriticIE, 'MicrosoftBuildIE': MicrosoftBuildIE, 'MicrosoftEmbedIE': MicrosoftEmbedIE, 'MicrosoftLearnEpisodeIE': MicrosoftLearnEpisodeIE, 'MicrosoftLearnPlaylistIE': MicrosoftLearnPlaylistIE, 'MicrosoftLearnSessionIE': MicrosoftLearnSessionIE, 'MicrosoftMediusIE': MicrosoftMediusIE, 'MicrosoftStreamIE': MicrosoftStreamIE, 'MindsChannelIE': MindsChannelIE, 'MindsGroupIE': MindsGroupIE, 'MindsIE': MindsIE, 'MinotoIE': MinotoIE, 'Mir24TvIE': Mir24TvIE, 'MirrativIE': MirrativIE, 'MirrativUserIE': MirrativUserIE, 'MirrorCoUKIE': MirrorCoUKIE, 'MixchArchiveIE': MixchArchiveIE, 'MixchIE': MixchIE, 'MixchMovieIE': MixchMovieIE, 'MixcloudIE': MixcloudIE, 'MixcloudPlaylistIE': MixcloudPlaylistIE, 'MixcloudUserIE': MixcloudUserIE, 'MixlrIE': MixlrIE, 'MixlrRecoringIE': MixlrRecoringIE, 'MmsIE': MmsIE, 'MochaVideoIE': MochaVideoIE, 'MojevideoIE': MojevideoIE, 'MojvideoIE': MojvideoIE, 'MonsterSirenHypergryphMusicIE': MonsterSirenHypergryphMusicIE, 'MonstercatIE': MonstercatIE, 'MotherlessGalleryIE': MotherlessGalleryIE, 'MotherlessGroupIE': MotherlessGroupIE, 'MotherlessIE': MotherlessIE, 'MotherlessUploaderIE': MotherlessUploaderIE, 'MotorsportIE': MotorsportIE, 'MovieFapIE': MovieFapIE, 'MoviepilotIE': MoviepilotIE, 'MoviewPlayIE': MoviewPlayIE, 'MoviezineIE': MoviezineIE, 'MovingImageIE': MovingImageIE, 'MuenchenTVIE': MuenchenTVIE, 'MujRozhlasIE': MujRozhlasIE, 'MurrtubeIE': MurrtubeIE, 'MurrtubeUserIE': MurrtubeUserIE, 'MuseAIIE': MuseAIIE, 'MuseScoreIE': MuseScoreIE, 'MusicdexAlbumIE': MusicdexAlbumIE, 'MusicdexArtistIE': MusicdexArtistIE, 'MusicdexPlaylistIE': MusicdexPlaylistIE, 'MusicdexSongIE': MusicdexSongIE, 'Mx3IE': Mx3IE, 'Mx3NeoIE': Mx3NeoIE, 'Mx3VolksmusikIE': Mx3VolksmusikIE, 'MxplayerIE': MxplayerIE, 'MxplayerShowIE': MxplayerShowIE, 'MySpaceAlbumIE': MySpaceAlbumIE, 'MySpaceIE': MySpaceIE, 'MySpassIE': MySpassIE, 'MyVideoGeIE': MyVideoGeIE, 'MyVidsterIE': MyVidsterIE, 'MzaaloIE': MzaaloIE, 'N1InfoAssetIE': N1InfoAssetIE, 'N1InfoIIE': N1InfoIIE, 'NBAChannelIE': NBAChannelIE, 'NBAEmbedIE': NBAEmbedIE, 'NBAIE': NBAIE, 'NBAWatchCollectionIE': NBAWatchCollectionIE, 'NBAWatchEmbedIE': NBAWatchEmbedIE, 'NBAWatchIE': NBAWatchIE, 'NBCIE': NBCIE, 'NBCOlympicsIE': NBCOlympicsIE, 'NBCOlympicsStreamIE': NBCOlympicsStreamIE, 'NBCSportsIE': NBCSportsIE, 'NBCSportsStreamIE': NBCSportsStreamIE, 'NBCSportsVPlayerIE': NBCSportsVPlayerIE, 'NBCStationsIE': NBCStationsIE, 'NDREmbedBaseIE': NDREmbedBaseIE, 'NDREmbedIE': NDREmbedIE, 'NDRIE': NDRIE, 'NDTVIE': NDTVIE, 'NFBIE': NFBIE, 'NFBSeriesIE': NFBSeriesIE, 'NFHSNetworkIE': NFHSNetworkIE, 'NFLArticleIE': NFLArticleIE, 'NFLIE': NFLIE, 'NFLPlusEpisodeIE': NFLPlusEpisodeIE, 'NFLPlusReplayIE': NFLPlusReplayIE, 'NHLIE': NHLIE, 'NJoyEmbedIE': NJoyEmbedIE, 'NJoyIE': NJoyIE, 'NOSNLArticleIE': NOSNLArticleIE, 'NPOIE': NPOIE, 'AndereTijdenIE': AndereTijdenIE, 'NPOLiveIE': NPOLiveIE, 'NPORadioFragmentIE': NPORadioFragmentIE, 'NPORadioIE': NPORadioIE, 'NRKIE': NRKIE, 'NRKPlaylistIE': NRKPlaylistIE, 'NRKRadioPodkastIE': NRKRadioPodkastIE, 'NRKSkoleIE': NRKSkoleIE, 'NRKTVEpisodeIE': NRKTVEpisodeIE, 'NRKTVEpisodesIE': NRKTVEpisodesIE, 'NRKTVIE': NRKTVIE, 'NRKTVDirekteIE': NRKTVDirekteIE, 'NRKTVSeasonIE': NRKTVSeasonIE, 'NRKTVSeriesIE': NRKTVSeriesIE, 'NRLTVIE': NRLTVIE, 'NTSLiveIE': NTSLiveIE, 'NTVCoJpCUIE': NTVCoJpCUIE, 'NTVDeIE': NTVDeIE, 'NTVRuIE': NTVRuIE, 'NYTimesArticleIE': NYTimesArticleIE, 'NYTimesCookingIE': NYTimesCookingIE, 'NYTimesCookingRecipeIE': NYTimesCookingRecipeIE, 'NYTimesIE': NYTimesIE, 'NZHeraldIE': NZHeraldIE, 'NZOnScreenIE': NZOnScreenIE, 'NZZIE': NZZIE, 'NateIE': NateIE, 'NateProgramIE': NateProgramIE, 'NationalGeographicTVIE': NationalGeographicTVIE, 'NationalGeographicVideoIE': NationalGeographicVideoIE, 'NaverIE': NaverIE, 'NaverLiveIE': NaverLiveIE, 'NaverNowIE': NaverNowIE, 'NebulaChannelIE': NebulaChannelIE, 'NebulaClassIE': NebulaClassIE, 'NebulaIE': NebulaIE, 'NebulaSubscriptionsIE': NebulaSubscriptionsIE, 'NekoHackerIE': NekoHackerIE, 'NerdCubedFeedIE': NerdCubedFeedIE, 'NestClipIE': NestClipIE, 'NestIE': NestIE, 'NetEaseMusicAlbumIE': NetEaseMusicAlbumIE, 'NetEaseMusicDjRadioIE': NetEaseMusicDjRadioIE, 'NetEaseMusicIE': NetEaseMusicIE, 'NetEaseMusicListIE': NetEaseMusicListIE, 'NetEaseMusicMvIE': NetEaseMusicMvIE, 'NetEaseMusicProgramIE': NetEaseMusicProgramIE, 'NetEaseMusicSingerIE': NetEaseMusicSingerIE, 'NetPlusTVIE': NetPlusTVIE, 'NetPlusTVLiveIE': NetPlusTVLiveIE, 'NetPlusTVRecordingsIE': NetPlusTVRecordingsIE, 'NetverseIE': NetverseIE, 'NetversePlaylistIE': NetversePlaylistIE, 'NetverseSearchIE': NetverseSearchIE, 'NetzkinoIE': NetzkinoIE, 'NewgroundsIE': NewgroundsIE, 'NewgroundsPlaylistIE': NewgroundsPlaylistIE, 'NewgroundsUserIE': NewgroundsUserIE, 'NewsPicksIE': NewsPicksIE, 'NewsyIE': NewsyIE, 'NextMediaIE': NextMediaIE, 'AppleDailyIE': AppleDailyIE, 'NextMediaActionNewsIE': NextMediaActionNewsIE, 'NextTVIE': NextTVIE, 'NexxEmbedIE': NexxEmbedIE, 'NexxIE': NexxIE, 'NhkForSchoolBangumiIE': NhkForSchoolBangumiIE, 'NhkForSchoolProgramListIE': NhkForSchoolProgramListIE, 'NhkForSchoolSubjectIE': NhkForSchoolSubjectIE, 'NhkRadioNewsPageIE': NhkRadioNewsPageIE, 'NhkRadiruIE': NhkRadiruIE, 'NhkRadiruLiveIE': NhkRadiruLiveIE, 'NhkVodIE': NhkVodIE, 'NhkVodProgramIE': NhkVodProgramIE, 'NickIE': NickIE, 'NiconicoChannelPlusChannelLivesIE': NiconicoChannelPlusChannelLivesIE, 'NiconicoChannelPlusChannelVideosIE': NiconicoChannelPlusChannelVideosIE, 'NiconicoChannelPlusIE': NiconicoChannelPlusIE, 'NiconicoHistoryIE': NiconicoHistoryIE, 'NiconicoIE': NiconicoIE, 'NiconicoLiveIE': NiconicoLiveIE, 'NiconicoPlaylistIE': NiconicoPlaylistIE, 'NiconicoSeriesIE': NiconicoSeriesIE, 'NiconicoUserIE': NiconicoUserIE, 'NicovideoSearchDateIE': NicovideoSearchDateIE, 'NicovideoSearchIE': NicovideoSearchIE, 'NicovideoSearchURLIE': NicovideoSearchURLIE, 'NicovideoTagURLIE': NicovideoTagURLIE, 'NinaProtocolIE': NinaProtocolIE, 'NineCNineMediaIE': NineCNineMediaIE, 'NineGagIE': NineGagIE, 'NineNewsIE': NineNewsIE, 'NineNowIE': NineNowIE, 'NintendoIE': NintendoIE, 'NitterIE': NitterIE, 'NobelPrizeIE': NobelPrizeIE, 'NoicePodcastIE': NoicePodcastIE, 'NonkTubeIE': NonkTubeIE, 'NoodleMagazineIE': NoodleMagazineIE, 'NovaEmbedIE': NovaEmbedIE, 'NovaIE': NovaIE, 'NovaPlayIE': NovaPlayIE, 'NownessIE': NownessIE, 'NownessPlaylistIE': NownessPlaylistIE, 'NownessSeriesIE': NownessSeriesIE, 'NozIE': NozIE, 'NprIE': NprIE, 'NubilesPornIE': NubilesPornIE, 'NuumLiveIE': NuumLiveIE, 'NuumMediaIE': NuumMediaIE, 'NuumTabIE': NuumTabIE, 'NuvidIE': NuvidIE, 'OCWMITIE': OCWMITIE, 'ORFFM4StoryIE': ORFFM4StoryIE, 'ORFIPTVIE': ORFIPTVIE, 'ORFONIE': ORFONIE, 'ORFPodcastIE': ORFPodcastIE, 'ORFRadioIE': ORFRadioIE, 'OdnoklassnikiIE': OdnoklassnikiIE, 'OfTVIE': OfTVIE, 'OfTVPlaylistIE': OfTVPlaylistIE, 'OktoberfestTVIE': OktoberfestTVIE, 'OlympicsReplayIE': OlympicsReplayIE, 'On24IE': On24IE, 'OnDemandChinaEpisodeIE': OnDemandChinaEpisodeIE, 'OnDemandKoreaIE': OnDemandKoreaIE, 'OnDemandKoreaProgramIE': OnDemandKoreaProgramIE, 'OneFootballIE': OneFootballIE, 'OneNewsNZIE': OneNewsNZIE, 'OnePlacePodcastIE': OnePlacePodcastIE, 'OnetChannelIE': OnetChannelIE, 'OnetIE': OnetIE, 'OnetMVPIE': OnetMVPIE, 'OnetPlIE': OnetPlIE, 'OnionStudiosIE': OnionStudiosIE, 'OnsenIE': OnsenIE, 'OpenRecCaptureIE': OpenRecCaptureIE, 'OpenRecIE': OpenRecIE, 'OpenRecMovieIE': OpenRecMovieIE, 'OpencastIE': OpencastIE, 'OpencastPlaylistIE': OpencastPlaylistIE, 'OraTVIE': OraTVIE, 'OsnatelTVIE': OsnatelTVIE, 'OsnatelTVLiveIE': OsnatelTVLiveIE, 'OsnatelTVRecordingsIE': OsnatelTVRecordingsIE, 'OutsideTVIE': OutsideTVIE, 'OwnCloudIE': OwnCloudIE, 'PBSIE': PBSIE, 'PBSKidsIE': PBSKidsIE, 'PGATourIE': PGATourIE, 'PRXAccountIE': PRXAccountIE, 'PRXSeriesIE': PRXSeriesIE, 'PRXSeriesSearchIE': PRXSeriesSearchIE, 'PRXStoriesSearchIE': PRXStoriesSearchIE, 'PRXStoryIE': PRXStoryIE, 'PacktPubCourseIE': PacktPubCourseIE, 'PacktPubIE': PacktPubIE, 'PalcoMP3ArtistIE': PalcoMP3ArtistIE, 'PalcoMP3IE': PalcoMP3IE, 'PalcoMP3VideoIE': PalcoMP3VideoIE, 'PanoptoIE': PanoptoIE, 'PanoptoListIE': PanoptoListIE, 'PanoptoPlaylistIE': PanoptoPlaylistIE, 'ParamountPressExpressIE': ParamountPressExpressIE, 'ParlerIE': ParlerIE, 'ParliamentLiveUKIE': ParliamentLiveUKIE, 'ParlviewIE': ParlviewIE, 'PartiLivestreamIE': PartiLivestreamIE, 'PartiVideoIE': PartiVideoIE, 'PatreonCampaignIE': PatreonCampaignIE, 'PatreonIE': PatreonIE, 'PearVideoIE': PearVideoIE, 'PeekVidsIE': PeekVidsIE, 'PeerTVIE': PeerTVIE, 'PeerTubeIE': PeerTubeIE, 'PeerTubePlaylistIE': PeerTubePlaylistIE, 'PelotonIE': PelotonIE, 'PelotonLiveIE': PelotonLiveIE, 'PerformGroupIE': PerformGroupIE, 'PeriscopeIE': PeriscopeIE, 'PeriscopeUserIE': PeriscopeUserIE, 'PhilharmonieDeParisIE': PhilharmonieDeParisIE, 'PhoenixIE': PhoenixIE, 'PhotobucketIE': PhotobucketIE, 'PiaLiveIE': PiaLiveIE, 'PiaproIE': PiaproIE, 'PicartoIE': PicartoIE, 'PicartoVodIE': PicartoVodIE, 'PikselIE': PikselIE, 'PinkbikeIE': PinkbikeIE, 'PinterestCollectionIE': PinterestCollectionIE, 'PinterestIE': PinterestIE, 'PiramideTVChannelIE': PiramideTVChannelIE, 'PiramideTVIE': PiramideTVIE, 'PlVideoIE': PlVideoIE, 'PlanetMarathiIE': PlanetMarathiIE, 'PlatziCourseIE': PlatziCourseIE, 'PlatziIE': PlatziIE, 'PlayPlusTVIE': PlayPlusTVIE, 'PlaySuisseIE': PlaySuisseIE, 'PlayVidsIE': PlayVidsIE, 'PlayerFmIE': PlayerFmIE, 'PlaytvakIE': PlaytvakIE, 'PlaywireIE': PlaywireIE, 'PluralsightCourseIE': PluralsightCourseIE, 'PluralsightIE': PluralsightIE, 'PlutoTVIE': PlutoTVIE, 'PlyrEmbedIE': PlyrEmbedIE, 'PodbayFMChannelIE': PodbayFMChannelIE, 'PodbayFMIE': PodbayFMIE, 'PodchaserIE': PodchaserIE, 'PodomaticIE': PodomaticIE, 'PokerGoCollectionIE': PokerGoCollectionIE, 'PokerGoIE': PokerGoIE, 'PolsatGoIE': PolsatGoIE, 'PolskieRadioAuditionIE': PolskieRadioAuditionIE, 'PolskieRadioCategoryIE': PolskieRadioCategoryIE, 'PolskieRadioIE': PolskieRadioIE, 'PolskieRadioLegacyIE': PolskieRadioLegacyIE, 'PolskieRadioPlayerIE': PolskieRadioPlayerIE, 'PolskieRadioPodcastIE': PolskieRadioPodcastIE, 'PolskieRadioPodcastListIE': PolskieRadioPodcastListIE, 'PopcornTVIE': PopcornTVIE, 'PopcorntimesIE': PopcorntimesIE, 'PornFlipIE': PornFlipIE, 'PornHubIE': PornHubIE, 'PornHubPagedVideoListIE': PornHubPagedVideoListIE, 'PornHubPlaylistIE': PornHubPlaylistIE, 'PornHubUserIE': PornHubUserIE, 'PornHubUserVideosUploadIE': PornHubUserVideosUploadIE, 'PornTopIE': PornTopIE, 'PornTubeIE': PornTubeIE, 'PornboxIE': PornboxIE, 'PornerBrosIE': PornerBrosIE, 'PornoVoisinesIE': PornoVoisinesIE, 'PornoXOIE': PornoXOIE, 'PornotubeIE': PornotubeIE, 'Pr0grammIE': Pr0grammIE, 'PrankCastIE': PrankCastIE, 'PrankCastPostIE': PrankCastPostIE, 'PremiershipRugbyIE': PremiershipRugbyIE, 'PressTVIE': PressTVIE, 'ProSiebenSat1IE': ProSiebenSat1IE, 'ProjectVeritasIE': ProjectVeritasIE, 'PuhuTVIE': PuhuTVIE, 'PuhuTVSerieIE': PuhuTVSerieIE, 'Puls4IE': Puls4IE, 'PyvideoIE': PyvideoIE, 'QDanceIE': QDanceIE, 'QQMusicAlbumIE': QQMusicAlbumIE, 'QQMusicIE': QQMusicIE, 'QQMusicPlaylistIE': QQMusicPlaylistIE, 'QQMusicSingerIE': QQMusicSingerIE, 'QQMusicToplistIE': QQMusicToplistIE, 'QQMusicVideoIE': QQMusicVideoIE, 'QingTingIE': QingTingIE, 'QuantumTVIE': QuantumTVIE, 'QuantumTVLiveIE': QuantumTVLiveIE, 'QuantumTVRecordingsIE': QuantumTVRecordingsIE, 'QuotedHTMLIE': QuotedHTMLIE, 'R7ArticleIE': R7ArticleIE, 'R7IE': R7IE, 'RCSEmbedsIE': RCSEmbedsIE, 'RCSIE': RCSIE, 'RCSVariousIE': RCSVariousIE, 'RCTIPlusIE': RCTIPlusIE, 'RCTIPlusSeriesIE': RCTIPlusSeriesIE, 'RCTIPlusTVIE': RCTIPlusTVIE, 'RDSIE': RDSIE, 'RENTVArticleIE': RENTVArticleIE, 'RENTVIE': RENTVIE, 'RMCDecouverteIE': RMCDecouverteIE, 'RTBFIE': RTBFIE, 'RTDocumentryIE': RTDocumentryIE, 'RTDocumentryPlaylistIE': RTDocumentryPlaylistIE, 'RTL2IE': RTL2IE, 'RTLLuArticleIE': RTLLuArticleIE, 'RTLLuLiveIE': RTLLuLiveIE, 'RTLLuRadioIE': RTLLuRadioIE, 'RTLLuTeleVODIE': RTLLuTeleVODIE, 'RTNewsIE': RTNewsIE, 'RTPIE': RTPIE, 'RTRFMIE': RTRFMIE, 'RTVCKalturaIE': RTVCKalturaIE, 'RTVCPlayEmbedIE': RTVCPlayEmbedIE, 'RTVCPlayIE': RTVCPlayIE, 'RTVEALaCartaIE': RTVEALaCartaIE, 'RTVEAudioIE': RTVEAudioIE, 'RTVELiveIE': RTVELiveIE, 'RTVEProgramIE': RTVEProgramIE, 'RTVETelevisionIE': RTVETelevisionIE, 'RTVSIE': RTVSIE, 'RTVSLOIE': RTVSLOIE, 'RTVSLOShowIE': RTVSLOShowIE, 'RadLiveIE': RadLiveIE, 'RadLiveChannelIE': RadLiveChannelIE, 'RadLiveSeasonIE': RadLiveSeasonIE, 'RadikoIE': RadikoIE, 'RadikoRadioIE': RadikoRadioIE, 'Radio1BeIE': Radio1BeIE, 'RadioCanadaAudioVideoIE': RadioCanadaAudioVideoIE, 'RadioCanadaIE': RadioCanadaIE, 'RadioComercialIE': RadioComercialIE, 'RadioComercialPlaylistIE': RadioComercialPlaylistIE, 'RadioDeIE': RadioDeIE, 'RadioFranceIE': RadioFranceIE, 'RadioFranceLiveIE': RadioFranceLiveIE, 'RadioFrancePodcastIE': RadioFrancePodcastIE, 'RadioFranceProfileIE': RadioFranceProfileIE, 'RadioFranceProgramScheduleIE': RadioFranceProgramScheduleIE, 'RadioJavanIE': RadioJavanIE, 'RadioKapitalIE': RadioKapitalIE, 'RadioKapitalShowIE': RadioKapitalShowIE, 'RadioRadicaleIE': RadioRadicaleIE, 'RadioZetPodcastIE': RadioZetPodcastIE, 'RaiIE': RaiIE, 'RaiNewsIE': RaiNewsIE, 'RaiCulturaIE': RaiCulturaIE, 'RaiPlayIE': RaiPlayIE, 'RaiPlayLiveIE': RaiPlayLiveIE, 'RaiPlayPlaylistIE': RaiPlayPlaylistIE, 'RaiPlaySoundIE': RaiPlaySoundIE, 'RaiPlaySoundLiveIE': RaiPlaySoundLiveIE, 'RaiPlaySoundPlaylistIE': RaiPlaySoundPlaylistIE, 'RaiSudtirolIE': RaiSudtirolIE, 'RayWenderlichCourseIE': RayWenderlichCourseIE, 'RayWenderlichIE': RayWenderlichIE, 'RbgTumCourseIE': RbgTumCourseIE, 'RbgTumIE': RbgTumIE, 'RbgTumNewCourseIE': RbgTumNewCourseIE, 'RedBullIE': RedBullIE, 'RedBullTVIE': RedBullTVIE, 'RedBullEmbedIE': RedBullEmbedIE, 'RedBullTVRrnContentIE': RedBullTVRrnContentIE, 'RedCDNLivxIE': RedCDNLivxIE, 'RedGifsIE': RedGifsIE, 'RedGifsSearchIE': RedGifsSearchIE, 'RedGifsUserIE': RedGifsUserIE, 'RedTubeIE': RedTubeIE, 'RedditIE': RedditIE, 'RestudyIE': RestudyIE, 'ReutersIE': ReutersIE, 'ReverbNationIE': ReverbNationIE, 'RheinMainTVIE': RheinMainTVIE, 'RideHomeIE': RideHomeIE, 'RinseFMArtistPlaylistIE': RinseFMArtistPlaylistIE, 'RinseFMIE': RinseFMIE, 'RockstarGamesIE': RockstarGamesIE, 'RokfinChannelIE': RokfinChannelIE, 'RokfinIE': RokfinIE, 'RokfinSearchIE': RokfinSearchIE, 'RokfinStackIE': RokfinStackIE, 'RoosterTeethIE': RoosterTeethIE, 'RoosterTeethSeriesIE': RoosterTeethSeriesIE, 'RottenTomatoesIE': RottenTomatoesIE, 'RoyaLiveIE': RoyaLiveIE, 'RozhlasIE': RozhlasIE, 'RozhlasVltavaIE': RozhlasVltavaIE, 'RteIE': RteIE, 'RteRadioIE': RteRadioIE, 'RtlNlIE': RtlNlIE, 'RtmpIE': RtmpIE, 'RudoVideoIE': RudoVideoIE, 'Rule34VideoIE': Rule34VideoIE, 'RumbleChannelIE': RumbleChannelIE, 'RumbleEmbedIE': RumbleEmbedIE, 'RumbleIE': RumbleIE, 'RuptlyIE': RuptlyIE, 'RutubeChannelIE': RutubeChannelIE, 'RutubeEmbedIE': RutubeEmbedIE, 'RutubeIE': RutubeIE, 'RutubeMovieIE': RutubeMovieIE, 'RutubePersonIE': RutubePersonIE, 'RutubePlaylistIE': RutubePlaylistIE, 'RutubeTagsIE': RutubeTagsIE, 'RuutuIE': RuutuIE, 'RuvIE': RuvIE, 'RuvSpilaIE': RuvSpilaIE, 'S4CIE': S4CIE, 'S4CSeriesIE': S4CSeriesIE, 'SAKTVIE': SAKTVIE, 'SAKTVLiveIE': SAKTVLiveIE, 'SAKTVRecordingsIE': SAKTVRecordingsIE, 'SBSCoKrAllvodProgramIE': SBSCoKrAllvodProgramIE, 'SBSCoKrIE': SBSCoKrIE, 'SBSCoKrProgramsVodIE': SBSCoKrProgramsVodIE, 'SBSIE': SBSIE, 'SCTECourseIE': SCTECourseIE, 'SCTEIE': SCTEIE, 'SRGSSRIE': SRGSSRIE, 'RTSIE': RTSIE, 'SRGSSRPlayIE': SRGSSRPlayIE, 'SRMediathekIE': SRMediathekIE, 'STVPlayerIE': STVPlayerIE, 'SVTPageIE': SVTPageIE, 'SVTPlayIE': SVTPlayIE, 'SVTSeriesIE': SVTSeriesIE, 'SYVDKIE': SYVDKIE, 'SafariApiIE': SafariApiIE, 'SafariCourseIE': SafariCourseIE, 'SafariIE': SafariIE, 'SaitosanIE': SaitosanIE, 'SaltTVIE': SaltTVIE, 'SaltTVLiveIE': SaltTVLiveIE, 'SaltTVRecordingsIE': SaltTVRecordingsIE, 'SampleFocusIE': SampleFocusIE, 'SangiinIE': SangiinIE, 'SangiinInstructionIE': SangiinInstructionIE, 'SapoIE': SapoIE, 'SaucePlusIE': SaucePlusIE, 'SchoolTVIE': SchoolTVIE, 'ScienceChannelIE': ScienceChannelIE, 'Screen9IE': Screen9IE, 'ScreenRecIE': ScreenRecIE, 'ScreencastIE': ScreencastIE, 'ScreencastOMaticIE': ScreencastOMaticIE, 'ScreencastifyIE': ScreencastifyIE, 'ScrippsNetworksIE': ScrippsNetworksIE, 'ScrippsNetworksWatchIE': ScrippsNetworksWatchIE, 'ScrolllerIE': ScrolllerIE, 'SejmIE': SejmIE, 'SenIE': SenIE, 'SenalColombiaLiveIE': SenalColombiaLiveIE, 'SenateGovIE': SenateGovIE, 'SenateISVPIE': SenateISVPIE, 'SendtoNewsIE': SendtoNewsIE, 'ServusIE': ServusIE, 'SevenPlusIE': SevenPlusIE, 'SexuIE': SexuIE, 'SeznamZpravyArticleIE': SeznamZpravyArticleIE, 'SeznamZpravyIE': SeznamZpravyIE, 'ShahidIE': ShahidIE, 'ShahidShowIE': ShahidShowIE, 'SharePointIE': SharePointIE, 'ShareVideosEmbedIE': ShareVideosEmbedIE, 'ShemarooMeIE': ShemarooMeIE, 'ShieyIE': ShieyIE, 'ShowRoomLiveIE': ShowRoomLiveIE, 'ShugiinItvLiveIE': ShugiinItvLiveIE, 'ShugiinItvLiveRoomIE': ShugiinItvLiveRoomIE, 'ShugiinItvVodIE': ShugiinItvVodIE, 'SibnetEmbedIE': SibnetEmbedIE, 'SimplecastEpisodeIE': SimplecastEpisodeIE, 'SimplecastIE': SimplecastIE, 'SimplecastPodcastIE': SimplecastPodcastIE, 'SinaIE': SinaIE, 'SkebIE': SkebIE, 'SkyItIE': SkyItIE, 'CieloTVItIE': CieloTVItIE, 'SkyItArteIE': SkyItArteIE, 'SkyItPlayerIE': SkyItPlayerIE, 'SkyItVideoIE': SkyItVideoIE, 'SkyItVideoLiveIE': SkyItVideoLiveIE, 'SkyNewsAUIE': SkyNewsAUIE, 'SkyNewsArabiaArticleIE': SkyNewsArabiaArticleIE, 'SkyNewsArabiaIE': SkyNewsArabiaIE, 'SkyNewsIE': SkyNewsIE, 'SkyNewsStoryIE': SkyNewsStoryIE, 'SkySportsIE': SkySportsIE, 'SkySportsNewsIE': SkySportsNewsIE, 'SkylineWebcamsIE': SkylineWebcamsIE, 'SlidesLiveIE': SlidesLiveIE, 'SlideshareIE': SlideshareIE, 'SlutloadIE': SlutloadIE, 'SmotrimAudioIE': SmotrimAudioIE, 'SmotrimIE': SmotrimIE, 'SmotrimLiveIE': SmotrimLiveIE, 'SmotrimPlaylistIE': SmotrimPlaylistIE, 'SnapchatSpotlightIE': SnapchatSpotlightIE, 'SnotrIE': SnotrIE, 'SoftWhiteUnderbellyIE': SoftWhiteUnderbellyIE, 'SohuIE': SohuIE, 'SohuVIE': SohuVIE, 'SonyLIVIE': SonyLIVIE, 'SonyLIVSeriesIE': SonyLIVSeriesIE, 'SoundcloudEmbedIE': SoundcloudEmbedIE, 'SoundcloudIE': SoundcloudIE, 'SoundcloudPlaylistIE': SoundcloudPlaylistIE, 'SoundcloudRelatedIE': SoundcloudRelatedIE, 'SoundcloudSearchIE': SoundcloudSearchIE, 'SoundcloudSetIE': SoundcloudSetIE, 'SoundcloudTrackStationIE': SoundcloudTrackStationIE, 'SoundcloudUserIE': SoundcloudUserIE, 'SoundcloudUserPermalinkIE': SoundcloudUserPermalinkIE, 'SoundgasmIE': SoundgasmIE, 'SoundgasmProfileIE': SoundgasmProfileIE, 'SouthParkCoUkIE': SouthParkCoUkIE, 'SouthParkComBrIE': SouthParkComBrIE, 'SouthParkDeIE': SouthParkDeIE, 'SouthParkDkIE': SouthParkDkIE, 'SouthParkEsIE': SouthParkEsIE, 'SouthParkIE': SouthParkIE, 'SouthParkLatIE': SouthParkLatIE, 'SovietsClosetIE': SovietsClosetIE, 'SovietsClosetPlaylistIE': SovietsClosetPlaylistIE, 'SpankBangIE': SpankBangIE, 'SpankBangPlaylistIE': SpankBangPlaylistIE, 'SpiegelIE': SpiegelIE, 'Sport5IE': Sport5IE, 'SportBoxIE': SportBoxIE, 'SportDeutschlandIE': SportDeutschlandIE, 'SpreakerIE': SpreakerIE, 'SpreakerShowIE': SpreakerShowIE, 'SpringboardPlatformIE': SpringboardPlatformIE, 'SproutVideoIE': SproutVideoIE, 'StacommuLiveIE': StacommuLiveIE, 'StacommuVODIE': StacommuVODIE, 'StagePlusVODConcertIE': StagePlusVODConcertIE, 'StanfordOpenClassroomIE': StanfordOpenClassroomIE, 'StarTVIE': StarTVIE, 'StarTrekIE': StarTrekIE, 'SteamCommunityBroadcastIE': SteamCommunityBroadcastIE, 'SteamCommunityIE': SteamCommunityIE, 'SteamIE': SteamIE, 'StitcherIE': StitcherIE, 'StitcherShowIE': StitcherShowIE, 'StoryFireIE': StoryFireIE, 'StoryFireSeriesIE': StoryFireSeriesIE, 'StoryFireUserIE': StoryFireUserIE, 'StreaksIE': StreaksIE, 'StreamCZIE': StreamCZIE, 'StreamableIE': StreamableIE, 'StreetVoiceIE': StreetVoiceIE, 'StretchInternetIE': StretchInternetIE, 'StripchatIE': StripchatIE, 'SubsplashIE': SubsplashIE, 'SubsplashPlaylistIE': SubsplashPlaylistIE, 'SubstackIE': SubstackIE, 'SunPornoIE': SunPornoIE, 'SverigesRadioEpisodeIE': SverigesRadioEpisodeIE, 'SverigesRadioPublicationIE': SverigesRadioPublicationIE, 'SwearnetEpisodeIE': SwearnetEpisodeIE, 'SyfyIE': SyfyIE, 'SztvHuIE': SztvHuIE, 'TBSIE': TBSIE, 'TBSJPEpisodeIE': TBSJPEpisodeIE, 'TBSJPPlaylistIE': TBSJPPlaylistIE, 'TBSJPProgramIE': TBSJPProgramIE, 'TF1IE': TF1IE, 'TFOIE': TFOIE, 'TLCIE': TLCIE, 'TMZIE': TMZIE, 'TNAFlixIE': TNAFlixIE, 'TNAFlixNetworkEmbedIE': TNAFlixNetworkEmbedIE, 'TOnlineIE': TOnlineIE, 'TV24UAVideoIE': TV24UAVideoIE, 'TV2ArticleIE': TV2ArticleIE, 'TV2DKBornholmPlayIE': TV2DKBornholmPlayIE, 'TV2DKIE': TV2DKIE, 'TV2HuIE': TV2HuIE, 'TV2HuSeriesIE': TV2HuSeriesIE, 'TV2IE': TV2IE, 'TV4IE': TV4IE, 'TV5MondePlusIE': TV5MondePlusIE, 'TV5UnisIE': TV5UnisIE, 'TV5UnisVideoIE': TV5UnisVideoIE, 'TV8ItIE': TV8ItIE, 'TV8ItLiveIE': TV8ItLiveIE, 'TV8ItPlaylistIE': TV8ItPlaylistIE, 'TVAIE': TVAIE, 'TVANouvellesArticleIE': TVANouvellesArticleIE, 'TVANouvellesIE': TVANouvellesIE, 'TVCArticleIE': TVCArticleIE, 'TVCIE': TVCIE, 'TVIPlayerIE': TVIPlayerIE, 'TVN24IE': TVN24IE, 'TVNoeIE': TVNoeIE, 'TVOpenGrEmbedIE': TVOpenGrEmbedIE, 'TVOpenGrWatchIE': TVOpenGrWatchIE, 'TVPEmbedIE': TVPEmbedIE, 'TVPIE': TVPIE, 'TVPStreamIE': TVPStreamIE, 'TVPVODSeriesIE': TVPVODSeriesIE, 'TVPVODVideoIE': TVPVODVideoIE, 'TVPlayHomeIE': TVPlayHomeIE, 'TVPlayIE': TVPlayIE, 'TVPlayerIE': TVPlayerIE, 'TVerIE': TVerIE, 'TagesschauIE': TagesschauIE, 'TapTapAppIE': TapTapAppIE, 'TapTapAppIntlIE': TapTapAppIntlIE, 'TapTapMomentIE': TapTapMomentIE, 'TapTapPostIntlIE': TapTapPostIntlIE, 'TassIE': TassIE, 'TeachableCourseIE': TeachableCourseIE, 'TeachableIE': TeachableIE, 'TeacherTubeIE': TeacherTubeIE, 'TeacherTubeUserIE': TeacherTubeUserIE, 'TeachingChannelIE': TeachingChannelIE, 'TeamTreeHouseIE': TeamTreeHouseIE, 'TeamcocoIE': TeamcocoIE, 'TechTVMITIE': TechTVMITIE, 'TedEmbedIE': TedEmbedIE, 'TedPlaylistIE': TedPlaylistIE, 'TedSeriesIE': TedSeriesIE, 'TedTalkIE': TedTalkIE, 'Tele13IE': Tele13IE, 'Tele5IE': Tele5IE, 'TeleBruxellesIE': TeleBruxellesIE, 'TeleMBIE': TeleMBIE, 'TeleQuebecEmissionIE': TeleQuebecEmissionIE, 'TeleQuebecIE': TeleQuebecIE, 'TeleQuebecLiveIE': TeleQuebecLiveIE, 'TeleQuebecSquatIE': TeleQuebecSquatIE, 'TeleQuebecVideoIE': TeleQuebecVideoIE, 'TeleTaskIE': TeleTaskIE, 'TelecaribePlayIE': TelecaribePlayIE, 'TelecincoIE': TelecincoIE, 'TelegraafIE': TelegraafIE, 'TelegramEmbedIE': TelegramEmbedIE, 'TelemundoIE': TelemundoIE, 'TelewebionIE': TelewebionIE, 'TempoIE': TempoIE, 'TenPlayIE': TenPlayIE, 'TenPlaySeasonIE': TenPlaySeasonIE, 'TennisTVIE': TennisTVIE, 'TestURLIE': TestURLIE, 'TheGuardianPodcastIE': TheGuardianPodcastIE, 'TheGuardianPodcastPlaylistIE': TheGuardianPodcastPlaylistIE, 'TheHighWireIE': TheHighWireIE, 'TheHoleTvIE': TheHoleTvIE, 'TheInterceptIE': TheInterceptIE, 'ThePlatformFeedIE': ThePlatformFeedIE, 'CBSIE': CBSIE, 'CorusIE': CorusIE, 'ThePlatformIE': ThePlatformIE, 'AENetworksCollectionIE': AENetworksCollectionIE, 'AENetworksIE': AENetworksIE, 'AENetworksShowIE': AENetworksShowIE, 'BiographyIE': BiographyIE, 'HistoryPlayerIE': HistoryPlayerIE, 'HistoryTopicIE': HistoryTopicIE, 'NBCNewsIE': NBCNewsIE, 'TheStarIE': TheStarIE, 'TheSunIE': TheSunIE, 'TheWeatherChannelIE': TheWeatherChannelIE, 'TheaterComplexTownPPVIE': TheaterComplexTownPPVIE, 'TheaterComplexTownVODIE': TheaterComplexTownVODIE, 'ThisAmericanLifeIE': ThisAmericanLifeIE, 'ThisOldHouseIE': ThisOldHouseIE, 'ThisVidIE': ThisVidIE, 'ThisVidMemberIE': ThisVidMemberIE, 'ThisVidPlaylistIE': ThisVidPlaylistIE, 'ThreeQSDNIE': ThreeQSDNIE, 'ThreeSpeakIE': ThreeSpeakIE, 'ThreeSpeakUserIE': ThreeSpeakUserIE, 'TikTokCollectionIE': TikTokCollectionIE, 'TikTokEffectIE': TikTokEffectIE, 'TikTokIE': TikTokIE, 'TikTokLiveIE': TikTokLiveIE, 'TikTokSoundIE': TikTokSoundIE, 'TikTokTagIE': TikTokTagIE, 'TikTokUserIE': TikTokUserIE, 'TikTokVMIE': TikTokVMIE, 'ToggleIE': ToggleIE, 'ToggoIE': ToggoIE, 'TokFMAuditionIE': TokFMAuditionIE, 'TokFMPodcastIE': TokFMPodcastIE, 'ToonGogglesIE': ToonGogglesIE, 'TouTvIE': TouTvIE, 'ToutiaoIE': ToutiaoIE, 'ToypicsIE': ToypicsIE, 'ToypicsUserIE': ToypicsUserIE, 'TrailerAddictIE': TrailerAddictIE, 'TravelChannelIE': TravelChannelIE, 'TrillerIE': TrillerIE, 'TrillerShortIE': TrillerShortIE, 'TrillerUserIE': TrillerUserIE, 'TrovoChannelClipIE': TrovoChannelClipIE, 'TrovoChannelVodIE': TrovoChannelVodIE, 'TrovoIE': TrovoIE, 'TrovoVodIE': TrovoVodIE, 'TrtCocukVideoIE': TrtCocukVideoIE, 'TrtWorldIE': TrtWorldIE, 'TruNewsIE': TruNewsIE, 'TrueIDIE': TrueIDIE, 'TruthIE': TruthIE, 'Tube8IE': Tube8IE, 'TubeTuGrazIE': TubeTuGrazIE, 'TubeTuGrazSeriesIE': TubeTuGrazSeriesIE, 'TubiTvIE': TubiTvIE, 'TubiTvShowIE': TubiTvShowIE, 'TumblrIE': TumblrIE, 'TuneInEmbedIE': TuneInEmbedIE, 'TuneInPodcastEpisodeIE': TuneInPodcastEpisodeIE, 'TuneInPodcastIE': TuneInPodcastIE, 'TuneInShortenerIE': TuneInShortenerIE, 'TuneInStationIE': TuneInStationIE, 'TvigleIE': TvigleIE, 'TvwIE': TvwIE, 'TvwNewsIE': TvwNewsIE, 'TvwTvChannelsIE': TvwTvChannelsIE, 'TweakersIE': TweakersIE, 'TwentyFourSevenSportsIE': TwentyFourSevenSportsIE, 'TwentyMinutenIE': TwentyMinutenIE, 'TwentyThreeVideoIE': TwentyThreeVideoIE, 'TwitCastingIE': TwitCastingIE, 'TwitCastingLiveIE': TwitCastingLiveIE, 'TwitCastingUserIE': TwitCastingUserIE, 'TwitchClipsIE': TwitchClipsIE, 'TwitchCollectionIE': TwitchCollectionIE, 'TwitchStreamIE': TwitchStreamIE, 'TwitchVideosClipsIE': TwitchVideosClipsIE, 'TwitchVideosCollectionsIE': TwitchVideosCollectionsIE, 'TwitchVideosIE': TwitchVideosIE, 'TwitchVodIE': TwitchVodIE, 'TwitterAmplifyIE': TwitterAmplifyIE, 'TwitterBroadcastIE': TwitterBroadcastIE, 'TwitterCardIE': TwitterCardIE, 'TwitterIE': TwitterIE, 'TwitterShortenerIE': TwitterShortenerIE, 'TwitterSpacesIE': TwitterSpacesIE, 'TxxxIE': TxxxIE, 'UDNEmbedIE': UDNEmbedIE, 'UFCArabiaIE': UFCArabiaIE, 'UFCTVIE': UFCTVIE, 'UKTVPlayIE': UKTVPlayIE, 'UMGDeIE': UMGDeIE, 'UOLIE': UOLIE, 'URPlayIE': URPlayIE, 'USANetworkIE': USANetworkIE, 'USATodayIE': USATodayIE, 'UdemyIE': UdemyIE, 'UdemyCourseIE': UdemyCourseIE, 'UkColumnIE': UkColumnIE, 'UlizaPlayerIE': UlizaPlayerIE, 'UlizaPortalIE': UlizaPortalIE, 'UnicodeBOMIE': UnicodeBOMIE, 'UnistraIE': UnistraIE, 'UnitedNationsWebTvIE': UnitedNationsWebTvIE, 'UnityIE': UnityIE, 'UplynkIE': UplynkIE, 'UplynkPreplayIE': UplynkPreplayIE, 'UrortIE': UrortIE, 'UstreamChannelIE': UstreamChannelIE, 'UstreamIE': UstreamIE, 'UstudioEmbedIE': UstudioEmbedIE, 'UstudioIE': UstudioIE, 'UtreonIE': UtreonIE, 'VH1IE': VH1IE, 'VHXEmbedIE': VHXEmbedIE, 'VKIE': VKIE, 'VKPlayIE': VKPlayIE, 'VKPlayLiveIE': VKPlayLiveIE, 'VKUserVideosIE': VKUserVideosIE, 'VKWallPostIE': VKWallPostIE, 'VODPlIE': VODPlIE, 'VODPlatformIE': VODPlatformIE, 'VPROIE': VPROIE, 'VQQSeriesIE': VQQSeriesIE, 'VQQVideoIE': VQQVideoIE, 'VRTIE': VRTIE, 'VTMIE': VTMIE, 'VTVGoIE': VTVGoIE, 'VTVIE': VTVIE, 'VTXTVIE': VTXTVIE, 'VTXTVLiveIE': VTXTVLiveIE, 'VTXTVRecordingsIE': VTXTVRecordingsIE, 'VVVVIDIE': VVVVIDIE, 'VVVVIDShowIE': VVVVIDShowIE, 'Varzesh3IE': Varzesh3IE, 'Vbox7IE': Vbox7IE, 'VeoIE': VeoIE, 'VevoIE': VevoIE, 'VevoPlaylistIE': VevoPlaylistIE, 'ViMPPlaylistIE': ViMPPlaylistIE, 'ViceArticleIE': ViceArticleIE, 'ViceIE': ViceIE, 'ViceShowIE': ViceShowIE, 'VidLiiIE': VidLiiIE, 'ViddlerIE': ViddlerIE, 'VideaIE': VideaIE, 'VideoDetectiveIE': VideoDetectiveIE, 'VideoKenCategoryIE': VideoKenCategoryIE, 'VideoKenIE': VideoKenIE, 'VideoKenPlayerIE': VideoKenPlayerIE, 'VideoKenPlaylistIE': VideoKenPlaylistIE, 'VideoKenTopicIE': VideoKenTopicIE, 'VideoPressIE': VideoPressIE, 'VideocampusSachsenIE': VideocampusSachsenIE, 'VideofyMeIE': VideofyMeIE, 'VideomoreIE': VideomoreIE, 'VideomoreSeasonIE': VideomoreSeasonIE, 'VideomoreVideoIE': VideomoreVideoIE, 'VidflexIE': VidflexIE, 'VidioIE': VidioIE, 'VidioLiveIE': VidioLiveIE, 'VidioPremierIE': VidioPremierIE, 'VidlyIE': VidlyIE, 'VidsIoIE': VidsIoIE, 'VidyardIE': VidyardIE, 'ViewLiftEmbedIE': ViewLiftEmbedIE, 'ViewLiftIE': ViewLiftIE, 'ViewSourceIE': ViewSourceIE, 'ViideaIE': ViideaIE, 'VimeoAlbumIE': VimeoAlbumIE, 'VimeoChannelIE': VimeoChannelIE, 'VimeoEventIE': VimeoEventIE, 'VimeoGroupsIE': VimeoGroupsIE, 'VimeoIE': VimeoIE, 'VimeoLikesIE': VimeoLikesIE, 'VimeoOndemandIE': VimeoOndemandIE, 'VimeoProIE': VimeoProIE, 'VimeoReviewIE': VimeoReviewIE, 'VimeoUserIE': VimeoUserIE, 'VimeoWatchLaterIE': VimeoWatchLaterIE, 'VimmIE': VimmIE, 'VimmRecordingIE': VimmRecordingIE, 'ViouslyIE': ViouslyIE, 'ViqeoIE': ViqeoIE, 'ViuIE': ViuIE, 'ViuOTTIE': ViuOTTIE, 'ViuOTTIndonesiaIE': ViuOTTIndonesiaIE, 'ViuPlaylistIE': ViuPlaylistIE, 'VocarooIE': VocarooIE, 'VoicyChannelIE': VoicyChannelIE, 'VoicyIE': VoicyIE, 'VolejTVIE': VolejTVIE, 'VoxMediaIE': VoxMediaIE, 'VoxMediaVolumeIE': VoxMediaVolumeIE, 'VrSquareChannelIE': VrSquareChannelIE, 'VrSquareIE': VrSquareIE, 'VrSquareSearchIE': VrSquareSearchIE, 'VrSquareSectionIE': VrSquareSectionIE, 'VrtNUIE': VrtNUIE, 'VuClipIE': VuClipIE, 'WDRElefantIE': WDRElefantIE, 'WDRIE': WDRIE, 'WDRMobileIE': WDRMobileIE, 'WDRPageIE': WDRPageIE, 'WNLIE': WNLIE, 'WPPilotChannelsIE': WPPilotChannelsIE, 'WPPilotIE': WPPilotIE, 'WSJArticleIE': WSJArticleIE, 'WSJIE': WSJIE, 'WWEIE': WWEIE, 'WallaIE': WallaIE, 'WalyTVIE': WalyTVIE, 'WalyTVLiveIE': WalyTVLiveIE, 'WalyTVRecordingsIE': WalyTVRecordingsIE, 'WashingtonPostArticleIE': WashingtonPostArticleIE, 'WashingtonPostIE': WashingtonPostIE, 'WatIE': WatIE, 'WatchESPNIE': WatchESPNIE, 'WeTvEpisodeIE': WeTvEpisodeIE, 'WeTvSeriesIE': WeTvSeriesIE, 'WeVidiIE': WeVidiIE, 'WebOfStoriesIE': WebOfStoriesIE, 'WebOfStoriesPlaylistIE': WebOfStoriesPlaylistIE, 'WebcameraplIE': WebcameraplIE, 'WebcasterFeedIE': WebcasterFeedIE, 'WebcasterIE': WebcasterIE, 'WeiboIE': WeiboIE, 'WeiboUserIE': WeiboUserIE, 'WeiboVideoIE': WeiboVideoIE, 'WeiqiTVIE': WeiqiTVIE, 'WeverseIE': WeverseIE, 'WeverseLiveIE': WeverseLiveIE, 'WeverseLiveTabIE': WeverseLiveTabIE, 'WeverseMediaIE': WeverseMediaIE, 'WeverseMediaTabIE': WeverseMediaTabIE, 'WeverseMomentIE': WeverseMomentIE, 'WeyyakIE': WeyyakIE, 'WhoWatchIE': WhoWatchIE, 'WhypIE': WhypIE, 'WikimediaIE': WikimediaIE, 'WimTVIE': WimTVIE, 'WimbledonIE': WimbledonIE, 'WinSportsVideoIE': WinSportsVideoIE, 'WistiaChannelIE': WistiaChannelIE, 'WistiaIE': WistiaIE, 'WistiaPlaylistIE': WistiaPlaylistIE, 'WordpressMiniAudioPlayerEmbedIE': WordpressMiniAudioPlayerEmbedIE, 'WordpressPlaylistEmbedIE': WordpressPlaylistEmbedIE, 'WorldStarHipHopIE': WorldStarHipHopIE, 'WrestleUniversePPVIE': WrestleUniversePPVIE, 'WrestleUniverseVODIE': WrestleUniverseVODIE, 'WyborczaPodcastIE': WyborczaPodcastIE, 'WyborczaVideoIE': WyborczaVideoIE, 'WykopDigCommentIE': WykopDigCommentIE, 'WykopDigIE': WykopDigIE, 'WykopPostCommentIE': WykopPostCommentIE, 'WykopPostIE': WykopPostIE, 'XHamsterEmbedIE': XHamsterEmbedIE, 'XHamsterIE': XHamsterIE, 'XHamsterUserIE': XHamsterUserIE, 'XMinusIE': XMinusIE, 'XNXXIE': XNXXIE, 'XVideosIE': XVideosIE, 'XVideosQuickiesIE': XVideosQuickiesIE, 'XXXYMoviesIE': XXXYMoviesIE, 'XboxClipsIE': XboxClipsIE, 'XiaoHongShuIE': XiaoHongShuIE, 'XimalayaAlbumIE': XimalayaAlbumIE, 'XimalayaIE': XimalayaIE, 'XinpianchangIE': XinpianchangIE, 'XstreamIE': XstreamIE, 'VGTVIE': VGTVIE, 'YahooIE': YahooIE, 'AolIE': AolIE, 'YahooJapanNewsIE': YahooJapanNewsIE, 'YahooSearchIE': YahooSearchIE, 'YandexDiskIE': YandexDiskIE, 'YandexMusicAlbumIE': YandexMusicAlbumIE, 'YandexMusicArtistAlbumsIE': YandexMusicArtistAlbumsIE, 'YandexMusicArtistTracksIE': YandexMusicArtistTracksIE, 'YandexMusicPlaylistIE': YandexMusicPlaylistIE, 'YandexMusicTrackIE': YandexMusicTrackIE, 'YandexVideoIE': YandexVideoIE, 'YandexVideoPreviewIE': YandexVideoPreviewIE, 'YapFilesIE': YapFilesIE, 'YappyIE': YappyIE, 'YappyProfileIE': YappyProfileIE, 'YleAreenaIE': YleAreenaIE, 'YouJizzIE': YouJizzIE, 'YouNowChannelIE': YouNowChannelIE, 'YouNowLiveIE': YouNowLiveIE, 'YouNowMomentIE': YouNowMomentIE, 'YouPornCategoryIE': YouPornCategoryIE, 'YouPornChannelIE': YouPornChannelIE, 'YouPornCollectionIE': YouPornCollectionIE, 'YouPornIE': YouPornIE, 'YouPornStarIE': YouPornStarIE, 'YouPornTagIE': YouPornTagIE, 'YouPornVideosIE': YouPornVideosIE, 'YoukuIE': YoukuIE, 'YoukuShowIE': YoukuShowIE, 'YoutubeClipIE': YoutubeClipIE, 'YoutubeConsentRedirectIE': YoutubeConsentRedirectIE, 'YoutubeFavouritesIE': YoutubeFavouritesIE, 'YoutubeHistoryIE': YoutubeHistoryIE, 'YoutubeIE': YoutubeIE, 'YoutubeLivestreamEmbedIE': YoutubeLivestreamEmbedIE, 'YoutubeMusicSearchURLIE': YoutubeMusicSearchURLIE, 'YoutubeNotificationsIE': YoutubeNotificationsIE, 'YoutubePlaylistIE': YoutubePlaylistIE, 'YoutubeRecommendedIE': YoutubeRecommendedIE, 'YoutubeSearchDateIE': YoutubeSearchDateIE, 'YoutubeSearchIE': YoutubeSearchIE, 'YoutubeSearchURLIE': YoutubeSearchURLIE, 'YoutubeShortsAudioPivotIE': YoutubeShortsAudioPivotIE, 'YoutubeSubscriptionsIE': YoutubeSubscriptionsIE, 'YoutubeTabIE': YoutubeTabIE, 'YoutubeTruncatedIDIE': YoutubeTruncatedIDIE, 'YoutubeTruncatedURLIE': YoutubeTruncatedURLIE, 'YoutubeWatchLaterIE': YoutubeWatchLaterIE, 'YoutubeWebArchiveIE': YoutubeWebArchiveIE, 'YoutubeYtBeIE': YoutubeYtBeIE, 'YoutubeYtUserIE': YoutubeYtUserIE, 'ZDFChannelIE': ZDFChannelIE, 'ZDFIE': ZDFIE, 'ZaikoETicketIE': ZaikoETicketIE, 'ZaikoIE': ZaikoIE, 'ZapiksIE': ZapiksIE, 'ZattooIE': ZattooIE, 'ZattooLiveIE': ZattooLiveIE, 'ZattooMoviesIE': ZattooMoviesIE, 'ZattooRecordingsIE': ZattooRecordingsIE, 'Zee5IE': Zee5IE, 'Zee5SeriesIE': Zee5SeriesIE, 'ZeeNewsIE': ZeeNewsIE, 'ZenPornIE': ZenPornIE, 'ZenYandexChannelIE': ZenYandexChannelIE, 'ZenYandexIE': ZenYandexIE, 'ZetlandDKArticleIE': ZetlandDKArticleIE, 'ZhihuIE': ZhihuIE, 'ZingMp3AlbumIE': ZingMp3AlbumIE, 'ZingMp3ChartHomeIE': ZingMp3ChartHomeIE, 'ZingMp3ChartMusicVideoIE': ZingMp3ChartMusicVideoIE, 'ZingMp3HubIE': ZingMp3HubIE, 'ZingMp3IE': ZingMp3IE, 'ZingMp3LiveRadioIE': ZingMp3LiveRadioIE, 'ZingMp3PodcastEpisodeIE': ZingMp3PodcastEpisodeIE, 'ZingMp3PodcastIE': ZingMp3PodcastIE, 'ZingMp3UserIE': ZingMp3UserIE, 'ZingMp3WeekChartIE': ZingMp3WeekChartIE, 'ZoomIE': ZoomIE, 'ZypeIE': ZypeIE, 'GenericIE': GenericIE}
+_CLASS_LOOKUP = {'YoutubeClipIE': YoutubeClipIE, 'YoutubeConsentRedirectIE': YoutubeConsentRedirectIE, 'YoutubeFavouritesIE': YoutubeFavouritesIE, 'YoutubeHistoryIE': YoutubeHistoryIE, 'YoutubeIE': YoutubeIE, 'YoutubeLivestreamEmbedIE': YoutubeLivestreamEmbedIE, 'YoutubeMusicSearchURLIE': YoutubeMusicSearchURLIE, 'YoutubeNotificationsIE': YoutubeNotificationsIE, 'YoutubePlaylistIE': YoutubePlaylistIE, 'YoutubeRecommendedIE': YoutubeRecommendedIE, 'YoutubeSearchIE': YoutubeSearchIE, 'YoutubeSearchURLIE': YoutubeSearchURLIE, 'YoutubeShortsAudioPivotIE': YoutubeShortsAudioPivotIE, 'YoutubeSubscriptionsIE': YoutubeSubscriptionsIE, 'YoutubeTabIE': YoutubeTabIE, 'YoutubeTruncatedIDIE': YoutubeTruncatedIDIE, 'YoutubeTruncatedURLIE': YoutubeTruncatedURLIE, 'YoutubeWatchLaterIE': YoutubeWatchLaterIE, 'YoutubeYtBeIE': YoutubeYtBeIE, 'YoutubeYtUserIE': YoutubeYtUserIE, 'ABCIE': ABCIE, 'ABCIViewIE': ABCIViewIE, 'ABCIViewShowSeriesIE': ABCIViewShowSeriesIE, 'ABCOTVSClipsIE': ABCOTVSClipsIE, 'ABCOTVSIE': ABCOTVSIE, 'ACastChannelIE': ACastChannelIE, 'ACastIE': ACastIE, 'ADNIE': ADNIE, 'ADNSeasonIE': ADNSeasonIE, 'AGalegaIE': AGalegaIE, 'AMCNetworksIE': AMCNetworksIE, 'APAIE': APAIE, 'ARDAudiothekIE': ARDAudiothekIE, 'ARDAudiothekPlaylistIE': ARDAudiothekPlaylistIE, 'ARDBetaMediathekIE': ARDBetaMediathekIE, 'ARDIE': ARDIE, 'ARDMediathekCollectionIE': ARDMediathekCollectionIE, 'AZMedienIE': AZMedienIE, 'AbcNewsIE': AbcNewsIE, 'AbcNewsVideoIE': AbcNewsVideoIE, 'AbemaTVIE': AbemaTVIE, 'AbemaTVTitleIE': AbemaTVTitleIE, 'AcFunBangumiIE': AcFunBangumiIE, 'AcFunVideoIE': AcFunVideoIE, 'AcademicEarthCourseIE': AcademicEarthCourseIE, 'AdobeConnectIE': AdobeConnectIE, 'AdobeTVVideoIE': AdobeTVVideoIE, 'AdultSwimIE': AdultSwimIE, 'AeonCoIE': AeonCoIE, 'AfreecaTVCatchStoryIE': AfreecaTVCatchStoryIE, 'AfreecaTVIE': AfreecaTVIE, 'AfreecaTVLiveIE': AfreecaTVLiveIE, 'AfreecaTVUserIE': AfreecaTVUserIE, 'AitubeKZVideoIE': AitubeKZVideoIE, 'AlJazeeraIE': AlJazeeraIE, 'AliExpressLiveIE': AliExpressLiveIE, 'AlibabaIE': AlibabaIE, 'AllocineIE': AllocineIE, 'AllstarIE': AllstarIE, 'AllstarProfileIE': AllstarProfileIE, 'AlphaPornoIE': AlphaPornoIE, 'AltCensoredChannelIE': AltCensoredChannelIE, 'AltCensoredIE': AltCensoredIE, 'AluraIE': AluraIE, 'AluraCourseIE': AluraCourseIE, 'AmHistoryChannelIE': AmHistoryChannelIE, 'AmadeusTVIE': AmadeusTVIE, 'AmaraIE': AmaraIE, 'AmazonMiniTVIE': AmazonMiniTVIE, 'AmazonMiniTVSeasonIE': AmazonMiniTVSeasonIE, 'AmazonMiniTVSeriesIE': AmazonMiniTVSeriesIE, 'AmazonReviewsIE': AmazonReviewsIE, 'AmazonStoreIE': AmazonStoreIE, 'AmericasTestKitchenIE': AmericasTestKitchenIE, 'AmericasTestKitchenSeasonIE': AmericasTestKitchenSeasonIE, 'AngelIE': AngelIE, 'AnimalPlanetIE': AnimalPlanetIE, 'Ant1NewsGrArticleIE': Ant1NewsGrArticleIE, 'Ant1NewsGrEmbedIE': Ant1NewsGrEmbedIE, 'AntennaGrWatchIE': AntennaGrWatchIE, 'AnvatoIE': AnvatoIE, 'AparatIE': AparatIE, 'AppleConnectIE': AppleConnectIE, 'ApplePodcastsIE': ApplePodcastsIE, 'ArcPublishingIE': ArcPublishingIE, 'ArchiveOrgIE': ArchiveOrgIE, 'ArnesIE': ArnesIE, 'Art19IE': Art19IE, 'Art19ShowIE': Art19ShowIE, 'ArteTVCategoryIE': ArteTVCategoryIE, 'ArteTVEmbedIE': ArteTVEmbedIE, 'ArteTVIE': ArteTVIE, 'ArteTVPlaylistIE': ArteTVPlaylistIE, 'AsobiChannelIE': AsobiChannelIE, 'AsobiChannelTagURLIE': AsobiChannelTagURLIE, 'AsobiStageIE': AsobiStageIE, 'AtScaleConfEventIE': AtScaleConfEventIE, 'AtresPlayerIE': AtresPlayerIE, 'AudiMediaIE': AudiMediaIE, 'AudioBoomIE': AudioBoomIE, 'AudiodraftCustomIE': AudiodraftCustomIE, 'AudiodraftGenericIE': AudiodraftGenericIE, 'AudiomackAlbumIE': AudiomackAlbumIE, 'AudiomackIE': AudiomackIE, 'AudiusIE': AudiusIE, 'AudiusPlaylistIE': AudiusPlaylistIE, 'AudiusProfileIE': AudiusProfileIE, 'AudiusTrackIE': AudiusTrackIE, 'BBCCoUkArticleIE': BBCCoUkArticleIE, 'BBCCoUkIE': BBCCoUkIE, 'BBCCoUkIPlayerEpisodesIE': BBCCoUkIPlayerEpisodesIE, 'BBCCoUkIPlayerGroupIE': BBCCoUkIPlayerGroupIE, 'BBCCoUkPlaylistIE': BBCCoUkPlaylistIE, 'BBCIE': BBCIE, 'BBVTVIE': BBVTVIE, 'BBVTVLiveIE': BBVTVLiveIE, 'BBVTVRecordingsIE': BBVTVRecordingsIE, 'BFIPlayerIE': BFIPlayerIE, 'BFMTVArticleIE': BFMTVArticleIE, 'BFMTVIE': BFMTVIE, 'BFMTVLiveIE': BFMTVLiveIE, 'BRIE': BRIE, 'BTArticleIE': BTArticleIE, 'BTVPlusIE': BTVPlusIE, 'BTVestlendingenIE': BTVestlendingenIE, 'BYUtvIE': BYUtvIE, 'BaiduVideoIE': BaiduVideoIE, 'BanByeChannelIE': BanByeChannelIE, 'BanByeIE': BanByeIE, 'BandcampIE': BandcampIE, 'BandcampAlbumIE': BandcampAlbumIE, 'BandcampUserIE': BandcampUserIE, 'BandcampWeeklyIE': BandcampWeeklyIE, 'BandlabIE': BandlabIE, 'BandlabPlaylistIE': BandlabPlaylistIE, 'BannedVideoIE': BannedVideoIE, 'BeaconTvIE': BeaconTvIE, 'BeatportIE': BeatportIE, 'BeegIE': BeegIE, 'BehindKinkIE': BehindKinkIE, 'BerufeTVIE': BerufeTVIE, 'BetIE': BetIE, 'BibelTVLiveIE': BibelTVLiveIE, 'BibelTVSeriesIE': BibelTVSeriesIE, 'BibelTVVideoIE': BibelTVVideoIE, 'BigoIE': BigoIE, 'BildIE': BildIE, 'BiliBiliBangumiIE': BiliBiliBangumiIE, 'BiliBiliBangumiMediaIE': BiliBiliBangumiMediaIE, 'BiliBiliBangumiSeasonIE': BiliBiliBangumiSeasonIE, 'BiliBiliDynamicIE': BiliBiliDynamicIE, 'BiliBiliIE': BiliBiliIE, 'BiliBiliPlayerIE': BiliBiliPlayerIE, 'BiliBiliSearchIE': BiliBiliSearchIE, 'BiliIntlIE': BiliIntlIE, 'BiliIntlSeriesIE': BiliIntlSeriesIE, 'BiliLiveIE': BiliLiveIE, 'BilibiliAudioAlbumIE': BilibiliAudioAlbumIE, 'BilibiliAudioIE': BilibiliAudioIE, 'BilibiliCategoryIE': BilibiliCategoryIE, 'BilibiliCheeseIE': BilibiliCheeseIE, 'BilibiliCheeseSeasonIE': BilibiliCheeseSeasonIE, 'BilibiliCollectionListIE': BilibiliCollectionListIE, 'BilibiliFavoritesListIE': BilibiliFavoritesListIE, 'BilibiliPlaylistIE': BilibiliPlaylistIE, 'BilibiliSeriesListIE': BilibiliSeriesListIE, 'BilibiliSpaceAudioIE': BilibiliSpaceAudioIE, 'BilibiliSpaceVideoIE': BilibiliSpaceVideoIE, 'BilibiliWatchlaterIE': BilibiliWatchlaterIE, 'BioBioChileTVIE': BioBioChileTVIE, 'BitChuteChannelIE': BitChuteChannelIE, 'BitChuteIE': BitChuteIE, 'BitmovinIE': BitmovinIE, 'BlackboardCollaborateIE': BlackboardCollaborateIE, 'BlackboardCollaborateLaunchIE': BlackboardCollaborateLaunchIE, 'BleacherReportCMSIE': BleacherReportCMSIE, 'BleacherReportIE': BleacherReportIE, 'BlerpIE': BlerpIE, 'BlobIE': BlobIE, 'BloggerIE': BloggerIE, 'BloombergIE': BloombergIE, 'BlueskyIE': BlueskyIE, 'BongaCamsIE': BongaCamsIE, 'BoostyIE': BoostyIE, 'BostonGlobeIE': BostonGlobeIE, 'BoxCastVideoIE': BoxCastVideoIE, 'BoxIE': BoxIE, 'BpbIE': BpbIE, 'BrainPOPELLIE': BrainPOPELLIE, 'BrainPOPEspIE': BrainPOPEspIE, 'BrainPOPFrIE': BrainPOPFrIE, 'BrainPOPIE': BrainPOPIE, 'BrainPOPIlIE': BrainPOPIlIE, 'BrainPOPJrIE': BrainPOPJrIE, 'BravoTVIE': BravoTVIE, 'BreitBartIE': BreitBartIE, 'BrightcoveLegacyIE': BrightcoveLegacyIE, 'BrightcoveNewIE': BrightcoveNewIE, 'BrilliantpalaClassesIE': BrilliantpalaClassesIE, 'BrilliantpalaElearnIE': BrilliantpalaElearnIE, 'BundesligaIE': BundesligaIE, 'BundestagIE': BundestagIE, 'BunnyCdnIE': BunnyCdnIE, 'BusinessInsiderIE': BusinessInsiderIE, 'BuzzFeedIE': BuzzFeedIE, 'C56IE': C56IE, 'CAM4IE': CAM4IE, 'CBCGemContentIE': CBCGemContentIE, 'CBCGemIE': CBCGemIE, 'CBCGemLiveIE': CBCGemLiveIE, 'CBCGemOlympicsIE': CBCGemOlympicsIE, 'CBCGemPlaylistIE': CBCGemPlaylistIE, 'CBCIE': CBCIE, 'CBCListenIE': CBCListenIE, 'CBCPlayerIE': CBCPlayerIE, 'CBCPlayerPlaylistIE': CBCPlayerPlaylistIE, 'CBSLocalArticleIE': CBSLocalArticleIE, 'CBSLocalIE': CBSLocalIE, 'CBSLocalLiveIE': CBSLocalLiveIE, 'CBSNewsEmbedIE': CBSNewsEmbedIE, 'CBSNewsIE': CBSNewsIE, 'CBSNewsLiveIE': CBSNewsLiveIE, 'CBSNewsLiveVideoIE': CBSNewsLiveVideoIE, 'CBSSportsEmbedIE': CBSSportsEmbedIE, 'CBSSportsIE': CBSSportsIE, 'CCCIE': CCCIE, 'CCCPlaylistIE': CCCPlaylistIE, 'CCMAIE': CCMAIE, 'CCTVIE': CCTVIE, 'CDAFolderIE': CDAFolderIE, 'CDAIE': CDAIE, 'CGTNIE': CGTNIE, 'CHZZKLiveIE': CHZZKLiveIE, 'CHZZKVideoIE': CHZZKVideoIE, 'CJSWIE': CJSWIE, 'CNBCVideoIE': CNBCVideoIE, 'CNNIE': CNNIE, 'CNNIndonesiaIE': CNNIndonesiaIE, 'CPACIE': CPACIE, 'CPACPlaylistIE': CPACPlaylistIE, 'CPTwentyFourIE': CPTwentyFourIE, 'CSpanCongressIE': CSpanCongressIE, 'CSpanIE': CSpanIE, 'CTVNewsIE': CTVNewsIE, 'CaltransIE': CaltransIE, 'CamFMEpisodeIE': CamFMEpisodeIE, 'CamFMShowIE': CamFMShowIE, 'CamModelsIE': CamModelsIE, 'CamsodaIE': CamsodaIE, 'CamtasiaEmbedIE': CamtasiaEmbedIE, 'Canal1IE': Canal1IE, 'CanalAlphaIE': CanalAlphaIE, 'Canalc2IE': Canalc2IE, 'CanalplusIE': CanalplusIE, 'CanalsurmasIE': CanalsurmasIE, 'CaracolTvPlayIE': CaracolTvPlayIE, 'CellebriteIE': CellebriteIE, 'CeskaTelevizeIE': CeskaTelevizeIE, 'CharlieRoseIE': CharlieRoseIE, 'ChaturbateIE': ChaturbateIE, 'ChilloutzoneIE': ChilloutzoneIE, 'CinemaxIE': CinemaxIE, 'CinetecaMilanoIE': CinetecaMilanoIE, 'CineverseDetailsIE': CineverseDetailsIE, 'CineverseIE': CineverseIE, 'CiscoLiveSearchIE': CiscoLiveSearchIE, 'CiscoLiveSessionIE': CiscoLiveSessionIE, 'CiscoWebexIE': CiscoWebexIE, 'ClipRsIE': ClipRsIE, 'ClipchampIE': ClipchampIE, 'CloserToTruthIE': CloserToTruthIE, 'CloudflareStreamIE': CloudflareStreamIE, 'CloudyCDNIE': CloudyCDNIE, 'ClubicIE': ClubicIE, 'ClypIE': ClypIE, 'ComedyCentralIE': ComedyCentralIE, 'CommonMistakesIE': CommonMistakesIE, 'ConanClassicIE': ConanClassicIE, 'CondeNastIE': CondeNastIE, 'CookingChannelIE': CookingChannelIE, 'CoubIE': CoubIE, 'CozyTVIE': CozyTVIE, 'CrackedIE': CrackedIE, 'CraftsyIE': CraftsyIE, 'CroatianFilmIE': CroatianFilmIE, 'CrooksAndLiarsIE': CrooksAndLiarsIE, 'CrowdBunkerChannelIE': CrowdBunkerChannelIE, 'CrowdBunkerIE': CrowdBunkerIE, 'CrtvgIE': CrtvgIE, 'CtsNewsIE': CtsNewsIE, 'CultureUnpluggedIE': CultureUnpluggedIE, 'CuriosityStreamCollectionsIE': CuriosityStreamCollectionsIE, 'CuriosityStreamIE': CuriosityStreamIE, 'CuriosityStreamSeriesIE': CuriosityStreamSeriesIE, 'CybraryCourseIE': CybraryCourseIE, 'CybraryIE': CybraryIE, 'DBTVIE': DBTVIE, 'DFBIE': DFBIE, 'DHMIE': DHMIE, 'DLFCorpusIE': DLFCorpusIE, 'DLFIE': DLFIE, 'DLiveStreamIE': DLiveStreamIE, 'DLiveVODIE': DLiveVODIE, 'DPlayIE': DPlayIE, 'DRBonanzaIE': DRBonanzaIE, 'DRTVIE': DRTVIE, 'DRTVLiveIE': DRTVLiveIE, 'DRTVSeasonIE': DRTVSeasonIE, 'DRTVSeriesIE': DRTVSeriesIE, 'DTubeIE': DTubeIE, 'DVTVIE': DVTVIE, 'DWArticleIE': DWArticleIE, 'DWIE': DWIE, 'DacastPlaylistIE': DacastPlaylistIE, 'DacastVODIE': DacastVODIE, 'DagelijkseKostIE': DagelijkseKostIE, 'DailyMailIE': DailyMailIE, 'DailyWireIE': DailyWireIE, 'DailyWirePodcastIE': DailyWirePodcastIE, 'DailymotionIE': DailymotionIE, 'DailymotionPlaylistIE': DailymotionPlaylistIE, 'DailymotionSearchIE': DailymotionSearchIE, 'DailymotionUserIE': DailymotionUserIE, 'DamtomoRecordIE': DamtomoRecordIE, 'DamtomoVideoIE': DamtomoVideoIE, 'DangalPlayIE': DangalPlayIE, 'DangalPlaySeasonIE': DangalPlaySeasonIE, 'DaumClipIE': DaumClipIE, 'DaumIE': DaumIE, 'DaumPlaylistIE': DaumPlaylistIE, 'DaumUserIE': DaumUserIE, 'DaystarClipIE': DaystarClipIE, 'DctpTvIE': DctpTvIE, 'DemocracynowIE': DemocracynowIE, 'DestinationAmericaIE': DestinationAmericaIE, 'DetikEmbedIE': DetikEmbedIE, 'DeuxMIE': DeuxMIE, 'DeuxMNewsIE': DeuxMNewsIE, 'DigitalConcertHallIE': DigitalConcertHallIE, 'DigitallySpeakingIE': DigitallySpeakingIE, 'DigitekaIE': DigitekaIE, 'DigiviewIE': DigiviewIE, 'DiscogsReleasePlaylistIE': DiscogsReleasePlaylistIE, 'DiscoveryLifeIE': DiscoveryLifeIE, 'DiscoveryNetworksDeIE': DiscoveryNetworksDeIE, 'DiscoveryPlusIE': DiscoveryPlusIE, 'DiscoveryPlusIndiaIE': DiscoveryPlusIndiaIE, 'DiscoveryPlusIndiaShowIE': DiscoveryPlusIndiaShowIE, 'DiscoveryPlusItalyIE': DiscoveryPlusItalyIE, 'DiscoveryPlusItalyShowIE': DiscoveryPlusItalyShowIE, 'DisneyIE': DisneyIE, 'DouyinIE': DouyinIE, 'DouyuShowIE': DouyuShowIE, 'DouyuTVIE': DouyuTVIE, 'DrTalksIE': DrTalksIE, 'DrTuberIE': DrTuberIE, 'DreiSatIE': DreiSatIE, 'DropboxIE': DropboxIE, 'DropoutIE': DropoutIE, 'DropoutSeasonIE': DropoutSeasonIE, 'DumpertIE': DumpertIE, 'DuoplayIE': DuoplayIE, 'EMPFlixIE': EMPFlixIE, 'ERRArhiivIE': ERRArhiivIE, 'ERRJupiterIE': ERRJupiterIE, 'ERTFlixCodenameIE': ERTFlixCodenameIE, 'ERTFlixIE': ERTFlixIE, 'ERTWebtvEmbedIE': ERTWebtvEmbedIE, 'ESPNArticleIE': ESPNArticleIE, 'ESPNCricInfoIE': ESPNCricInfoIE, 'ESPNIE': ESPNIE, 'EUScreenIE': EUScreenIE, 'EWETVIE': EWETVIE, 'EWETVLiveIE': EWETVLiveIE, 'EWETVRecordingsIE': EWETVRecordingsIE, 'EbaumsWorldIE': EbaumsWorldIE, 'EbayIE': EbayIE, 'EggheadCourseIE': EggheadCourseIE, 'EggheadLessonIE': EggheadLessonIE, 'EggsArtistIE': EggsArtistIE, 'EggsIE': EggsIE, 'EinsUndEinsTVIE': EinsUndEinsTVIE, 'EinsUndEinsTVLiveIE': EinsUndEinsTVLiveIE, 'EinsUndEinsTVRecordingsIE': EinsUndEinsTVRecordingsIE, 'ElPaisIE': ElPaisIE, 'ElTreceTVIE': ElTreceTVIE, 'ElementorEmbedIE': ElementorEmbedIE, 'ElonetIE': ElonetIE, 'EmbedlyIE': EmbedlyIE, 'EpiconIE': EpiconIE, 'EpiconSeriesIE': EpiconSeriesIE, 'EpidemicSoundIE': EpidemicSoundIE, 'EplusIbIE': EplusIbIE, 'EpochIE': EpochIE, 'EpornerIE': EpornerIE, 'EroProfileAlbumIE': EroProfileAlbumIE, 'EroProfileIE': EroProfileIE, 'ErocastIE': ErocastIE, 'EttuTvIE': EttuTvIE, 'EuroParlWebstreamIE': EuroParlWebstreamIE, 'EuropaIE': EuropaIE, 'EuropeanTourIE': EuropeanTourIE, 'EurosportIE': EurosportIE, 'ExpressenIE': ExpressenIE, 'FC2EmbedIE': FC2EmbedIE, 'FC2IE': FC2IE, 'FC2LiveIE': FC2LiveIE, 'FOX9IE': FOX9IE, 'FOX9NewsIE': FOX9NewsIE, 'FOXIE': FOXIE, 'FacebookAdsIE': FacebookAdsIE, 'FacebookIE': FacebookIE, 'FacebookPluginsVideoIE': FacebookPluginsVideoIE, 'FacebookRedirectURLIE': FacebookRedirectURLIE, 'FacebookReelIE': FacebookReelIE, 'FancodeVodIE': FancodeVodIE, 'FancodeLiveIE': FancodeLiveIE, 'FathomIE': FathomIE, 'FaulioIE': FaulioIE, 'FaulioLiveIE': FaulioLiveIE, 'FazIE': FazIE, 'FczenitIE': FczenitIE, 'FifaIE': FifaIE, 'FilmArchivIE': FilmArchivIE, 'FilmOnChannelIE': FilmOnChannelIE, 'FilmOnIE': FilmOnIE, 'FilmwebIE': FilmwebIE, 'FirstTVIE': FirstTVIE, 'FirstTVLiveIE': FirstTVLiveIE, 'FiveTVIE': FiveTVIE, 'FiveThirtyEightIE': FiveThirtyEightIE, 'FlexTVIE': FlexTVIE, 'FlickrIE': FlickrIE, 'FloatplaneChannelIE': FloatplaneChannelIE, 'FloatplaneIE': FloatplaneIE, 'FolketingetIE': FolketingetIE, 'FoodNetworkIE': FoodNetworkIE, 'FootyRoomIE': FootyRoomIE, 'Formula1IE': Formula1IE, 'FourTubeIE': FourTubeIE, 'FoxNewsArticleIE': FoxNewsArticleIE, 'FoxNewsIE': FoxNewsIE, 'FoxNewsVideoIE': FoxNewsVideoIE, 'FoxSportsIE': FoxSportsIE, 'FptplayIE': FptplayIE, 'FrancaisFacileIE': FrancaisFacileIE, 'FranceCultureIE': FranceCultureIE, 'FranceTVIE': FranceTVIE, 'FranceTVInfoIE': FranceTVInfoIE, 'FranceTVSiteIE': FranceTVSiteIE, 'FreeTvIE': FreeTvIE, 'FreeTvMoviesIE': FreeTvMoviesIE, 'FreesoundIE': FreesoundIE, 'FreespeechIE': FreespeechIE, 'FrontendMastersCourseIE': FrontendMastersCourseIE, 'FrontendMastersIE': FrontendMastersIE, 'FrontendMastersLessonIE': FrontendMastersLessonIE, 'FunkIE': FunkIE, 'Funker530IE': Funker530IE, 'FuxIE': FuxIE, 'FuyinTVIE': FuyinTVIE, 'GBNewsIE': GBNewsIE, 'GDCVaultIE': GDCVaultIE, 'GMANetworkVideoIE': GMANetworkVideoIE, 'GabIE': GabIE, 'GaiaIE': GaiaIE, 'GameDevTVDashboardIE': GameDevTVDashboardIE, 'GameJoltCommunityIE': GameJoltCommunityIE, 'GameJoltGameIE': GameJoltGameIE, 'GameJoltGameSoundtrackIE': GameJoltGameSoundtrackIE, 'GameJoltIE': GameJoltIE, 'GameJoltSearchIE': GameJoltSearchIE, 'GameJoltUserIE': GameJoltUserIE, 'GameSpotIE': GameSpotIE, 'GameStarIE': GameStarIE, 'GaskrankIE': GaskrankIE, 'GazetaIE': GazetaIE, 'GediDigitalIE': GediDigitalIE, 'GeniusIE': GeniusIE, 'GeniusLyricsIE': GeniusLyricsIE, 'GermanupaIE': GermanupaIE, 'GetCourseRuIE': GetCourseRuIE, 'GetCourseRuPlayerIE': GetCourseRuPlayerIE, 'GettrIE': GettrIE, 'GettrStreamingIE': GettrStreamingIE, 'GiantBombIE': GiantBombIE, 'GlattvisionTVIE': GlattvisionTVIE, 'GlattvisionTVLiveIE': GlattvisionTVLiveIE, 'GlattvisionTVRecordingsIE': GlattvisionTVRecordingsIE, 'GlideIE': GlideIE, 'GlobalPlayerAudioEpisodeIE': GlobalPlayerAudioEpisodeIE, 'GlobalPlayerAudioIE': GlobalPlayerAudioIE, 'GlobalPlayerLiveIE': GlobalPlayerLiveIE, 'GlobalPlayerLivePlaylistIE': GlobalPlayerLivePlaylistIE, 'GlobalPlayerVideoIE': GlobalPlayerVideoIE, 'GloboArticleIE': GloboArticleIE, 'GloboIE': GloboIE, 'GlomexEmbedIE': GlomexEmbedIE, 'GlomexIE': GlomexIE, 'GoDiscoveryIE': GoDiscoveryIE, 'GoIE': GoIE, 'GoPlayIE': GoPlayIE, 'GoProIE': GoProIE, 'GoToStageIE': GoToStageIE, 'GodResourceIE': GodResourceIE, 'GodTubeIE': GodTubeIE, 'GofileIE': GofileIE, 'GolemIE': GolemIE, 'GoodGameIE': GoodGameIE, 'GoogleDriveFolderIE': GoogleDriveFolderIE, 'GoogleDriveIE': GoogleDriveIE, 'GoogleSearchIE': GoogleSearchIE, 'GraspopIE': GraspopIE, 'GronkhFeedIE': GronkhFeedIE, 'GronkhIE': GronkhIE, 'GronkhVodsIE': GronkhVodsIE, 'GrouponIE': GrouponIE, 'HBOIE': HBOIE, 'HGTVComShowIE': HGTVComShowIE, 'HGTVDeIE': HGTVDeIE, 'HGTVUsaIE': HGTVUsaIE, 'HRFernsehenIE': HRFernsehenIE, 'HRTiIE': HRTiIE, 'HRTiPlaylistIE': HRTiPlaylistIE, 'HSEProductIE': HSEProductIE, 'HSEShowIE': HSEShowIE, 'HTML5MediaEmbedIE': HTML5MediaEmbedIE, 'HarpodeonIE': HarpodeonIE, 'HearThisAtIE': HearThisAtIE, 'HeiseIE': HeiseIE, 'HellPornoIE': HellPornoIE, 'HetKlokhuisIE': HetKlokhuisIE, 'HiDiveIE': HiDiveIE, 'HistoricFilmsIE': HistoricFilmsIE, 'HitRecordIE': HitRecordIE, 'HollywoodReporterIE': HollywoodReporterIE, 'HollywoodReporterPlaylistIE': HollywoodReporterPlaylistIE, 'HolodexIE': HolodexIE, 'HotNewHipHopIE': HotNewHipHopIE, 'HotStarIE': HotStarIE, 'HotStarPrefixIE': HotStarPrefixIE, 'HotStarSeriesIE': HotStarSeriesIE, 'HrefLiRedirectIE': HrefLiRedirectIE, 'HuajiaoIE': HuajiaoIE, 'HuffPostIE': HuffPostIE, 'HungamaAlbumPlaylistIE': HungamaAlbumPlaylistIE, 'HungamaIE': HungamaIE, 'HungamaSongIE': HungamaSongIE, 'HuyaLiveIE': HuyaLiveIE, 'HuyaVideoIE': HuyaVideoIE, 'HypemIE': HypemIE, 'HytaleIE': HytaleIE, 'IGNArticleIE': IGNArticleIE, 'IGNIE': IGNIE, 'IGNVideoIE': IGNVideoIE, 'IHeartRadioIE': IHeartRadioIE, 'IHeartRadioPodcastIE': IHeartRadioPodcastIE, 'IPrimaCNNIE': IPrimaCNNIE, 'IPrimaIE': IPrimaIE, 'ITProTVCourseIE': ITProTVCourseIE, 'ITProTVIE': ITProTVIE, 'ITVBTCCIE': ITVBTCCIE, 'ITVIE': ITVIE, 'IcareusIE': IcareusIE, 'IchinanaLiveClipIE': IchinanaLiveClipIE, 'IchinanaLiveIE': IchinanaLiveIE, 'IchinanaLiveVODIE': IchinanaLiveVODIE, 'IdagioAlbumIE': IdagioAlbumIE, 'IdagioPersonalPlaylistIE': IdagioPersonalPlaylistIE, 'IdagioPlaylistIE': IdagioPlaylistIE, 'IdagioRecordingIE': IdagioRecordingIE, 'IdagioTrackIE': IdagioTrackIE, 'IflixEpisodeIE': IflixEpisodeIE, 'IflixSeriesIE': IflixSeriesIE, 'IlPostIE': IlPostIE, 'IltalehtiIE': IltalehtiIE, 'ImdbIE': ImdbIE, 'ImdbListIE': ImdbListIE, 'ImgurAlbumIE': ImgurAlbumIE, 'ImgurGalleryIE': ImgurGalleryIE, 'ImgurIE': ImgurIE, 'InaIE': InaIE, 'IncIE': IncIE, 'IndavideoEmbedIE': IndavideoEmbedIE, 'InfoQIE': InfoQIE, 'InstagramIE': InstagramIE, 'InstagramIOSIE': InstagramIOSIE, 'InstagramStoryIE': InstagramStoryIE, 'InstagramTagIE': InstagramTagIE, 'InstagramUserIE': InstagramUserIE, 'InternazionaleIE': InternazionaleIE, 'InvestigationDiscoveryIE': InvestigationDiscoveryIE, 'IqAlbumIE': IqAlbumIE, 'IqIE': IqIE, 'IqiyiIE': IqiyiIE, 'IslamChannelIE': IslamChannelIE, 'IslamChannelSeriesIE': IslamChannelSeriesIE, 'IsraelNationalNewsIE': IsraelNationalNewsIE, 'IviCompilationIE': IviCompilationIE, 'IviIE': IviIE, 'IvideonIE': IvideonIE, 'IvooxIE': IvooxIE, 'IwaraIE': IwaraIE, 'IwaraPlaylistIE': IwaraPlaylistIE, 'IwaraUserIE': IwaraUserIE, 'IxiguaIE': IxiguaIE, 'JStreamIE': JStreamIE, 'JTBCIE': JTBCIE, 'JTBCProgramIE': JTBCProgramIE, 'JWPlatformIE': JWPlatformIE, 'JamendoIE': JamendoIE, 'JamendoAlbumIE': JamendoAlbumIE, 'JeuxVideoIE': JeuxVideoIE, 'JioSaavnAlbumIE': JioSaavnAlbumIE, 'JioSaavnArtistIE': JioSaavnArtistIE, 'JioSaavnPlaylistIE': JioSaavnPlaylistIE, 'JioSaavnShowIE': JioSaavnShowIE, 'JioSaavnShowPlaylistIE': JioSaavnShowPlaylistIE, 'JioSaavnSongIE': JioSaavnSongIE, 'JojIE': JojIE, 'JoveIE': JoveIE, 'KTHIE': KTHIE, 'KakaoIE': KakaoIE, 'KalturaIE': KalturaIE, 'KankaNewsIE': KankaNewsIE, 'KaraoketvIE': KaraoketvIE, 'KatsomoIE': KatsomoIE, 'KelbyOneIE': KelbyOneIE, 'Kenh14PlaylistIE': Kenh14PlaylistIE, 'Kenh14VideoIE': Kenh14VideoIE, 'KhanAcademyIE': KhanAcademyIE, 'KhanAcademyUnitIE': KhanAcademyUnitIE, 'KickClipIE': KickClipIE, 'KickIE': KickIE, 'KickStarterIE': KickStarterIE, 'KickVODIE': KickVODIE, 'KickerIE': KickerIE, 'KikaIE': KikaIE, 'KikaPlaylistIE': KikaPlaylistIE, 'KinoPoiskIE': KinoPoiskIE, 'KnownDRMIE': KnownDRMIE, 'KnownPiracyIE': KnownPiracyIE, 'KommunetvIE': KommunetvIE, 'KompasVideoIE': KompasVideoIE, 'KrasViewIE': KrasViewIE, 'Ku6IE': Ku6IE, 'KukuluLiveIE': KukuluLiveIE, 'KuwoAlbumIE': KuwoAlbumIE, 'KuwoCategoryIE': KuwoCategoryIE, 'KuwoChartIE': KuwoChartIE, 'KuwoIE': KuwoIE, 'KuwoMvIE': KuwoMvIE, 'KuwoSingerIE': KuwoSingerIE, 'LA7IE': LA7IE, 'LA7PodcastEpisodeIE': LA7PodcastEpisodeIE, 'LA7PodcastIE': LA7PodcastIE, 'LBRYChannelIE': LBRYChannelIE, 'LBRYIE': LBRYIE, 'LBRYPlaylistIE': LBRYPlaylistIE, 'LCIIE': LCIIE, 'LEGOIE': LEGOIE, 'LRTRadioIE': LRTRadioIE, 'LRTStreamIE': LRTStreamIE, 'LRTVODIE': LRTVODIE, 'LSMLREmbedIE': LSMLREmbedIE, 'LSMLTVEmbedIE': LSMLTVEmbedIE, 'LSMReplayIE': LSMReplayIE, 'LaXarxaMesIE': LaXarxaMesIE, 'LaracastsIE': LaracastsIE, 'LaracastsPlaylistIE': LaracastsPlaylistIE, 'LastFMIE': LastFMIE, 'LastFMPlaylistIE': LastFMPlaylistIE, 'LastFMUserIE': LastFMUserIE, 'LcpIE': LcpIE, 'LcpPlayIE': LcpPlayIE, 'LeFigaroVideoEmbedIE': LeFigaroVideoEmbedIE, 'LeFigaroVideoSectionIE': LeFigaroVideoSectionIE, 'LeIE': LeIE, 'LePlaylistIE': LePlaylistIE, 'LearningOnScreenIE': LearningOnScreenIE, 'Lecture2GoIE': Lecture2GoIE, 'LecturioCourseIE': LecturioCourseIE, 'LecturioDeCourseIE': LecturioDeCourseIE, 'LecturioIE': LecturioIE, 'LemondeIE': LemondeIE, 'LentaIE': LentaIE, 'LiTVIE': LiTVIE, 'LibraryOfCongressIE': LibraryOfCongressIE, 'LibsynIE': LibsynIE, 'LifeEmbedIE': LifeEmbedIE, 'LifeNewsIE': LifeNewsIE, 'LikeeIE': LikeeIE, 'LikeeUserIE': LikeeUserIE, 'LinkedInEventsIE': LinkedInEventsIE, 'LinkedInIE': LinkedInIE, 'LinkedInLearningCourseIE': LinkedInLearningCourseIE, 'LinkedInLearningIE': LinkedInLearningIE, 'Liputan6IE': Liputan6IE, 'ListenNotesIE': ListenNotesIE, 'LiveJournalIE': LiveJournalIE, 'LivestreamfailsIE': LivestreamfailsIE, 'LnkIE': LnkIE, 'LocipoIE': LocipoIE, 'LocipoPlaylistIE': LocipoPlaylistIE, 'LocoIE': LocoIE, 'LoomFolderIE': LoomFolderIE, 'LoomIE': LoomIE, 'LoveHomePornIE': LoveHomePornIE, 'LumniIE': LumniIE, 'MBNIE': MBNIE, 'MDRIE': MDRIE, 'MGTVIE': MGTVIE, 'MLBArticleIE': MLBArticleIE, 'MLBIE': MLBIE, 'MLBTVIE': MLBTVIE, 'MLBVideoIE': MLBVideoIE, 'MLSSoccerIE': MLSSoccerIE, 'MNetTVIE': MNetTVIE, 'MNetTVLiveIE': MNetTVLiveIE, 'MNetTVRecordingsIE': MNetTVRecordingsIE, 'MSNIE': MSNIE, 'MTVIE': MTVIE, 'MTVUutisetArticleIE': MTVUutisetArticleIE, 'MaarivIE': MaarivIE, 'MagellanTVIE': MagellanTVIE, 'MagentaMusikIE': MagentaMusikIE, 'MailRuIE': MailRuIE, 'MailRuMusicIE': MailRuMusicIE, 'MailRuMusicSearchIE': MailRuMusicSearchIE, 'MainStreamingIE': MainStreamingIE, 'MangomoloLiveIE': MangomoloLiveIE, 'MangomoloVideoIE': MangomoloVideoIE, 'ManyVidsIE': ManyVidsIE, 'MaoriTVIE': MaoriTVIE, 'MarkizaIE': MarkizaIE, 'MarkizaPageIE': MarkizaPageIE, 'MassengeschmackTVIE': MassengeschmackTVIE, 'MastersIE': MastersIE, 'MatchTVIE': MatchTVIE, 'MatchiTVIE': MatchiTVIE, 'MaveChannelIE': MaveChannelIE, 'MaveIE': MaveIE, 'MeWatchIE': MeWatchIE, 'MedalTVIE': MedalTVIE, 'MediaKlikkIE': MediaKlikkIE, 'MediaStreamIE': MediaStreamIE, 'MediaWorksNZVODIE': MediaWorksNZVODIE, 'MediaiteIE': MediaiteIE, 'MedialaanIE': MedialaanIE, 'MediasetIE': MediasetIE, 'MediasetShowIE': MediasetShowIE, 'MediasiteCatalogIE': MediasiteCatalogIE, 'MediasiteIE': MediasiteIE, 'MediasiteNamedCatalogIE': MediasiteNamedCatalogIE, 'MediciIE': MediciIE, 'MegaTVComEmbedIE': MegaTVComEmbedIE, 'MegaTVComIE': MegaTVComIE, 'MegaphoneIE': MegaphoneIE, 'MeipaiIE': MeipaiIE, 'MelonVODIE': MelonVODIE, 'MetacriticIE': MetacriticIE, 'MicrosoftBuildIE': MicrosoftBuildIE, 'MicrosoftEmbedIE': MicrosoftEmbedIE, 'MicrosoftLearnEpisodeIE': MicrosoftLearnEpisodeIE, 'MicrosoftLearnPlaylistIE': MicrosoftLearnPlaylistIE, 'MicrosoftLearnSessionIE': MicrosoftLearnSessionIE, 'MicrosoftMediusIE': MicrosoftMediusIE, 'MindsChannelIE': MindsChannelIE, 'MindsGroupIE': MindsGroupIE, 'MindsIE': MindsIE, 'Mir24TvIE': Mir24TvIE, 'MirrativIE': MirrativIE, 'MirrativUserIE': MirrativUserIE, 'MirrorCoUKIE': MirrorCoUKIE, 'MixchArchiveIE': MixchArchiveIE, 'MixchIE': MixchIE, 'MixchMovieIE': MixchMovieIE, 'MixcloudIE': MixcloudIE, 'MixcloudPlaylistIE': MixcloudPlaylistIE, 'MixcloudUserIE': MixcloudUserIE, 'MixlrIE': MixlrIE, 'MixlrRecoringIE': MixlrRecoringIE, 'MmsIE': MmsIE, 'MochaVideoIE': MochaVideoIE, 'MojevideoIE': MojevideoIE, 'MonsterSirenHypergryphMusicIE': MonsterSirenHypergryphMusicIE, 'MonstercatIE': MonstercatIE, 'MotorsportIE': MotorsportIE, 'MovieFapIE': MovieFapIE, 'MoviepilotIE': MoviepilotIE, 'MovingImageIE': MovingImageIE, 'MuenchenTVIE': MuenchenTVIE, 'MujRozhlasIE': MujRozhlasIE, 'MurrtubeIE': MurrtubeIE, 'MurrtubeUserIE': MurrtubeUserIE, 'MuseAIIE': MuseAIIE, 'MuseScoreIE': MuseScoreIE, 'MuxIE': MuxIE, 'Mx3IE': Mx3IE, 'Mx3NeoIE': Mx3NeoIE, 'Mx3VolksmusikIE': Mx3VolksmusikIE, 'MxplayerIE': MxplayerIE, 'MxplayerShowIE': MxplayerShowIE, 'MySpaceAlbumIE': MySpaceAlbumIE, 'MySpaceIE': MySpaceIE, 'MySpassIE': MySpassIE, 'MyVideoGeIE': MyVideoGeIE, 'MyVidsterIE': MyVidsterIE, 'MzaaloIE': MzaaloIE, 'N1InfoAssetIE': N1InfoAssetIE, 'N1InfoIIE': N1InfoIIE, 'NBAChannelIE': NBAChannelIE, 'NBAEmbedIE': NBAEmbedIE, 'NBAIE': NBAIE, 'NBAWatchCollectionIE': NBAWatchCollectionIE, 'NBAWatchEmbedIE': NBAWatchEmbedIE, 'NBAWatchIE': NBAWatchIE, 'NBCIE': NBCIE, 'NBCOlympicsIE': NBCOlympicsIE, 'NBCOlympicsStreamIE': NBCOlympicsStreamIE, 'NBCSportsIE': NBCSportsIE, 'NBCSportsStreamIE': NBCSportsStreamIE, 'NBCSportsVPlayerIE': NBCSportsVPlayerIE, 'NBCStationsIE': NBCStationsIE, 'NDREmbedBaseIE': NDREmbedBaseIE, 'NDREmbedIE': NDREmbedIE, 'NDRIE': NDRIE, 'NDTVIE': NDTVIE, 'NFBIE': NFBIE, 'NFBSeriesIE': NFBSeriesIE, 'NFHSNetworkIE': NFHSNetworkIE, 'NFLArticleIE': NFLArticleIE, 'NFLIE': NFLIE, 'NFLPlusEpisodeIE': NFLPlusEpisodeIE, 'NFLPlusReplayIE': NFLPlusReplayIE, 'NHLIE': NHLIE, 'NJoyEmbedIE': NJoyEmbedIE, 'NJoyIE': NJoyIE, 'NOSNLArticleIE': NOSNLArticleIE, 'NPOIE': NPOIE, 'AndereTijdenIE': AndereTijdenIE, 'NPOLiveIE': NPOLiveIE, 'NPORadioFragmentIE': NPORadioFragmentIE, 'NPORadioIE': NPORadioIE, 'NRKIE': NRKIE, 'NRKPlaylistIE': NRKPlaylistIE, 'NRKRadioPodkastIE': NRKRadioPodkastIE, 'NRKSkoleIE': NRKSkoleIE, 'NRKTVEpisodeIE': NRKTVEpisodeIE, 'NRKTVEpisodesIE': NRKTVEpisodesIE, 'NRKTVIE': NRKTVIE, 'NRKTVDirekteIE': NRKTVDirekteIE, 'NRKTVSeasonIE': NRKTVSeasonIE, 'NRKTVSeriesIE': NRKTVSeriesIE, 'NRLTVIE': NRLTVIE, 'NTSLiveIE': NTSLiveIE, 'NTVCoJpCUIE': NTVCoJpCUIE, 'NTVDeIE': NTVDeIE, 'NTVRuIE': NTVRuIE, 'NYTimesArticleIE': NYTimesArticleIE, 'NYTimesCookingIE': NYTimesCookingIE, 'NYTimesCookingRecipeIE': NYTimesCookingRecipeIE, 'NYTimesIE': NYTimesIE, 'NZHeraldIE': NZHeraldIE, 'NZOnScreenIE': NZOnScreenIE, 'NZZIE': NZZIE, 'NascarClassicsIE': NascarClassicsIE, 'NateIE': NateIE, 'NateProgramIE': NateProgramIE, 'NationalGeographicTVIE': NationalGeographicTVIE, 'NaverIE': NaverIE, 'NaverLiveIE': NaverLiveIE, 'NebulaChannelIE': NebulaChannelIE, 'NebulaClassIE': NebulaClassIE, 'NebulaIE': NebulaIE, 'NebulaSeasonIE': NebulaSeasonIE, 'NebulaSubscriptionsIE': NebulaSubscriptionsIE, 'NekoHackerIE': NekoHackerIE, 'NestClipIE': NestClipIE, 'NestIE': NestIE, 'NetAppCollectionIE': NetAppCollectionIE, 'NetAppVideoIE': NetAppVideoIE, 'NetEaseMusicAlbumIE': NetEaseMusicAlbumIE, 'NetEaseMusicDjRadioIE': NetEaseMusicDjRadioIE, 'NetEaseMusicIE': NetEaseMusicIE, 'NetEaseMusicListIE': NetEaseMusicListIE, 'NetEaseMusicMvIE': NetEaseMusicMvIE, 'NetEaseMusicProgramIE': NetEaseMusicProgramIE, 'NetEaseMusicSingerIE': NetEaseMusicSingerIE, 'NetPlusTVIE': NetPlusTVIE, 'NetPlusTVLiveIE': NetPlusTVLiveIE, 'NetPlusTVRecordingsIE': NetPlusTVRecordingsIE, 'NetzkinoIE': NetzkinoIE, 'NewgroundsIE': NewgroundsIE, 'NewgroundsPlaylistIE': NewgroundsPlaylistIE, 'NewgroundsUserIE': NewgroundsUserIE, 'NewsPicksIE': NewsPicksIE, 'NewsyIE': NewsyIE, 'NexxEmbedIE': NexxEmbedIE, 'NexxIE': NexxIE, 'NhkForSchoolBangumiIE': NhkForSchoolBangumiIE, 'NhkForSchoolProgramListIE': NhkForSchoolProgramListIE, 'NhkForSchoolSubjectIE': NhkForSchoolSubjectIE, 'NhkRadioNewsPageIE': NhkRadioNewsPageIE, 'NhkRadiruIE': NhkRadiruIE, 'NhkRadiruLiveIE': NhkRadiruLiveIE, 'NhkVodIE': NhkVodIE, 'NhkVodProgramIE': NhkVodProgramIE, 'NickIE': NickIE, 'NiconicoChannelPlusChannelLivesIE': NiconicoChannelPlusChannelLivesIE, 'NiconicoChannelPlusChannelVideosIE': NiconicoChannelPlusChannelVideosIE, 'NiconicoChannelPlusIE': NiconicoChannelPlusIE, 'NiconicoHistoryIE': NiconicoHistoryIE, 'NiconicoIE': NiconicoIE, 'NiconicoLiveIE': NiconicoLiveIE, 'NiconicoPlaylistIE': NiconicoPlaylistIE, 'NiconicoSeriesIE': NiconicoSeriesIE, 'NiconicoUserIE': NiconicoUserIE, 'NicovideoSearchDateIE': NicovideoSearchDateIE, 'NicovideoSearchIE': NicovideoSearchIE, 'NicovideoSearchURLIE': NicovideoSearchURLIE, 'NicovideoTagURLIE': NicovideoTagURLIE, 'NinaProtocolIE': NinaProtocolIE, 'NineCNineMediaIE': NineCNineMediaIE, 'NineGagIE': NineGagIE, 'NineNewsIE': NineNewsIE, 'NineNowIE': NineNowIE, 'NintendoIE': NintendoIE, 'NitterIE': NitterIE, 'NobelPrizeIE': NobelPrizeIE, 'NoicePodcastIE': NoicePodcastIE, 'NonkTubeIE': NonkTubeIE, 'NoodleMagazineIE': NoodleMagazineIE, 'NovaEmbedIE': NovaEmbedIE, 'NovaIE': NovaIE, 'NovaPlayIE': NovaPlayIE, 'NowCanalIE': NowCanalIE, 'NownessIE': NownessIE, 'NownessPlaylistIE': NownessPlaylistIE, 'NownessSeriesIE': NownessSeriesIE, 'NozIE': NozIE, 'NprIE': NprIE, 'NubilesPornIE': NubilesPornIE, 'NuvidIE': NuvidIE, 'OCWMITIE': OCWMITIE, 'ORFFM4StoryIE': ORFFM4StoryIE, 'ORFIPTVIE': ORFIPTVIE, 'ORFONIE': ORFONIE, 'ORFPodcastIE': ORFPodcastIE, 'ORFRadioIE': ORFRadioIE, 'OdnoklassnikiIE': OdnoklassnikiIE, 'OfTVIE': OfTVIE, 'OfTVPlaylistIE': OfTVPlaylistIE, 'OktoberfestTVIE': OktoberfestTVIE, 'OlympicsReplayIE': OlympicsReplayIE, 'On24IE': On24IE, 'OnDemandChinaEpisodeIE': OnDemandChinaEpisodeIE, 'OnDemandKoreaIE': OnDemandKoreaIE, 'OnDemandKoreaProgramIE': OnDemandKoreaProgramIE, 'OneFootballIE': OneFootballIE, 'OneNewsNZIE': OneNewsNZIE, 'OnePlacePodcastIE': OnePlacePodcastIE, 'OnetChannelIE': OnetChannelIE, 'OnetIE': OnetIE, 'OnetMVPIE': OnetMVPIE, 'OnetPlIE': OnetPlIE, 'OnsenIE': OnsenIE, 'OpenRecCaptureIE': OpenRecCaptureIE, 'OpenRecIE': OpenRecIE, 'OpenRecMovieIE': OpenRecMovieIE, 'OpencastIE': OpencastIE, 'OpencastPlaylistIE': OpencastPlaylistIE, 'OsnatelTVIE': OsnatelTVIE, 'OsnatelTVLiveIE': OsnatelTVLiveIE, 'OsnatelTVRecordingsIE': OsnatelTVRecordingsIE, 'OutsideTVIE': OutsideTVIE, 'OwnCloudIE': OwnCloudIE, 'PBSIE': PBSIE, 'PBSKidsIE': PBSKidsIE, 'PGATourIE': PGATourIE, 'PRXAccountIE': PRXAccountIE, 'PRXSeriesIE': PRXSeriesIE, 'PRXSeriesSearchIE': PRXSeriesSearchIE, 'PRXStoriesSearchIE': PRXStoriesSearchIE, 'PRXStoryIE': PRXStoryIE, 'PacktPubCourseIE': PacktPubCourseIE, 'PacktPubIE': PacktPubIE, 'PalcoMP3ArtistIE': PalcoMP3ArtistIE, 'PalcoMP3IE': PalcoMP3IE, 'PalcoMP3VideoIE': PalcoMP3VideoIE, 'PandaTvIE': PandaTvIE, 'PanoptoIE': PanoptoIE, 'PanoptoListIE': PanoptoListIE, 'PanoptoPlaylistIE': PanoptoPlaylistIE, 'ParamountPressExpressIE': ParamountPressExpressIE, 'ParlerIE': ParlerIE, 'ParliamentLiveUKIE': ParliamentLiveUKIE, 'ParlviewIE': ParlviewIE, 'PartiLivestreamIE': PartiLivestreamIE, 'PartiVideoIE': PartiVideoIE, 'PatreonCampaignIE': PatreonCampaignIE, 'PatreonIE': PatreonIE, 'PearVideoIE': PearVideoIE, 'PeekVidsIE': PeekVidsIE, 'PeerTVIE': PeerTVIE, 'PeerTubeIE': PeerTubeIE, 'PeerTubePlaylistIE': PeerTubePlaylistIE, 'PelotonIE': PelotonIE, 'PelotonLiveIE': PelotonLiveIE, 'PerformGroupIE': PerformGroupIE, 'PeriscopeIE': PeriscopeIE, 'PeriscopeUserIE': PeriscopeUserIE, 'PhilharmonieDeParisIE': PhilharmonieDeParisIE, 'PhoenixIE': PhoenixIE, 'PhotobucketIE': PhotobucketIE, 'PiaLiveIE': PiaLiveIE, 'PiaproIE': PiaproIE, 'PicartoIE': PicartoIE, 'PicartoVodIE': PicartoVodIE, 'PikselIE': PikselIE, 'PinkbikeIE': PinkbikeIE, 'PinterestCollectionIE': PinterestCollectionIE, 'PinterestIE': PinterestIE, 'PlatziCourseIE': PlatziCourseIE, 'PlatziIE': PlatziIE, 'PlaySuisseIE': PlaySuisseIE, 'PlayVidsIE': PlayVidsIE, 'PlayerFmIE': PlayerFmIE, 'PlaytvakIE': PlaytvakIE, 'PluralsightCourseIE': PluralsightCourseIE, 'PluralsightIE': PluralsightIE, 'PlutoTVIE': PlutoTVIE, 'PlyrEmbedIE': PlyrEmbedIE, 'PodbayFMChannelIE': PodbayFMChannelIE, 'PodbayFMIE': PodbayFMIE, 'PodchaserIE': PodchaserIE, 'PodomaticIE': PodomaticIE, 'PokerGoCollectionIE': PokerGoCollectionIE, 'PokerGoIE': PokerGoIE, 'PolsatGoIE': PolsatGoIE, 'PolskieRadioAuditionIE': PolskieRadioAuditionIE, 'PolskieRadioCategoryIE': PolskieRadioCategoryIE, 'PolskieRadioIE': PolskieRadioIE, 'PolskieRadioLegacyIE': PolskieRadioLegacyIE, 'PolskieRadioPlayerIE': PolskieRadioPlayerIE, 'PolskieRadioPodcastIE': PolskieRadioPodcastIE, 'PolskieRadioPodcastListIE': PolskieRadioPodcastListIE, 'PopcornTVIE': PopcornTVIE, 'PopcorntimesIE': PopcorntimesIE, 'PornFlipIE': PornFlipIE, 'PornHubIE': PornHubIE, 'PornHubPagedVideoListIE': PornHubPagedVideoListIE, 'PornHubPlaylistIE': PornHubPlaylistIE, 'PornHubUserIE': PornHubUserIE, 'PornHubUserVideosUploadIE': PornHubUserVideosUploadIE, 'PornTopIE': PornTopIE, 'PornTubeIE': PornTubeIE, 'PornboxIE': PornboxIE, 'PornerBrosIE': PornerBrosIE, 'PornoVoisinesIE': PornoVoisinesIE, 'PornoXOIE': PornoXOIE, 'PornotubeIE': PornotubeIE, 'Pr0grammIE': Pr0grammIE, 'PrankCastIE': PrankCastIE, 'PrankCastPostIE': PrankCastPostIE, 'PremiershipRugbyIE': PremiershipRugbyIE, 'PressTVIE': PressTVIE, 'ProjectVeritasIE': ProjectVeritasIE, 'PuhuTVIE': PuhuTVIE, 'PuhuTVSerieIE': PuhuTVSerieIE, 'PyvideoIE': PyvideoIE, 'QDanceIE': QDanceIE, 'QQMusicAlbumIE': QQMusicAlbumIE, 'QQMusicIE': QQMusicIE, 'QQMusicPlaylistIE': QQMusicPlaylistIE, 'QQMusicSingerIE': QQMusicSingerIE, 'QQMusicToplistIE': QQMusicToplistIE, 'QQMusicVideoIE': QQMusicVideoIE, 'QingTingIE': QingTingIE, 'QuantumTVIE': QuantumTVIE, 'QuantumTVLiveIE': QuantumTVLiveIE, 'QuantumTVRecordingsIE': QuantumTVRecordingsIE, 'QuotedHTMLIE': QuotedHTMLIE, 'R7ArticleIE': R7ArticleIE, 'R7IE': R7IE, 'RCSEmbedsIE': RCSEmbedsIE, 'RCSIE': RCSIE, 'RCSVariousIE': RCSVariousIE, 'RCTIPlusIE': RCTIPlusIE, 'RCTIPlusSeriesIE': RCTIPlusSeriesIE, 'RCTIPlusTVIE': RCTIPlusTVIE, 'RDSIE': RDSIE, 'RENTVArticleIE': RENTVArticleIE, 'RENTVIE': RENTVIE, 'RTBFIE': RTBFIE, 'RTDocumentryIE': RTDocumentryIE, 'RTDocumentryPlaylistIE': RTDocumentryPlaylistIE, 'RTL2IE': RTL2IE, 'RTLLuArticleIE': RTLLuArticleIE, 'RTLLuLiveIE': RTLLuLiveIE, 'RTLLuRadioIE': RTLLuRadioIE, 'RTLLuTeleVODIE': RTLLuTeleVODIE, 'RTNewsIE': RTNewsIE, 'RTPIE': RTPIE, 'RTRFMIE': RTRFMIE, 'RTVCKalturaIE': RTVCKalturaIE, 'RTVCPlayEmbedIE': RTVCPlayEmbedIE, 'RTVCPlayIE': RTVCPlayIE, 'RTVEALaCartaIE': RTVEALaCartaIE, 'RTVEAudioIE': RTVEAudioIE, 'RTVELiveIE': RTVELiveIE, 'RTVEProgramIE': RTVEProgramIE, 'RTVETelevisionIE': RTVETelevisionIE, 'RTVSIE': RTVSIE, 'RTVSLOIE': RTVSLOIE, 'RTVSLOShowIE': RTVSLOShowIE, 'RadLiveIE': RadLiveIE, 'RadLiveChannelIE': RadLiveChannelIE, 'RadLiveSeasonIE': RadLiveSeasonIE, 'RadikoIE': RadikoIE, 'RadikoRadioIE': RadikoRadioIE, 'Radio1BeIE': Radio1BeIE, 'RadioCanadaAudioVideoIE': RadioCanadaAudioVideoIE, 'RadioCanadaIE': RadioCanadaIE, 'RadioDeIE': RadioDeIE, 'RadioFranceIE': RadioFranceIE, 'RadioFranceLiveIE': RadioFranceLiveIE, 'RadioFrancePodcastIE': RadioFrancePodcastIE, 'RadioFranceProfileIE': RadioFranceProfileIE, 'RadioFranceProgramScheduleIE': RadioFranceProgramScheduleIE, 'RadioJavanIE': RadioJavanIE, 'RadioKapitalIE': RadioKapitalIE, 'RadioKapitalShowIE': RadioKapitalShowIE, 'RadioRadicaleIE': RadioRadicaleIE, 'RadioZetPodcastIE': RadioZetPodcastIE, 'RaiIE': RaiIE, 'RaiNewsIE': RaiNewsIE, 'RaiCulturaIE': RaiCulturaIE, 'RaiPlayIE': RaiPlayIE, 'RaiPlayLiveIE': RaiPlayLiveIE, 'RaiPlayPlaylistIE': RaiPlayPlaylistIE, 'RaiPlaySoundIE': RaiPlaySoundIE, 'RaiPlaySoundLiveIE': RaiPlaySoundLiveIE, 'RaiPlaySoundPlaylistIE': RaiPlaySoundPlaylistIE, 'RaiSudtirolIE': RaiSudtirolIE, 'RayWenderlichCourseIE': RayWenderlichCourseIE, 'RayWenderlichIE': RayWenderlichIE, 'RbgTumCourseIE': RbgTumCourseIE, 'RbgTumIE': RbgTumIE, 'RbgTumNewCourseIE': RbgTumNewCourseIE, 'RedBullIE': RedBullIE, 'RedBullTVIE': RedBullTVIE, 'RedBullEmbedIE': RedBullEmbedIE, 'RedBullTVRrnContentIE': RedBullTVRrnContentIE, 'RedGifsIE': RedGifsIE, 'RedGifsSearchIE': RedGifsSearchIE, 'RedGifsUserIE': RedGifsUserIE, 'RedTubeIE': RedTubeIE, 'RedditIE': RedditIE, 'RestudyIE': RestudyIE, 'ReutersIE': ReutersIE, 'ReverbNationIE': ReverbNationIE, 'RideHomeIE': RideHomeIE, 'RinseFMArtistPlaylistIE': RinseFMArtistPlaylistIE, 'RinseFMIE': RinseFMIE, 'RockstarGamesIE': RockstarGamesIE, 'RokfinChannelIE': RokfinChannelIE, 'RokfinIE': RokfinIE, 'RokfinSearchIE': RokfinSearchIE, 'RokfinStackIE': RokfinStackIE, 'RoosterTeethIE': RoosterTeethIE, 'RoosterTeethSeriesIE': RoosterTeethSeriesIE, 'RottenTomatoesIE': RottenTomatoesIE, 'RoyaLiveIE': RoyaLiveIE, 'RozhlasIE': RozhlasIE, 'RozhlasVltavaIE': RozhlasVltavaIE, 'RteIE': RteIE, 'RteRadioIE': RteRadioIE, 'RtlNlIE': RtlNlIE, 'RtmpIE': RtmpIE, 'RudoVideoIE': RudoVideoIE, 'Rule34VideoIE': Rule34VideoIE, 'RumbleChannelIE': RumbleChannelIE, 'RumbleEmbedIE': RumbleEmbedIE, 'RumbleIE': RumbleIE, 'RuptlyIE': RuptlyIE, 'RutubeChannelIE': RutubeChannelIE, 'RutubeEmbedIE': RutubeEmbedIE, 'RutubeIE': RutubeIE, 'RutubeMovieIE': RutubeMovieIE, 'RutubePersonIE': RutubePersonIE, 'RutubePlaylistIE': RutubePlaylistIE, 'RutubeTagsIE': RutubeTagsIE, 'RuutuIE': RuutuIE, 'RuvIE': RuvIE, 'RuvSpilaIE': RuvSpilaIE, 'S4CIE': S4CIE, 'S4CSeriesIE': S4CSeriesIE, 'SAKTVIE': SAKTVIE, 'SAKTVLiveIE': SAKTVLiveIE, 'SAKTVRecordingsIE': SAKTVRecordingsIE, 'SBSCoKrAllvodProgramIE': SBSCoKrAllvodProgramIE, 'SBSCoKrIE': SBSCoKrIE, 'SBSCoKrProgramsVodIE': SBSCoKrProgramsVodIE, 'SBSIE': SBSIE, 'SRGSSRIE': SRGSSRIE, 'RTSIE': RTSIE, 'SRGSSRPlayIE': SRGSSRPlayIE, 'SRMediathekIE': SRMediathekIE, 'STVPlayerIE': STVPlayerIE, 'SVTPageIE': SVTPageIE, 'SVTPlayIE': SVTPlayIE, 'SVTSeriesIE': SVTSeriesIE, 'SafariApiIE': SafariApiIE, 'SafariCourseIE': SafariCourseIE, 'SafariIE': SafariIE, 'SaitosanIE': SaitosanIE, 'SaltTVIE': SaltTVIE, 'SaltTVLiveIE': SaltTVLiveIE, 'SaltTVRecordingsIE': SaltTVRecordingsIE, 'SampleFocusIE': SampleFocusIE, 'SangiinIE': SangiinIE, 'SangiinInstructionIE': SangiinInstructionIE, 'SapoIE': SapoIE, 'SaucePlusChannelIE': SaucePlusChannelIE, 'SaucePlusIE': SaucePlusIE, 'SchoolTVIE': SchoolTVIE, 'ScienceChannelIE': ScienceChannelIE, 'Screen9IE': Screen9IE, 'ScreenRecIE': ScreenRecIE, 'ScreencastIE': ScreencastIE, 'ScreencastOMaticIE': ScreencastOMaticIE, 'ScreencastifyIE': ScreencastifyIE, 'ScrippsNetworksIE': ScrippsNetworksIE, 'ScrippsNetworksWatchIE': ScrippsNetworksWatchIE, 'ScrolllerIE': ScrolllerIE, 'SejmIE': SejmIE, 'SenIE': SenIE, 'SenalColombiaLiveIE': SenalColombiaLiveIE, 'SenateGovIE': SenateGovIE, 'SenateISVPIE': SenateISVPIE, 'ServusIE': ServusIE, 'SevenPlusIE': SevenPlusIE, 'SexuIE': SexuIE, 'SeznamZpravyArticleIE': SeznamZpravyArticleIE, 'SeznamZpravyIE': SeznamZpravyIE, 'ShahidIE': ShahidIE, 'ShahidShowIE': ShahidShowIE, 'SharePointIE': SharePointIE, 'ShemarooMeIE': ShemarooMeIE, 'ShieyIE': ShieyIE, 'ShowRoomLiveIE': ShowRoomLiveIE, 'ShugiinItvLiveIE': ShugiinItvLiveIE, 'ShugiinItvLiveRoomIE': ShugiinItvLiveRoomIE, 'ShugiinItvVodIE': ShugiinItvVodIE, 'SibnetEmbedIE': SibnetEmbedIE, 'SimplecastEpisodeIE': SimplecastEpisodeIE, 'SimplecastIE': SimplecastIE, 'SimplecastPodcastIE': SimplecastPodcastIE, 'SinaIE': SinaIE, 'SkebIE': SkebIE, 'SkyItIE': SkyItIE, 'CieloTVItIE': CieloTVItIE, 'SkyItArteIE': SkyItArteIE, 'SkyItPlayerIE': SkyItPlayerIE, 'SkyItVideoIE': SkyItVideoIE, 'SkyItVideoLiveIE': SkyItVideoLiveIE, 'SkyNewsAUIE': SkyNewsAUIE, 'SkyNewsArabiaArticleIE': SkyNewsArabiaArticleIE, 'SkyNewsArabiaIE': SkyNewsArabiaIE, 'SkyNewsIE': SkyNewsIE, 'SkyNewsStoryIE': SkyNewsStoryIE, 'SkySportsIE': SkySportsIE, 'SkySportsNewsIE': SkySportsNewsIE, 'SkylineWebcamsIE': SkylineWebcamsIE, 'SlidesLiveIE': SlidesLiveIE, 'SlideshareIE': SlideshareIE, 'SlutloadIE': SlutloadIE, 'SmotrimAudioIE': SmotrimAudioIE, 'SmotrimIE': SmotrimIE, 'SmotrimLiveIE': SmotrimLiveIE, 'SmotrimPlaylistIE': SmotrimPlaylistIE, 'SnapchatSpotlightIE': SnapchatSpotlightIE, 'SoftWhiteUnderbellyIE': SoftWhiteUnderbellyIE, 'SohuIE': SohuIE, 'SohuVIE': SohuVIE, 'SonyLIVIE': SonyLIVIE, 'SonyLIVSeriesIE': SonyLIVSeriesIE, 'SoundcloudEmbedIE': SoundcloudEmbedIE, 'SoundcloudIE': SoundcloudIE, 'SoundcloudPlaylistIE': SoundcloudPlaylistIE, 'SoundcloudRelatedIE': SoundcloudRelatedIE, 'SoundcloudSearchIE': SoundcloudSearchIE, 'SoundcloudSetIE': SoundcloudSetIE, 'SoundcloudTrackStationIE': SoundcloudTrackStationIE, 'SoundcloudUserIE': SoundcloudUserIE, 'SoundcloudUserPermalinkIE': SoundcloudUserPermalinkIE, 'SoundgasmIE': SoundgasmIE, 'SoundgasmProfileIE': SoundgasmProfileIE, 'SouthParkCoUkIE': SouthParkCoUkIE, 'SouthParkComBrIE': SouthParkComBrIE, 'SouthParkDeIE': SouthParkDeIE, 'SouthParkDkIE': SouthParkDkIE, 'SouthParkEsIE': SouthParkEsIE, 'SouthParkIE': SouthParkIE, 'SouthParkLatIE': SouthParkLatIE, 'SovietsClosetIE': SovietsClosetIE, 'SovietsClosetPlaylistIE': SovietsClosetPlaylistIE, 'SpankBangIE': SpankBangIE, 'SpankBangPlaylistIE': SpankBangPlaylistIE, 'SpiegelIE': SpiegelIE, 'Sport5IE': Sport5IE, 'SportBoxIE': SportBoxIE, 'SportDeutschlandIE': SportDeutschlandIE, 'SpreakerIE': SpreakerIE, 'SpreakerShowIE': SpreakerShowIE, 'SproutVideoIE': SproutVideoIE, 'StacommuLiveIE': StacommuLiveIE, 'StacommuVODIE': StacommuVODIE, 'StagePlusVODConcertIE': StagePlusVODConcertIE, 'StarTVIE': StarTVIE, 'StarTrekIE': StarTrekIE, 'SteamCommunityBroadcastIE': SteamCommunityBroadcastIE, 'SteamCommunityIE': SteamCommunityIE, 'SteamIE': SteamIE, 'StoryFireIE': StoryFireIE, 'StoryFireSeriesIE': StoryFireSeriesIE, 'StoryFireUserIE': StoryFireUserIE, 'StreaksIE': StreaksIE, 'StreamCZIE': StreamCZIE, 'StreamableIE': StreamableIE, 'StreetVoiceIE': StreetVoiceIE, 'StripchatIE': StripchatIE, 'SubsplashIE': SubsplashIE, 'SubsplashPlaylistIE': SubsplashPlaylistIE, 'SubstackIE': SubstackIE, 'SunPornoIE': SunPornoIE, 'SverigesRadioEpisodeIE': SverigesRadioEpisodeIE, 'SverigesRadioPublicationIE': SverigesRadioPublicationIE, 'SyfyIE': SyfyIE, 'SztvHuIE': SztvHuIE, 'TBSIE': TBSIE, 'TBSJPEpisodeIE': TBSJPEpisodeIE, 'TBSJPPlaylistIE': TBSJPPlaylistIE, 'TBSJPProgramIE': TBSJPProgramIE, 'TF1IE': TF1IE, 'TFOIE': TFOIE, 'TLCIE': TLCIE, 'TMZIE': TMZIE, 'TNAFlixIE': TNAFlixIE, 'TNAFlixNetworkEmbedIE': TNAFlixNetworkEmbedIE, 'TOnlineIE': TOnlineIE, 'TV24UAVideoIE': TV24UAVideoIE, 'TV2ArticleIE': TV2ArticleIE, 'TV2DKBornholmPlayIE': TV2DKBornholmPlayIE, 'TV2DKIE': TV2DKIE, 'TV2HuIE': TV2HuIE, 'TV2HuSeriesIE': TV2HuSeriesIE, 'TV2IE': TV2IE, 'TV4IE': TV4IE, 'TV5MondePlusIE': TV5MondePlusIE, 'TV5UnisIE': TV5UnisIE, 'TV5UnisVideoIE': TV5UnisVideoIE, 'TV8ItIE': TV8ItIE, 'TV8ItLiveIE': TV8ItLiveIE, 'TV8ItPlaylistIE': TV8ItPlaylistIE, 'TVAIE': TVAIE, 'TVANouvellesArticleIE': TVANouvellesArticleIE, 'TVANouvellesIE': TVANouvellesIE, 'TVCArticleIE': TVCArticleIE, 'TVCIE': TVCIE, 'TVIPlayerIE': TVIPlayerIE, 'TVN24IE': TVN24IE, 'TVNoeIE': TVNoeIE, 'TVOpenGrEmbedIE': TVOpenGrEmbedIE, 'TVOpenGrWatchIE': TVOpenGrWatchIE, 'TVPEmbedIE': TVPEmbedIE, 'TVPIE': TVPIE, 'TVPStreamIE': TVPStreamIE, 'TVPVODSeriesIE': TVPVODSeriesIE, 'TVPVODVideoIE': TVPVODVideoIE, 'TVPlayHomeIE': TVPlayHomeIE, 'TVPlayIE': TVPlayIE, 'TVerIE': TVerIE, 'TVerOlympicIE': TVerOlympicIE, 'TagesschauIE': TagesschauIE, 'TapTapAppIE': TapTapAppIE, 'TapTapAppIntlIE': TapTapAppIntlIE, 'TapTapMomentIE': TapTapMomentIE, 'TapTapPostIntlIE': TapTapPostIntlIE, 'TarangPlusEpisodesIE': TarangPlusEpisodesIE, 'TarangPlusPlaylistIE': TarangPlusPlaylistIE, 'TarangPlusVideoIE': TarangPlusVideoIE, 'TassIE': TassIE, 'TeachableCourseIE': TeachableCourseIE, 'TeachableIE': TeachableIE, 'TeacherTubeIE': TeacherTubeIE, 'TeacherTubeUserIE': TeacherTubeUserIE, 'TeachingChannelIE': TeachingChannelIE, 'TeamTreeHouseIE': TeamTreeHouseIE, 'TeamcocoIE': TeamcocoIE, 'TechTVMITIE': TechTVMITIE, 'TedEmbedIE': TedEmbedIE, 'TedPlaylistIE': TedPlaylistIE, 'TedSeriesIE': TedSeriesIE, 'TedTalkIE': TedTalkIE, 'Tele13IE': Tele13IE, 'Tele5IE': Tele5IE, 'TeleBruxellesIE': TeleBruxellesIE, 'TeleMBIE': TeleMBIE, 'TeleQuebecEmissionIE': TeleQuebecEmissionIE, 'TeleQuebecIE': TeleQuebecIE, 'TeleQuebecLiveIE': TeleQuebecLiveIE, 'TeleQuebecSquatIE': TeleQuebecSquatIE, 'TeleQuebecVideoIE': TeleQuebecVideoIE, 'TeleTaskIE': TeleTaskIE, 'TelecaribePlayIE': TelecaribePlayIE, 'TelecincoIE': TelecincoIE, 'TelegraafIE': TelegraafIE, 'TelegramEmbedIE': TelegramEmbedIE, 'TelemundoIE': TelemundoIE, 'TelewebionIE': TelewebionIE, 'TenPlayIE': TenPlayIE, 'TenPlaySeasonIE': TenPlaySeasonIE, 'TennisTVIE': TennisTVIE, 'TestURLIE': TestURLIE, 'TheChosenGroupIE': TheChosenGroupIE, 'TheChosenIE': TheChosenIE, 'TheGuardianPodcastIE': TheGuardianPodcastIE, 'TheGuardianPodcastPlaylistIE': TheGuardianPodcastPlaylistIE, 'TheHighWireIE': TheHighWireIE, 'TheInterceptIE': TheInterceptIE, 'ThePlatformFeedIE': ThePlatformFeedIE, 'CBSIE': CBSIE, 'CorusIE': CorusIE, 'ThePlatformIE': ThePlatformIE, 'AENetworksCollectionIE': AENetworksCollectionIE, 'AENetworksIE': AENetworksIE, 'AENetworksShowIE': AENetworksShowIE, 'BiographyIE': BiographyIE, 'HistoryPlayerIE': HistoryPlayerIE, 'HistoryTopicIE': HistoryTopicIE, 'NBCNewsIE': NBCNewsIE, 'TheStarIE': TheStarIE, 'TheSunIE': TheSunIE, 'TheWeatherChannelIE': TheWeatherChannelIE, 'TheaterComplexTownPPVIE': TheaterComplexTownPPVIE, 'TheaterComplexTownVODIE': TheaterComplexTownVODIE, 'ThisAmericanLifeIE': ThisAmericanLifeIE, 'ThisOldHouseIE': ThisOldHouseIE, 'ThisVidIE': ThisVidIE, 'ThisVidMemberIE': ThisVidMemberIE, 'ThisVidPlaylistIE': ThisVidPlaylistIE, 'ThreeQSDNIE': ThreeQSDNIE, 'ThreeSpeakIE': ThreeSpeakIE, 'ThreeSpeakUserIE': ThreeSpeakUserIE, 'TikTokCollectionIE': TikTokCollectionIE, 'TikTokEffectIE': TikTokEffectIE, 'TikTokIE': TikTokIE, 'TikTokLiveIE': TikTokLiveIE, 'TikTokSoundIE': TikTokSoundIE, 'TikTokTagIE': TikTokTagIE, 'TikTokUserIE': TikTokUserIE, 'TikTokVMIE': TikTokVMIE, 'ToggleIE': ToggleIE, 'ToggoIE': ToggoIE, 'TokFMAuditionIE': TokFMAuditionIE, 'TokFMPodcastIE': TokFMPodcastIE, 'ToonGogglesIE': ToonGogglesIE, 'TouTvIE': TouTvIE, 'ToutiaoIE': ToutiaoIE, 'ToypicsIE': ToypicsIE, 'ToypicsUserIE': ToypicsUserIE, 'TravelChannelIE': TravelChannelIE, 'TrovoChannelClipIE': TrovoChannelClipIE, 'TrovoChannelVodIE': TrovoChannelVodIE, 'TrovoIE': TrovoIE, 'TrovoVodIE': TrovoVodIE, 'TrtCocukVideoIE': TrtCocukVideoIE, 'TrtWorldIE': TrtWorldIE, 'TruNewsIE': TruNewsIE, 'TrueIDIE': TrueIDIE, 'TruthIE': TruthIE, 'Tube8IE': Tube8IE, 'TubeTuGrazIE': TubeTuGrazIE, 'TubeTuGrazSeriesIE': TubeTuGrazSeriesIE, 'TubiTvIE': TubiTvIE, 'TubiTvShowIE': TubiTvShowIE, 'TumblrIE': TumblrIE, 'TuneInEmbedIE': TuneInEmbedIE, 'TuneInPodcastEpisodeIE': TuneInPodcastEpisodeIE, 'TuneInPodcastIE': TuneInPodcastIE, 'TuneInShortenerIE': TuneInShortenerIE, 'TuneInStationIE': TuneInStationIE, 'TvigleIE': TvigleIE, 'TvoIE': TvoIE, 'TvwIE': TvwIE, 'TvwNewsIE': TvwNewsIE, 'TvwTvChannelsIE': TvwTvChannelsIE, 'TweakersIE': TweakersIE, 'TwentyFourSevenSportsIE': TwentyFourSevenSportsIE, 'TwentyMinutenIE': TwentyMinutenIE, 'TwentyThreeVideoIE': TwentyThreeVideoIE, 'TwitCastingIE': TwitCastingIE, 'TwitCastingLiveIE': TwitCastingLiveIE, 'TwitCastingUserIE': TwitCastingUserIE, 'TwitchClipsIE': TwitchClipsIE, 'TwitchCollectionIE': TwitchCollectionIE, 'TwitchStreamIE': TwitchStreamIE, 'TwitchVideosClipsIE': TwitchVideosClipsIE, 'TwitchVideosCollectionsIE': TwitchVideosCollectionsIE, 'TwitchVideosIE': TwitchVideosIE, 'TwitchVodIE': TwitchVodIE, 'TwitterAmplifyIE': TwitterAmplifyIE, 'TwitterBroadcastIE': TwitterBroadcastIE, 'TwitterCardIE': TwitterCardIE, 'TwitterIE': TwitterIE, 'TwitterShortenerIE': TwitterShortenerIE, 'TwitterSpacesIE': TwitterSpacesIE, 'TxxxIE': TxxxIE, 'UDNEmbedIE': UDNEmbedIE, 'UFCTVIE': UFCTVIE, 'UMGDeIE': UMGDeIE, 'UOLIE': UOLIE, 'URPlayIE': URPlayIE, 'USANetworkIE': USANetworkIE, 'USATodayIE': USATodayIE, 'UdemyIE': UdemyIE, 'UdemyCourseIE': UdemyCourseIE, 'UkColumnIE': UkColumnIE, 'UlizaPlayerIE': UlizaPlayerIE, 'UlizaPortalIE': UlizaPortalIE, 'UnicodeBOMIE': UnicodeBOMIE, 'UnistraIE': UnistraIE, 'UnitedNationsWebTvIE': UnitedNationsWebTvIE, 'UnityIE': UnityIE, 'UplynkIE': UplynkIE, 'UplynkPreplayIE': UplynkPreplayIE, 'UrortIE': UrortIE, 'UstreamChannelIE': UstreamChannelIE, 'UstreamIE': UstreamIE, 'UstudioEmbedIE': UstudioEmbedIE, 'UstudioIE': UstudioIE, 'VGTVIE': VGTVIE, 'VH1IE': VH1IE, 'VHXEmbedIE': VHXEmbedIE, 'VKIE': VKIE, 'VKPlayIE': VKPlayIE, 'VKPlayLiveIE': VKPlayLiveIE, 'VKUserVideosIE': VKUserVideosIE, 'VKWallPostIE': VKWallPostIE, 'VODPlatformIE': VODPlatformIE, 'VPROIE': VPROIE, 'VQQSeriesIE': VQQSeriesIE, 'VQQVideoIE': VQQVideoIE, 'VRTIE': VRTIE, 'VTMIE': VTMIE, 'VTVGoIE': VTVGoIE, 'VTVIE': VTVIE, 'VTXTVIE': VTXTVIE, 'VTXTVLiveIE': VTXTVLiveIE, 'VTXTVRecordingsIE': VTXTVRecordingsIE, 'Varzesh3IE': Varzesh3IE, 'Vbox7IE': Vbox7IE, 'VeoIE': VeoIE, 'VevoIE': VevoIE, 'VevoPlaylistIE': VevoPlaylistIE, 'ViMPPlaylistIE': ViMPPlaylistIE, 'ViceArticleIE': ViceArticleIE, 'ViceIE': ViceIE, 'ViceShowIE': ViceShowIE, 'VidLiiIE': VidLiiIE, 'ViddlerIE': ViddlerIE, 'VideaIE': VideaIE, 'VideoKenPlayerIE': VideoKenPlayerIE, 'VideoPressIE': VideoPressIE, 'VideocampusSachsenIE': VideocampusSachsenIE, 'VidflexIE': VidflexIE, 'VidioIE': VidioIE, 'VidioLiveIE': VidioLiveIE, 'VidioPremierIE': VidioPremierIE, 'VidlyIE': VidlyIE, 'VidsIoIE': VidsIoIE, 'VidyardIE': VidyardIE, 'ViewLiftEmbedIE': ViewLiftEmbedIE, 'ViewLiftIE': ViewLiftIE, 'ViewSourceIE': ViewSourceIE, 'ViideaIE': ViideaIE, 'VimeoAlbumIE': VimeoAlbumIE, 'VimeoChannelIE': VimeoChannelIE, 'VimeoEventIE': VimeoEventIE, 'VimeoGroupsIE': VimeoGroupsIE, 'VimeoIE': VimeoIE, 'VimeoLikesIE': VimeoLikesIE, 'VimeoOndemandIE': VimeoOndemandIE, 'VimeoProIE': VimeoProIE, 'VimeoReviewIE': VimeoReviewIE, 'VimeoUserIE': VimeoUserIE, 'VimeoWatchLaterIE': VimeoWatchLaterIE, 'ViouslyIE': ViouslyIE, 'ViqeoIE': ViqeoIE, 'VisirIE': VisirIE, 'ViuIE': ViuIE, 'ViuOTTIE': ViuOTTIE, 'ViuOTTIndonesiaIE': ViuOTTIndonesiaIE, 'ViuPlaylistIE': ViuPlaylistIE, 'VocarooIE': VocarooIE, 'VoicyChannelIE': VoicyChannelIE, 'VoicyIE': VoicyIE, 'VolejTVCategoryPlaylistIE': VolejTVCategoryPlaylistIE, 'VolejTVClubPlaylistIE': VolejTVClubPlaylistIE, 'VolejTVIE': VolejTVIE, 'VoxMediaIE': VoxMediaIE, 'VoxMediaVolumeIE': VoxMediaVolumeIE, 'VrSquareChannelIE': VrSquareChannelIE, 'VrSquareIE': VrSquareIE, 'VrSquareSearchIE': VrSquareSearchIE, 'VrSquareSectionIE': VrSquareSectionIE, 'VrtNUIE': VrtNUIE, 'WDRElefantIE': WDRElefantIE, 'WDRIE': WDRIE, 'WDRPageIE': WDRPageIE, 'WNLIE': WNLIE, 'WPPilotChannelsIE': WPPilotChannelsIE, 'WPPilotIE': WPPilotIE, 'WSJArticleIE': WSJArticleIE, 'WSJIE': WSJIE, 'WWEIE': WWEIE, 'WallaIE': WallaIE, 'WalyTVIE': WalyTVIE, 'WalyTVLiveIE': WalyTVLiveIE, 'WalyTVRecordingsIE': WalyTVRecordingsIE, 'WashingtonPostArticleIE': WashingtonPostArticleIE, 'WashingtonPostIE': WashingtonPostIE, 'WatIE': WatIE, 'WatchESPNIE': WatchESPNIE, 'WeTvEpisodeIE': WeTvEpisodeIE, 'WeTvSeriesIE': WeTvSeriesIE, 'WeVidiIE': WeVidiIE, 'WebOfStoriesIE': WebOfStoriesIE, 'WebOfStoriesPlaylistIE': WebOfStoriesPlaylistIE, 'WebcameraplIE': WebcameraplIE, 'WebcasterFeedIE': WebcasterFeedIE, 'WebcasterIE': WebcasterIE, 'WeiboIE': WeiboIE, 'WeiboUserIE': WeiboUserIE, 'WeiboVideoIE': WeiboVideoIE, 'WeiqiTVIE': WeiqiTVIE, 'WeverseIE': WeverseIE, 'WeverseLiveIE': WeverseLiveIE, 'WeverseLiveTabIE': WeverseLiveTabIE, 'WeverseMediaIE': WeverseMediaIE, 'WeverseMediaTabIE': WeverseMediaTabIE, 'WeverseMomentIE': WeverseMomentIE, 'WhoWatchIE': WhoWatchIE, 'WhypIE': WhypIE, 'WikimediaIE': WikimediaIE, 'WimTVIE': WimTVIE, 'WimbledonIE': WimbledonIE, 'WinSportsVideoIE': WinSportsVideoIE, 'WistiaChannelIE': WistiaChannelIE, 'WistiaIE': WistiaIE, 'WistiaPlaylistIE': WistiaPlaylistIE, 'WordpressMiniAudioPlayerEmbedIE': WordpressMiniAudioPlayerEmbedIE, 'WordpressPlaylistEmbedIE': WordpressPlaylistEmbedIE, 'WorldStarHipHopIE': WorldStarHipHopIE, 'WrestleUniversePPVIE': WrestleUniversePPVIE, 'WrestleUniverseVODIE': WrestleUniverseVODIE, 'WyborczaPodcastIE': WyborczaPodcastIE, 'WyborczaVideoIE': WyborczaVideoIE, 'WykopDigCommentIE': WykopDigCommentIE, 'WykopDigIE': WykopDigIE, 'WykopPostCommentIE': WykopPostCommentIE, 'WykopPostIE': WykopPostIE, 'XHamsterEmbedIE': XHamsterEmbedIE, 'XHamsterIE': XHamsterIE, 'XHamsterUserIE': XHamsterUserIE, 'XMinusIE': XMinusIE, 'XNXXIE': XNXXIE, 'XVideosIE': XVideosIE, 'XVideosQuickiesIE': XVideosQuickiesIE, 'XXXYMoviesIE': XXXYMoviesIE, 'XboxClipsIE': XboxClipsIE, 'XiaoHongShuIE': XiaoHongShuIE, 'XimalayaAlbumIE': XimalayaAlbumIE, 'XimalayaIE': XimalayaIE, 'XinpianchangIE': XinpianchangIE, 'YahooIE': YahooIE, 'AolIE': AolIE, 'YahooJapanNewsIE': YahooJapanNewsIE, 'YahooSearchIE': YahooSearchIE, 'YandexDiskIE': YandexDiskIE, 'YandexMusicAlbumIE': YandexMusicAlbumIE, 'YandexMusicArtistAlbumsIE': YandexMusicArtistAlbumsIE, 'YandexMusicArtistTracksIE': YandexMusicArtistTracksIE, 'YandexMusicPlaylistIE': YandexMusicPlaylistIE, 'YandexMusicTrackIE': YandexMusicTrackIE, 'YandexVideoIE': YandexVideoIE, 'YandexVideoPreviewIE': YandexVideoPreviewIE, 'YapFilesIE': YapFilesIE, 'YappyIE': YappyIE, 'YappyProfileIE': YappyProfileIE, 'YfanefaIE': YfanefaIE, 'YleAreenaIE': YleAreenaIE, 'YouJizzIE': YouJizzIE, 'YouNowChannelIE': YouNowChannelIE, 'YouNowLiveIE': YouNowLiveIE, 'YouNowMomentIE': YouNowMomentIE, 'YouPornCategoryIE': YouPornCategoryIE, 'YouPornChannelIE': YouPornChannelIE, 'YouPornCollectionIE': YouPornCollectionIE, 'YouPornIE': YouPornIE, 'YouPornStarIE': YouPornStarIE, 'YouPornTagIE': YouPornTagIE, 'YouPornVideosIE': YouPornVideosIE, 'YoukuIE': YoukuIE, 'YoukuShowIE': YoukuShowIE, 'YoutubeWebArchiveIE': YoutubeWebArchiveIE, 'ZDFChannelIE': ZDFChannelIE, 'ZDFIE': ZDFIE, 'ZaikoETicketIE': ZaikoETicketIE, 'ZaikoIE': ZaikoIE, 'ZapiksIE': ZapiksIE, 'ZattooIE': ZattooIE, 'ZattooLiveIE': ZattooLiveIE, 'ZattooMoviesIE': ZattooMoviesIE, 'ZattooRecordingsIE': ZattooRecordingsIE, 'ZeeNewsIE': ZeeNewsIE, 'ZenPornIE': ZenPornIE, 'ZenYandexChannelIE': ZenYandexChannelIE, 'ZenYandexIE': ZenYandexIE, 'ZetlandDKArticleIE': ZetlandDKArticleIE, 'ZhihuIE': ZhihuIE, 'ZingMp3AlbumIE': ZingMp3AlbumIE, 'ZingMp3ChartHomeIE': ZingMp3ChartHomeIE, 'ZingMp3ChartMusicVideoIE': ZingMp3ChartMusicVideoIE, 'ZingMp3HubIE': ZingMp3HubIE, 'ZingMp3IE': ZingMp3IE, 'ZingMp3LiveRadioIE': ZingMp3LiveRadioIE, 'ZingMp3PodcastEpisodeIE': ZingMp3PodcastEpisodeIE, 'ZingMp3PodcastIE': ZingMp3PodcastIE, 'ZingMp3UserIE': ZingMp3UserIE, 'ZingMp3WeekChartIE': ZingMp3WeekChartIE, 'ZoomIE': ZoomIE, 'ZypeIE': ZypeIE, 'GenericIE': GenericIE}

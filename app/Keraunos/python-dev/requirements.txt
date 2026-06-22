@@ -1,3 +1,6 @@
-yt-dlp==2025.10.14
+# Dev/test deps. yt-dlp 2025.11+ requires Python >= 3.10, so create the venv with a
+# 3.10+ interpreter (e.g. `python3.12 -m venv .venv`) — the embedded runtime is 3.13.
+yt-dlp==2026.6.9
+yt-dlp-ejs==0.8.0
 pytest
 certifi
