@@ -5,27 +5,35 @@ import Foundation
 /// One tab-separated line per failure: ISO-8601 timestamp, error kind, URL, detail.
 public struct FailureLog: Sendable {
     public let fileURL: URL
+    /// Most recent N entries kept; older ones are dropped so the file can't grow forever.
+    let maxEntries: Int
 
-    public init(fileURL: URL) { self.fileURL = fileURL }
-    public init(directory: URL) { self.fileURL = directory.appendingPathComponent("failures.log") }
+    public init(fileURL: URL, maxEntries: Int = 200) {
+        self.fileURL = fileURL
+        self.maxEntries = maxEntries
+    }
+    public init(directory: URL, maxEntries: Int = 200) {
+        self.init(fileURL: directory.appendingPathComponent("failures.log"), maxEntries: maxEntries)
+    }
 
     /// True once at least one failure has been recorded (so a UI can hide an empty log).
     public var hasEntries: Bool { FileManager.default.fileExists(atPath: fileURL.path) }
 
     public func record(url: String, errorKind: String, detail: String = "", date: Date) {
-        guard let data = (Self.line(date: date, kind: errorKind, url: url, detail: detail) + "\n")
-            .data(using: .utf8) else { return }
-        if let handle = try? FileHandle(forWritingTo: fileURL) {
-            defer { try? handle.close() }
-            _ = try? handle.seekToEnd()
-            try? handle.write(contentsOf: data)
-        } else {
-            try? data.write(to: fileURL, options: .atomic)   // first entry creates the file
-        }
+        var lines = contents().split(separator: "\n", omittingEmptySubsequences: true).map(String.init)
+        lines.append(Self.line(date: date, kind: errorKind, url: url, detail: detail))
+        if lines.count > maxEntries { lines = Array(lines.suffix(maxEntries)) }
+        try? (lines.joined(separator: "\n") + "\n").data(using: .utf8)?
+            .write(to: fileURL, options: .atomic)
     }
 
     public func contents() -> String {
         (try? String(contentsOf: fileURL, encoding: .utf8)) ?? ""
+    }
+
+    /// Removes the log entirely (the "Clear" diagnostics action).
+    public func clear() {
+        try? FileManager.default.removeItem(at: fileURL)
     }
 
     static func line(date: Date, kind: String, url: String, detail: String) -> String {

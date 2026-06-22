@@ -24,6 +24,26 @@ struct FailureLogTests {
         #expect(!line.dropFirst("1970-01-01T00:00:00Z\truntime\tu\t".count).contains("\n"))
     }
 
+    @Test func capsRetainedEntriesToTheMostRecent() {
+        let log = FailureLog(directory: tempDir(), maxEntries: 3)
+        for i in 1...5 {
+            log.record(url: "https://x.test/\(i)", errorKind: "timeout", date: Date(timeIntervalSince1970: TimeInterval(i)))
+        }
+        let lines = log.contents().split(separator: "\n")
+        #expect(lines.count == 3)                      // bounded
+        #expect(lines.first!.contains("/3"))            // oldest two (1,2) dropped
+        #expect(lines.last!.contains("/5"))             // newest retained
+    }
+
+    @Test func clearRemovesTheLog() {
+        let log = FailureLog(directory: tempDir())
+        log.record(url: "u", errorKind: "runtime", date: Date(timeIntervalSince1970: 1))
+        #expect(log.hasEntries)
+        log.clear()
+        #expect(!log.hasEntries)
+        #expect(log.contents().isEmpty)
+    }
+
     @Test func appendsEntriesAndStartsEmpty() {
         let log = FailureLog(directory: tempDir())
         #expect(log.hasEntries == false)

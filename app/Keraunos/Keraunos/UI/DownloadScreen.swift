@@ -100,6 +100,9 @@ struct DownloadScreen: View {
                         ShareLink(item: logURL) {
                             Label("Share failure log", systemImage: "doc.text")
                         }
+                        Button("Clear failure log", role: .destructive) {
+                            model.clearFailureLog()
+                        }
                     }
                 }
             }

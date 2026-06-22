@@ -32,10 +32,18 @@ final class DownloadViewModel {   // main-actor by default (app target)
         self.store = store
         self.failureLog = failureLog ?? FailureLog(directory: store.directory)
         self.savedFiles = store.savedFiles()
+        self.failureLogURL = self.failureLog.hasEntries ? self.failureLog.fileURL : nil
     }
 
-    /// Local failure log file, if any failures have been recorded (for the diagnostics export).
-    var failureLogURL: URL? { failureLog.hasEntries ? failureLog.fileURL : nil }
+    /// Local failure log file, if any failures have been recorded (for diagnostics export).
+    /// A stored property (not computed off the filesystem) so SwiftUI observes changes.
+    private(set) var failureLogURL: URL?
+
+    /// Clears the local failure log and hides the diagnostics affordance.
+    func clearFailureLog() {
+        failureLog.clear()
+        failureLogURL = nil
+    }
 
     func startDownload() async {
         guard let url = URLNormalizer.normalize(urlText) else {
@@ -68,6 +76,7 @@ final class DownloadViewModel {   // main-actor by default (app target)
             canRetry = error.isRetryable
             let detail = { if case .runtime(let d) = error { return d } else { return "" } }()
             failureLog.record(url: url.absoluteString, errorKind: error.kind, detail: detail, date: Date())
+            failureLogURL = failureLog.fileURL
             if error == .requiresAuth {
                 requiresSignIn = true
                 signInURL = url
@@ -77,6 +86,7 @@ final class DownloadViewModel {   // main-actor by default (app target)
             canRetry = true   // unknown runtime fault — a retry may clear it
             failureLog.record(url: url.absoluteString, errorKind: "runtime",
                               detail: error.localizedDescription, date: Date())
+            failureLogURL = failureLog.fileURL
         }
     }
 
