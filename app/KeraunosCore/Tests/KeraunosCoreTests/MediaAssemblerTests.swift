@@ -49,6 +49,22 @@ struct MediaAssemblerTests {
         #expect(!FileManager.default.fileExists(atPath: merger.received!.audio.path))
     }
 
+    @Test func progressiveDoesNotOverwriteASameNamedDownload() async throws {
+        bytesHandler()
+        let store = DownloadStore(directory: tempDir())
+        let media = ResolvedMedia(kind: .progressive(track("https://x.test/v.mp4", "mp4")),
+                                  title: "t", suggestedFilename: "clip.mp4")
+        let assembler = MediaAssembler(downloader: Downloader(session: StubURLProtocol.session()),
+                                       merger: MockMerger())
+        let first = try await assembler.assemble(media, into: store)
+        let second = try await assembler.assemble(media, into: store)
+
+        #expect(first.lastPathComponent == "clip.mp4")
+        #expect(second.lastPathComponent == "clip (2).mp4")     // didn't clobber the first
+        #expect(FileManager.default.fileExists(atPath: first.path))
+        #expect(store.savedFiles().count == 2)
+    }
+
     @Test func cleansUpTempWhenMergeFails() async throws {
         bytesHandler()
         let store = DownloadStore(directory: tempDir())

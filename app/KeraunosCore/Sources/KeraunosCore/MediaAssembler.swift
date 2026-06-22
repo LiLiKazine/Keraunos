@@ -21,7 +21,7 @@ public struct MediaAssembler {
         switch media.kind {
         case .progressive(let track):
             onPhase(.downloading)
-            let destination = store.directory.appendingPathComponent(media.suggestedFilename)
+            let destination = store.uniqueDestination(for: media.suggestedFilename)
             try await downloader.download(track, to: destination)
             return destination
 
@@ -39,8 +39,8 @@ public struct MediaAssembler {
 
             onPhase(.merging)
             let base = (media.suggestedFilename as NSString).deletingPathExtension
-            let destination = store.directory.appendingPathComponent("\(base).mp4")
-            try? FileManager.default.removeItem(at: destination)
+            // Uniqued, so a same-titled prior download isn't clobbered (no removeItem).
+            let destination = store.uniqueDestination(for: "\(base).mp4")
             try await merger.merge(video: videoURL, audio: audioURL, into: destination)
             return destination
         }

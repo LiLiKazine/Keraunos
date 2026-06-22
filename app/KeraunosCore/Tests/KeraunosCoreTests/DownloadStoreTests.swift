@@ -52,6 +52,18 @@ struct DownloadStoreTests {
         #expect(store.savedFiles().map(\.lastPathComponent) == ["keep.mp4"])
     }
 
+    @Test func uniqueDestinationAvoidsClobberingExistingFiles() throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let store = DownloadStore(directory: dir)
+
+        #expect(store.uniqueDestination(for: "clip.mp4").lastPathComponent == "clip.mp4")
+        try Data().write(to: dir.appendingPathComponent("clip.mp4"))
+        #expect(store.uniqueDestination(for: "clip.mp4").lastPathComponent == "clip (2).mp4")
+        try Data().write(to: dir.appendingPathComponent("clip (2).mp4"))
+        #expect(store.uniqueDestination(for: "clip.mp4").lastPathComponent == "clip (3).mp4")
+    }
+
     @Test func deleteIsIdempotentForMissingFile() throws {
         let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
