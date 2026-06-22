@@ -7,7 +7,7 @@
 > Source-of-truth for *strategy* remains the coverage-roadmap memory + the plans in
 > `docs/superpowers/plans/`. This file tracks *executable state* against them.
 
-Last updated: 2026-06-22 (cycle 2). Git policy: commit verified increments straight to
+Last updated: 2026-06-22 (cycle 3). Git policy: commit verified increments straight to
 `main`. Verify gate: full build + Swift Testing suite on the iPhone 17 simulator.
 
 ---
@@ -72,8 +72,9 @@ ordered by leverage for a 7-site personal tool:
 5. **Download queue / concurrency.** Actor-based queue for multiple simultaneous
    downloads (cancel, retry, dedupe in-flight URLs). Aligns with the actors-over-locks
    house rule.
-6. **FailureLog hardening.** Size cap / rotation, redaction of query-string secrets in
-   logged URLs, clear-log action. The log is on-device and no-network — keep it tidy.
+6. **FailureLog hardening.** ✅ Size cap/rotation, clear-log, and (cycle 3) **redaction
+   of secret-bearing query params** in both url + detail all DONE. Nothing left here
+   unless a new need appears.
 7. **Retry/backoff policy.** The auto-retry logic (commits `01b94ad`, `d3b837d`) is
    ad-hoc. Extract a tested backoff policy type; cover transient vs terminal
    classification.
@@ -102,3 +103,12 @@ ordered by leverage for a 7-site personal tool:
   failure — `xcrun simctl shutdown all` then re-run clears it. Don't deep-debug it.
 - **BACKLOG #1 (delegate progress) was already shipped before the loop started** — the
   roadmap/BACKLOG was stale. Always read the actual source before picking the "top" item.
+- **KeraunosCore is a SwiftPM package** — subagents verify Swift fast via
+  `cd app/KeraunosCore && swift test` (compiles + runs the core suite standalone, ~0.2s)
+  without the slow simulator. The PM still runs the full `xcodebuild` sim gate to commit.
+- **`No such module 'Testing'` SourceKit diagnostic** on test files is an editor-index
+  artifact (the package index isn't loaded); ignore it — `swift test`/xcodebuild compile
+  the Testing module fine.
+- **DownloadStore.sanitizedFilename is already hardened** (path-sep/colon/control-char →
+  `_`, `..` can't escape, 255-byte UTF-8 cap, collision uniquing) — BACKLOG #4 is
+  effectively done; don't re-spend a cycle there without a concrete new gap.
