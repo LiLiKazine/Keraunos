@@ -68,10 +68,12 @@ struct DownloadViewModelTests {
         #expect(model.currentTask == nil)     // no download started
     }
 
-    @Test func autoRetriesOnceOnTransientExtractNetwork() async {
-        // YouTube cold-start: first resolve fails extract_network, the warm retry succeeds.
+    @Test(arguments: [KeraunosError.extractNetwork, .timedOut])
+    func autoRetriesOnceOnTransientColdStart(_ first: KeraunosError) async {
+        // YouTube cold-start surfaces as either extract_network or a watchdog timeout
+        // (the EJS-in-JSC solve is heavy on the first run); the warm retry succeeds.
         let extractor = SequenceExtractor(results: [
-            .failure(.extractNetwork),
+            .failure(first),
             .success(progressive("clip.mp4")),
         ])
         let model = DownloadViewModel(

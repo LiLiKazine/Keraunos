@@ -72,10 +72,12 @@ final class DownloadViewModel {   // main-actor by default (app target)
             // User tapped Cancel — leave the screen clean, surface nothing.
         } catch let error as KeraunosError {
             guard error != .cancelled else { return }   // also a user-initiated cancel
-            // One transparent retry for a transient extraction-network blip (e.g. YouTube
-            // PoT/nsig cold start): the second attempt runs against warm caches. Done
-            // before surfacing or logging, so a recovered blip is invisible.
-            if error == .extractNetwork, !isAutoRetry {
+            // One transparent retry for a transient cold-start failure: YouTube's first
+            // run mints a PoT and solves n/sig by running yt-dlp's EJS bundle in
+            // JavaScriptCore — heavy enough to occasionally exceed the watchdog (timeout)
+            // or blip the network. The warm retry runs against cached player/nsig and a
+            // minted token, so it's fast. Done before surfacing/logging, so it's invisible.
+            if (error == .extractNetwork || error == .timedOut), !isAutoRetry {
                 statusText = "Retrying…"
                 await startDownload(isAutoRetry: true)
                 return
