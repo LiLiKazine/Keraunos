@@ -177,6 +177,12 @@ def _extract_impl(url, socket_timeout, cookiefile):
             return _err("needs_ffmpeg", str(e))
         if any(hint in msg for hint in _AUTH_HINTS):
             return _err("requires_auth", str(e))
+        # Bot-gate / forbidden / precondition statuses (Bilibili 412, Reddit 403, 401):
+        # the actionable fix is sign-in/cookies, so route to requires_auth (surfaces the
+        # "Sign in to {host}" button) instead of the generic network bucket — even though
+        # the message also says "unable to download". 429 (rate-limit) stays network.
+        if any(s in msg for s in ("http error 401", "http error 403", "http error 412")):
+            return _err("requires_auth", str(e))
         if "unable to download" in msg or "timed out" in msg or "connection" in msg:
             # Extraction-side network failure. The download half (native URLSession,
             # Swift Downloader) emits download_network — keeping them distinct lets a

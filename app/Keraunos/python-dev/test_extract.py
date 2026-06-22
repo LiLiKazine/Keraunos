@@ -255,6 +255,36 @@ def test_po_token_error_maps_to_requires_auth(monkeypatch):
     assert out["error_kind"] == "requires_auth"
 
 
+def test_bot_gate_http_statuses_map_to_requires_auth(monkeypatch):
+    # Bilibili (412 Precondition Failed) and Reddit (403 Blocked) are anti-bot/forbidden
+    # gates whose actionable fix is sign-in/cookies — they must surface the "Sign in"
+    # path, not the generic "check your connection" network bucket, even though their
+    # messages contain "unable to download".
+    from yt_dlp.utils import DownloadError
+    for status in ("HTTP Error 412: Precondition Failed",
+                   "HTTP Error 403: Blocked",
+                   "HTTP Error 401: Unauthorized"):
+        monkeypatch.setattr(
+            keraunos_extract.yt_dlp.YoutubeDL, "extract_info",
+            lambda *a, _m=status, **kw: (_ for _ in ()).throw(
+                DownloadError(f"ERROR: [generic] Unable to download webpage: {_m}")),
+        )
+        out = json.loads(keraunos_extract.extract("https://b23.tv/x"))
+        assert out["error_kind"] == "requires_auth", status
+
+
+def test_plain_connection_failure_stays_extract_network(monkeypatch):
+    # A genuine transport failure (no HTTP gate status) must remain a retryable network error.
+    from yt_dlp.utils import DownloadError
+    monkeypatch.setattr(
+        keraunos_extract.yt_dlp.YoutubeDL, "extract_info",
+        lambda *a, **kw: (_ for _ in ()).throw(
+            DownloadError("ERROR: Unable to download webpage: <urlopen error [Errno 61] Connection refused>")),
+    )
+    out = json.loads(keraunos_extract.extract("https://x.test/v"))
+    assert out["error_kind"] == "extract_network"
+
+
 def test_instagram_login_required_maps_to_requires_auth(monkeypatch):
     # Phase 2: confirm the cookie path's trigger fires for Instagram. The IG extractor
     # signals "log in" via raise_login_required(), which appends yt-dlp's _login_hint
