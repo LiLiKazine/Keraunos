@@ -81,6 +81,29 @@ struct DownloadStoreTests {
         #expect(!dest.lastPathComponent.contains("/"))
     }
 
+    @Test func uniqueDestinationCapsOverlongTitlesWithinFilesystemLimit() throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let huge = String(repeating: "a", count: 400) + ".mp4"
+        let dest = DownloadStore(directory: dir).uniqueDestination(for: huge)
+        #expect(dest.lastPathComponent.utf8.count <= 255)        // APFS per-component limit
+        #expect(dest.lastPathComponent.hasSuffix(".mp4"))         // extension preserved
+        // And it's actually writable at that length.
+        #expect((try? Data().write(to: dest)) != nil)
+    }
+
+    @Test func uniqueDestinationTruncatesMultibyteTitlesOnCharacterBoundaries() throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        // 200 four-byte emoji = 800 bytes; truncation must not split a scalar.
+        let dest = DownloadStore(directory: dir).uniqueDestination(for: String(repeating: "🎬", count: 200) + ".mp4")
+        let name = dest.lastPathComponent
+        #expect(name.utf8.count <= 255)
+        #expect(name.hasSuffix(".mp4"))
+        // Every retained character is the whole emoji — no replacement/garbage scalars.
+        #expect(name.dropLast(4).allSatisfy { $0 == "🎬" })
+    }
+
     @Test func uniqueDestinationFallsBackForEmptyOrDotNames() throws {
         let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)

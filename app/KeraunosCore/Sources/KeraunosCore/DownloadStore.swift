@@ -42,12 +42,27 @@ public struct DownloadStore {
     static func sanitizedFilename(_ raw: String) -> String {
         let cleaned = String(raw.map { "/\\:\u{0}".contains($0) ? "_" : $0 })
             .trimmingCharacters(in: .whitespacesAndNewlines)
-        let base = (cleaned as NSString).deletingPathExtension
-        guard !base.isEmpty, !base.allSatisfy({ $0 == "." }) else {
-            let ext = (cleaned as NSString).pathExtension
-            return ext.isEmpty ? "video" : "video.\(ext)"
+        let ext = (cleaned as NSString).pathExtension
+        var base = (cleaned as NSString).deletingPathExtension
+        if base.isEmpty || base.allSatisfy({ $0 == "." }) { base = "video" }
+        // Cap the base so the whole component stays under the 255-byte filesystem limit,
+        // leaving headroom for the extension and a " (N)" uniquing suffix.
+        base = truncated(base, toBytes: 200)
+        return ext.isEmpty ? base : "\(base).\(ext)"
+    }
+
+    /// Truncates a string to at most `maxBytes` of UTF-8 without splitting a character.
+    private static func truncated(_ s: String, toBytes maxBytes: Int) -> String {
+        guard s.utf8.count > maxBytes else { return s }
+        var result = ""
+        var bytes = 0
+        for character in s {
+            let width = String(character).utf8.count
+            if bytes + width > maxBytes { break }
+            result.append(character)
+            bytes += width
         }
-        return cleaned
+        return result
     }
 
     /// Size of a downloaded file in bytes, or nil if it's missing/unreadable.
