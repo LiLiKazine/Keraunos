@@ -22,9 +22,10 @@ public struct DownloadStore {
     /// file: "clip.mp4" → "clip (2).mp4" → "clip (3).mp4", so a second download of a
     /// same-titled video never silently overwrites the first.
     public func uniqueDestination(for filename: String) -> URL {
-        let ext = (filename as NSString).pathExtension
-        let base = (filename as NSString).deletingPathExtension
-        var candidate = directory.appendingPathComponent(filename)
+        let safe = Self.sanitizedFilename(filename)
+        let ext = (safe as NSString).pathExtension
+        let base = (safe as NSString).deletingPathExtension
+        var candidate = directory.appendingPathComponent(safe)
         var n = 2
         while FileManager.default.fileExists(atPath: candidate.path) {
             let name = ext.isEmpty ? "\(base) (\(n))" : "\(base) (\(n)).\(ext)"
@@ -32,6 +33,21 @@ public struct DownloadStore {
             n += 1
         }
         return candidate
+    }
+
+    /// Collapses a yt-dlp-suggested filename to a single safe path component: path
+    /// separators / colons / control chars become "_" (so "AC/DC.mp4" can't become a
+    /// subdirectory and "../x" can't escape the store), with a "video" fallback for
+    /// names that sanitize to empty or all-dots.
+    static func sanitizedFilename(_ raw: String) -> String {
+        let cleaned = String(raw.map { "/\\:\u{0}".contains($0) ? "_" : $0 })
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        let base = (cleaned as NSString).deletingPathExtension
+        guard !base.isEmpty, !base.allSatisfy({ $0 == "." }) else {
+            let ext = (cleaned as NSString).pathExtension
+            return ext.isEmpty ? "video" : "video.\(ext)"
+        }
+        return cleaned
     }
 
     /// Size of a downloaded file in bytes, or nil if it's missing/unreadable.

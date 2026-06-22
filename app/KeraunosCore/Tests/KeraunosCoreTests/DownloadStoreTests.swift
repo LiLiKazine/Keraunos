@@ -64,6 +64,31 @@ struct DownloadStoreTests {
         #expect(store.uniqueDestination(for: "clip.mp4").lastPathComponent == "clip (3).mp4")
     }
 
+    @Test func uniqueDestinationSanitizesPathSeparatorsInTitles() throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        // A title like "AC/DC – Live.mp4" must not be treated as a subdirectory path.
+        let dest = DownloadStore(directory: dir).uniqueDestination(for: "AC/DC – Live.mp4")
+        #expect(!dest.lastPathComponent.contains("/"))
+        #expect(dest.deletingLastPathComponent().path == dir.path)   // stays in the store dir
+    }
+
+    @Test func uniqueDestinationNeutralizesPathTraversal() throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let dest = DownloadStore(directory: dir).uniqueDestination(for: "../../evil.mp4")
+        #expect(dest.deletingLastPathComponent().path == dir.path)   // can't escape upward
+        #expect(!dest.lastPathComponent.contains("/"))
+    }
+
+    @Test func uniqueDestinationFallsBackForEmptyOrDotNames() throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let store = DownloadStore(directory: dir)
+        #expect(!store.uniqueDestination(for: "   ").lastPathComponent.isEmpty)
+        #expect(store.uniqueDestination(for: "..").deletingLastPathComponent().path == dir.path)
+    }
+
     @Test func deleteIsIdempotentForMissingFile() throws {
         let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
