@@ -7,7 +7,7 @@
 > Source-of-truth for *strategy* remains the coverage-roadmap memory + the plans in
 > `docs/superpowers/plans/`. This file tracks *executable state* against them.
 
-Last updated: 2026-06-22 (cycle 4). Git policy: commit verified increments straight to
+Last updated: 2026-06-22 (cycle 5). Git policy: commit verified increments straight to
 `main`. Verify gate: full build + Swift Testing suite on the iPhone 17 simulator.
 
 ---
@@ -80,11 +80,20 @@ ordered by leverage for a 7-site personal tool:
 6. **FailureLog hardening.** ✅ Size cap/rotation, clear-log, and (cycle 3) **redaction
    of secret-bearing query params** in both url + detail all DONE. Nothing left here
    unless a new need appears.
-7. **Retry/backoff policy.** The auto-retry logic (commits `01b94ad`, `d3b837d`) is
-   ad-hoc. Extract a tested backoff policy type; cover transient vs terminal
-   classification.
-8. **Cookie store robustness.** Expiry handling, per-host isolation, Netscape-export
-   round-trip edge cases (`CookieStore`/`NetscapeCookieWriter`).
+7. **Retry/backoff policy.** ✅ DONE (cycle 5, `e04c051`): extracted tested
+   `KeraunosError.isAutoRetryable` (strict subset of `isRetryable`); auto-retry now also
+   covers `.downloadNetwork`, with `.rateLimited`/`.runtime` manual-only. **Deliberately
+   NOT done** (over-engineering for a single-user tool): exponential backoff / delays.
+   Optional tiny coverage add if ever revisited: a direct test that two consecutive
+   transient failures auto-retry only once then surface (currently guaranteed by the
+   `!isAutoRetry` guard, obvious by inspection).
+8. **Cookie store robustness.** ⚠️ REASSESSED (cycle 5 scout) as LOWER value than it
+   reads: (a) httpOnly is unmodeled but that's NOT a sending bug — yt-dlp's
+   `MozillaCookieJar` still parses+sends a cookie written as a normal Netscape line; the
+   `#HttpOnly_` prefix only round-trips the flag, which we never need to send. (b)
+   tab/newline value sanitization in `NetscapeCookieWriter` is missing but the trigger is
+   non-RFC-conformant and near-impossible from WebKit's `HTTPCookie`. Only worth a cycle
+   if a concrete cookie-auth failure is observed; defensive value is low relative to cost.
 9. **SwiftUI polish (lower priority).** Accessibility labels, dynamic-type, empty/error
    states. Verifiable via build + UI test target.
 
@@ -106,8 +115,10 @@ ordered by leverage for a 7-site personal tool:
 - **Simulator flake (RECURRING, ~50% of runs)**: `xcodebuild test` intermittently fails
   to launch the UI-test runner — either "Invalid device state / Mach error -308 / server
   died" OR "Application failed preflight checks / Busy / RequestDenied". Both are the
-  KeraunosUITests runner, NOT a code failure. Reliable clear:
-  `xcrun simctl shutdown all; killall Simulator; sleep 6` then re-run. Don't deep-debug.
+  KeraunosUITests runner, NOT a code failure (the unit-test bundle runs+passes fine).
+  Reliable clear (cycle 5: shutdown+killall Simulator was NOT enough — also kill the
+  CoreSimulatorService): `xcrun simctl shutdown all; killall Simulator;
+  killall com.apple.CoreSimulator.CoreSimulatorService; sleep 12` then re-run.
   (Idea for a future cycle: a `keraunos://`-free unit-test-only scheme/plan to skip the
   flaky UI runner in the gate — but that's Xcode-project surgery, lower priority.)
 - **BACKLOG #1 (delegate progress) was already shipped before the loop started** — the
