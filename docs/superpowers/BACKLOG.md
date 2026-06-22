@@ -7,7 +7,7 @@
 > Source-of-truth for *strategy* remains the coverage-roadmap memory + the plans in
 > `docs/superpowers/plans/`. This file tracks *executable state* against them.
 
-Last updated: 2026-06-22 (cycle 3). Git policy: commit verified increments straight to
+Last updated: 2026-06-22 (cycle 4). Git policy: commit verified increments straight to
 `main`. Verify gate: full build + Swift Testing suite on the iPhone 17 simulator.
 
 ---
@@ -63,9 +63,14 @@ ordered by leverage for a 7-site personal tool:
    message) end-to-end; was collapsing into `unsupported`/`extract_network`. **Next
    slices if wanted**: age-gate as its own kind (currently → requires_auth, arguably
    fine), `members_only`/paid, live-not-started/premiere.
-3. **Format-selector edge cases.** More `test_extract.py` fixtures: m3u8-only results,
-   audio-less video, DRM-flagged formats, duplicate-resolution tie-breaks. Harden the
-   selector against the long tail *within* the 7 sites.
+3. **Format-selector edge cases.** ⏳ PARTIAL (cycle 4): silent audio-less/video-less
+   progressive now rejected (`_payload_for_info` guard on explicit `"none"`); selector
+   regression fixtures added (video-only-mp4 → `[]`, tbr tie-break, missing height/tbr).
+   **Learned**: yt-dlp `best[ext=mp4]` already rejects lone explicit-`"none"` formats, so
+   the selector itself is robust there — the guard is defense-in-depth. **Remaining ideas
+   if a real gap appears**: m3u8-only result handling, DRM-flagged formats, adaptive-pair
+   codec re-validation in `_payload_for_info` (BACKLOG scout's #2 — low urgency, selector
+   gates codecs upstream). Don't spend a cycle here without a concrete new failure.
 4. **Filename / path safety.** Stress the filename/path builder: unicode, emoji,
    path-separator injection, over-length names, collisions with existing files. Pure
    Swift, pure TDD.
@@ -98,9 +103,13 @@ ordered by leverage for a 7-site personal tool:
   checks (hints + 401/403/412) come first so a private-video "sign in" message routes to
   `requires_auth`; rate_limit before the network bucket (429 messages also say "unable to
   download"); unavailable before the final `unsupported` fallback.
-- **Simulator flake**: `xcodebuild test` intermittently dies with "Invalid device state /
-  Mach error -308 / server died" on the UI-test runner (`testExample`). Not a code
-  failure — `xcrun simctl shutdown all` then re-run clears it. Don't deep-debug it.
+- **Simulator flake (RECURRING, ~50% of runs)**: `xcodebuild test` intermittently fails
+  to launch the UI-test runner — either "Invalid device state / Mach error -308 / server
+  died" OR "Application failed preflight checks / Busy / RequestDenied". Both are the
+  KeraunosUITests runner, NOT a code failure. Reliable clear:
+  `xcrun simctl shutdown all; killall Simulator; sleep 6` then re-run. Don't deep-debug.
+  (Idea for a future cycle: a `keraunos://`-free unit-test-only scheme/plan to skip the
+  flaky UI runner in the gate — but that's Xcode-project surgery, lower priority.)
 - **BACKLOG #1 (delegate progress) was already shipped before the loop started** — the
   roadmap/BACKLOG was stale. Always read the actual source before picking the "top" item.
 - **KeraunosCore is a SwiftPM package** — subagents verify Swift fast via
