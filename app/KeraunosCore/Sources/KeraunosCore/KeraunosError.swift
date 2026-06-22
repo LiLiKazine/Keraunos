@@ -14,6 +14,11 @@ public enum KeraunosError: Error, Equatable {
     case cancelled
     case mergeFailed
     case timedOut
+    /// Content is gone, private (no sign-in path), or geo-blocked — distinct from a
+    /// tool-side `unsupported`.
+    case unavailable
+    /// Host is rate-limiting requests (HTTP 429). Manually retryable after a wait.
+    case rateLimited
 }
 
 public extension KeraunosError {
@@ -28,6 +33,8 @@ public extension KeraunosError {
         // Legacy/un-split value: extraction is the only Python-side source of "network".
         case "network":          self = .extractNetwork
         case "timeout":          self = .timedOut
+        case "unavailable":      self = .unavailable
+        case "rate_limited":     self = .rateLimited
         default:              self = .runtime(detail: detail.isEmpty ? errorKind : detail)
         }
     }
@@ -46,6 +53,8 @@ public extension KeraunosError {
         case .cancelled:       return "cancelled"
         case .mergeFailed:     return "merge_failed"
         case .timedOut:        return "timeout"
+        case .unavailable:     return "unavailable"
+        case .rateLimited:     return "rate_limited"
         }
     }
 
@@ -54,9 +63,9 @@ public extension KeraunosError {
     /// auth (which is recovered via sign-in, not a plain retry) and user cancellation.
     var isRetryable: Bool {
         switch self {
-        case .extractNetwork, .downloadNetwork, .timedOut, .runtime:
+        case .extractNetwork, .downloadNetwork, .timedOut, .runtime, .rateLimited:
             return true
-        case .unsupported, .needsFfmpeg, .requiresAuth, .cancelled, .mergeFailed:
+        case .unsupported, .needsFfmpeg, .requiresAuth, .cancelled, .mergeFailed, .unavailable:
             return false
         }
     }
@@ -74,6 +83,8 @@ extension KeraunosError: LocalizedError {
         case .cancelled:          return "Download cancelled."
         case .mergeFailed:        return "Couldn't combine the video and audio tracks."
         case .timedOut:           return "Extraction took too long and was stopped."
+        case .unavailable:        return "This video is unavailable — it may be private, removed, or geo-blocked."
+        case .rateLimited:        return "The site is limiting requests right now — wait a bit and try again."
         }
     }
 }

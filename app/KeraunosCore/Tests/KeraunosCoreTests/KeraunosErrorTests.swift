@@ -22,8 +22,20 @@ struct KeraunosErrorTests {
         #expect(KeraunosError(errorKind: "weird", detail: "boom") == .runtime(detail: "boom"))
     }
 
+    @Test func mapsContentStateErrorKinds() {
+        #expect(KeraunosError(errorKind: "unavailable") == .unavailable)
+        #expect(KeraunosError(errorKind: "rate_limited") == .rateLimited)
+    }
+
+    @Test func contentStateRetryability() {
+        // A gone/private/geo-blocked video won't change on retry; a rate-limit can
+        // succeed once the user waits (manual retry, never auto-hammered).
+        #expect(KeraunosError.unavailable.isRetryable == false)
+        #expect(KeraunosError.rateLimited.isRetryable == true)
+    }
+
     @Test func everyCaseHasAUserMessage() {
-        let cases: [KeraunosError] = [.unsupported, .needsFfmpeg, .requiresAuth, .extractNetwork, .downloadNetwork, .runtime(detail: "x"), .cancelled, .mergeFailed, .timedOut]
+        let cases: [KeraunosError] = [.unsupported, .needsFfmpeg, .requiresAuth, .extractNetwork, .downloadNetwork, .runtime(detail: "x"), .cancelled, .mergeFailed, .timedOut, .unavailable, .rateLimited]
         for error in cases {
             #expect(error.errorDescription?.isEmpty == false)
         }
@@ -48,7 +60,8 @@ struct KeraunosErrorTests {
         // The stable slug must match the Python error_kind vocabulary so a logged failure
         // reads the same as what the extractor emitted.
         for slug in ["unsupported", "needs_ffmpeg", "requires_auth",
-                     "extract_network", "download_network", "timeout"] {
+                     "extract_network", "download_network", "timeout",
+                     "unavailable", "rate_limited"] {
             #expect(KeraunosError(errorKind: slug).kind == slug)
         }
         #expect(KeraunosError.runtime(detail: "x").kind == "runtime")

@@ -285,6 +285,51 @@ def test_plain_connection_failure_stays_extract_network(monkeypatch):
     assert out["error_kind"] == "extract_network"
 
 
+def test_rate_limit_maps_to_rate_limited(monkeypatch):
+    # HTTP 429 / "too many requests" is a rate-limit, NOT a generic transport failure.
+    # The message ALSO contains "unable to download", so this also proves rate_limited
+    # is checked before the network bucket (which would otherwise swallow it).
+    from yt_dlp.utils import DownloadError
+    monkeypatch.setattr(
+        keraunos_extract.yt_dlp.YoutubeDL, "extract_info",
+        lambda *a, **kw: (_ for _ in ()).throw(
+            DownloadError("ERROR: Unable to download webpage: HTTP Error 429: Too Many Requests")),
+    )
+    out = json.loads(keraunos_extract.extract("https://x.test/v"))
+    assert out["ok"] is False
+    assert out["error_kind"] == "rate_limited"
+
+
+def test_unavailable_content_maps_to_unavailable(monkeypatch):
+    # Removed / no-longer-available / geo-blocked videos are a distinct content state,
+    # not the generic "unsupported" tool-bug bucket.
+    from yt_dlp.utils import DownloadError
+    for message in (
+        "ERROR: [youtube] xxx: Video unavailable",
+        "ERROR: This video is no longer available",
+        "ERROR: [youtube] xxx: The uploader has not made this video available in your country.",
+    ):
+        monkeypatch.setattr(
+            keraunos_extract.yt_dlp.YoutubeDL, "extract_info",
+            lambda *a, _m=message, **kw: (_ for _ in ()).throw(DownloadError(_m)),
+        )
+        out = json.loads(keraunos_extract.extract("https://x.test/v"))
+        assert out["error_kind"] == "unavailable", message
+
+
+def test_private_with_signin_still_requires_auth(monkeypatch):
+    # Ordering guard: a private video whose message says "Sign in" must route to
+    # requires_auth (auth check wins over the unavailable hints).
+    from yt_dlp.utils import DownloadError
+    monkeypatch.setattr(
+        keraunos_extract.yt_dlp.YoutubeDL, "extract_info",
+        lambda *a, **kw: (_ for _ in ()).throw(DownloadError(
+            "ERROR: [youtube] xxx: Private video. Sign in if you've been granted access to this video")),
+    )
+    out = json.loads(keraunos_extract.extract("https://x.test/v"))
+    assert out["error_kind"] == "requires_auth"
+
+
 def test_instagram_login_required_maps_to_requires_auth(monkeypatch):
     # Phase 2: confirm the cookie path's trigger fires for Instagram. The IG extractor
     # signals "log in" via raise_login_required(), which appends yt-dlp's _login_hint

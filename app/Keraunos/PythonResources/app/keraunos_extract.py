@@ -52,6 +52,17 @@ _AUTH_HINTS = ("log in", "sign in", "logged in", "cookies", "nsfw",
                "age-restricted", "age restricted", "confirm your age", "sensitive",
                "po token", "po_token", "missing a gvs po token")
 
+# Content-state hints: the video is gone (removed/terminated), private without a
+# sign-in path, or geo-blocked. A distinct kind from "unsupported" (tool bug) so the
+# owner can tell a *gone* video from a broken extractor. Checked AFTER _AUTH_HINTS so
+# a private video that says "sign in" still routes to requires_auth.
+_UNAVAILABLE_HINTS = ("video unavailable", "this video is unavailable",
+                      "no longer available", "has been removed", "removed by",
+                      "has been terminated", "this video is private", "private video",
+                      "content isn't available", "content is not available",
+                      "available in your country", "not available from your location",
+                      "geo restrict", "geo-restrict", "blocked it in your country")
+
 # --- JavaScript runtime (JavaScriptCore) -----------------------------------------
 # yt-dlp solves YouTube's n/sig challenges with a JS runtime. The embedded interpreter
 # has no subprocess, so we route them through the app's in-process JavaScriptCore via
@@ -148,6 +159,14 @@ def _extract_impl(url, socket_timeout, cookiefile):
         # the message also says "unable to download". 429 (rate-limit) stays network.
         if any(s in msg for s in ("http error 401", "http error 403", "http error 412")):
             return _err("requires_auth", str(e))
+        # Rate-limit (HTTP 429 / "too many requests"): checked before the network bucket
+        # (its message also says "unable to download") so it gets the correct "wait and
+        # retry" remedy instead of being auto-hammered as a connection blip.
+        if "http error 429" in msg or "too many requests" in msg:
+            return _err("rate_limited", str(e))
+        # Content gone/private/geo-blocked — a distinct state from "unsupported".
+        if any(hint in msg for hint in _UNAVAILABLE_HINTS):
+            return _err("unavailable", str(e))
         if "unable to download" in msg or "timed out" in msg or "connection" in msg:
             # Extraction-side network failure. The download half (native URLSession,
             # Swift Downloader) emits download_network — keeping them distinct lets a
