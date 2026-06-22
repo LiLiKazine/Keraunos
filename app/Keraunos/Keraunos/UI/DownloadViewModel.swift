@@ -23,13 +23,19 @@ final class DownloadViewModel {   // main-actor by default (app target)
     private let extractor: any MediaExtracting
     private let assembler: MediaAssembler
     private let store: DownloadStore
+    private let failureLog: FailureLog
 
-    init(extractor: any MediaExtracting, assembler: MediaAssembler, store: DownloadStore) {
+    init(extractor: any MediaExtracting, assembler: MediaAssembler, store: DownloadStore,
+         failureLog: FailureLog? = nil) {
         self.extractor = extractor
         self.assembler = assembler
         self.store = store
+        self.failureLog = failureLog ?? FailureLog(directory: store.directory)
         self.savedFiles = store.savedFiles()
     }
+
+    /// Local failure log file, if any failures have been recorded (for the diagnostics export).
+    var failureLogURL: URL? { failureLog.hasEntries ? failureLog.fileURL : nil }
 
     func startDownload() async {
         guard let url = URLNormalizer.normalize(urlText) else {
@@ -60,6 +66,8 @@ final class DownloadViewModel {   // main-actor by default (app target)
             guard error != .cancelled else { return }   // also a user-initiated cancel
             errorMessage = error.errorDescription
             canRetry = error.isRetryable
+            let detail = { if case .runtime(let d) = error { return d } else { return "" } }()
+            failureLog.record(url: url.absoluteString, errorKind: error.kind, detail: detail, date: Date())
             if error == .requiresAuth {
                 requiresSignIn = true
                 signInURL = url
@@ -67,6 +75,8 @@ final class DownloadViewModel {   // main-actor by default (app target)
         } catch {
             errorMessage = KeraunosError.runtime(detail: error.localizedDescription).errorDescription
             canRetry = true   // unknown runtime fault — a retry may clear it
+            failureLog.record(url: url.absoluteString, errorKind: "runtime",
+                              detail: error.localizedDescription, date: Date())
         }
     }
 

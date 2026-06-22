@@ -95,6 +95,13 @@ struct DownloadScreen: View {
                         }
                     }
                 }
+                if let logURL = model.failureLogURL {
+                    Section("Diagnostics") {
+                        ShareLink(item: logURL) {
+                            Label("Share failure log", systemImage: "doc.text")
+                        }
+                    }
+                }
             }
             .navigationTitle("Keraunos")
             .quickLookPreview($previewURL)

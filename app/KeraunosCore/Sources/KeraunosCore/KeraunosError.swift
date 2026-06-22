@@ -34,6 +34,21 @@ public extension KeraunosError {
 }
 
 public extension KeraunosError {
+    /// Stable lowercase slug, matching the Python `error_kind` vocabulary, for logging.
+    var kind: String {
+        switch self {
+        case .unsupported:     return "unsupported"
+        case .needsFfmpeg:     return "needs_ffmpeg"
+        case .requiresAuth:    return "requires_auth"
+        case .extractNetwork:  return "extract_network"
+        case .downloadNetwork: return "download_network"
+        case .runtime:         return "runtime"
+        case .cancelled:       return "cancelled"
+        case .mergeFailed:     return "merge_failed"
+        case .timedOut:        return "timeout"
+        }
+    }
+
     /// Whether retrying the same URL could plausibly succeed. True for transient faults
     /// (network, timeout, unknown runtime); false for deterministic outcomes and for
     /// auth (which is recovered via sign-in, not a plain retry) and user cancellation.

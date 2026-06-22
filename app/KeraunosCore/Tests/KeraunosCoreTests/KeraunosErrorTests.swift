@@ -44,6 +44,18 @@ struct KeraunosErrorTests {
         }
     }
 
+    @Test func kindSlugRoundTripsWithErrorKindInit() {
+        // The stable slug must match the Python error_kind vocabulary so a logged failure
+        // reads the same as what the extractor emitted.
+        for slug in ["unsupported", "needs_ffmpeg", "requires_auth",
+                     "extract_network", "download_network", "timeout"] {
+            #expect(KeraunosError(errorKind: slug).kind == slug)
+        }
+        #expect(KeraunosError.runtime(detail: "x").kind == "runtime")
+        #expect(KeraunosError.cancelled.kind == "cancelled")
+        #expect(KeraunosError.mergeFailed.kind == "merge_failed")
+    }
+
     @Test func mergeFailedHasAMessage() {
         #expect(KeraunosError.mergeFailed.errorDescription?.isEmpty == false)
         #expect(KeraunosError.mergeFailed.errorDescription == "Couldn't combine the video and audio tracks.")
