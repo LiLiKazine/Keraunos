@@ -7,7 +7,7 @@
 > Source-of-truth for *strategy* remains the coverage-roadmap memory + the plans in
 > `docs/superpowers/plans/`. This file tracks *executable state* against them.
 
-Last updated: 2026-06-22 (cycle 6). Git policy: commit verified increments straight to
+Last updated: 2026-06-22 (cycle 7). Git policy: commit verified increments straight to
 `main`. Verify gate: full build + Swift Testing suite on the iPhone 17 simulator.
 
 ---
@@ -114,12 +114,21 @@ ordered by leverage for a 7-site personal tool:
   done + tested; remaining is target/entitlement surgery (owner-manual).
 - **Phase 3.5 SABR spike / Phase 4 libav >1080p**: on-device/live + cross-compile (blocked).
 
-### Loop status: hardening backlog is DRAINED
-Cycles 2-6 cleared the clean code-level items. What remains is owner-manual, blocked, or
-sprawl (download queue #5 — rejected as wrong for a single-user paste-one-URL tool). Next
-cycles should think hard about genuine value; if nothing clears the bar, do the smallest
-genuinely-useful thing (e.g. a found correctness gap, a missing test for an untested
-invariant) and SAY SO rather than manufacture work.
+### Loop status: DRAINED — DIMINISHING RETURNS reached (cycle 7)
+Cycles 2-6 cleared the clean code-level items. Cycle 7's deep-dive scout (URL parsing,
+extraction decoding, timeout/concurrency, Python bridge) found **NO correctness bug in
+shipped code** — only minor nits; we shipped the cleanest (`9f9e985`, RFC URL-case
+normalization). Remaining known items are all owner-manual, blocked, or sprawl.
+
+**Honest guidance for the next cold-start cycle:** value-per-cycle is now low. Run the
+scout, but if it again finds nothing clearing the bar, the right move is at most one small
+real thing (a genuinely missing test, a doc/spec fix) OR report drained and let the loop
+idle — do NOT manufacture production churn. Small-but-real leftovers the cycle-7 scout
+noted (pick only if a fresh look still finds them worthwhile):
+- `URLNormalizer` scheme-less `host:port` input silently rejected (low value, fiddly).
+- A `withTimeout` near-boundary-success regression test (thin; fast-success already implies it).
+- Pin down the `keraunos://download?url=` encoding contract IF/when the Share Extension
+  lands (owner-manual prerequisite).
 
 ---
 
