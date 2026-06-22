@@ -14,10 +14,19 @@ struct DownloadScreen: View {
         NavigationStack {
             Form {
                 Section("Video link") {
-                    TextField("https://x.com/…", text: $model.urlText)
-                        .textInputAutocapitalization(.never)
-                        .autocorrectionDisabled()
-                        .keyboardType(.URL)
+                    HStack {
+                        TextField("https://x.com/…", text: $model.urlText)
+                            .textInputAutocapitalization(.never)
+                            .autocorrectionDisabled()
+                            .keyboardType(.URL)
+                        // Privacy-friendly one-tap paste (no clipboard-access banner).
+                        PasteButton(payloadType: String.self) { items in
+                            guard let pasted = items.first else { return }
+                            Task { @MainActor in model.urlText = pasted }
+                        }
+                        .labelStyle(.iconOnly)
+                        .buttonBorderShape(.capsule)
+                    }
                     Button {
                         Task { await model.startDownload() }
                     } label: {

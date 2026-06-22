@@ -25,8 +25,7 @@ final class DownloadViewModel {   // main-actor by default (app target)
     }
 
     func startDownload() async {
-        guard let url = URL(string: urlText.trimmingCharacters(in: .whitespacesAndNewlines)),
-              url.scheme == "http" || url.scheme == "https" else {
+        guard let url = URLNormalizer.normalize(urlText) else {
             errorMessage = "Enter a valid http(s) link."
             return
         }
@@ -47,7 +46,7 @@ final class DownloadViewModel {   // main-actor by default (app target)
             errorMessage = error.errorDescription
             if error == .requiresAuth {
                 requiresSignIn = true
-                signInURL = URL(string: urlText.trimmingCharacters(in: .whitespacesAndNewlines))
+                signInURL = url
             }
         } catch {
             errorMessage = KeraunosError.runtime(detail: error.localizedDescription).errorDescription
