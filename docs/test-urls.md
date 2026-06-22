@@ -12,7 +12,7 @@
 | Twitter / X | `https://x.com/AnatoliKopadze/status/2068750209652560159/video/1?s=46` | ⚠️ `extract_network` | SSL `UNEXPECTED_EOF_WHILE_READING` fetching X JSON — transient/X-side reset; retry, or sign in to x.com. Progressive ≤720p path otherwise. |
 | YouTube | `https://youtu.be/WuMlsfKeWHc?is=UvPuvc7agzS-LGeP` | — | ≤1080p H.264/AAC expected to work (tv/android_vr clients + PoT); >1080p gated on the SABR spike. |
 | Reddit | _(add a v.redd.it post)_ | — | Phase 1 fix (bare `h264` + audio pairing) — verify live. |
-| Bilibili | _(add a video URL)_ | — | H.264/HEVC `dash` should work post Phase 1; AV1 needs Phase 4. |
+| Bilibili | `https://b23.tv/BZUxFJQ` | ❌ failed | Short link (redirects to bilibili.com) — `error_kind` TBD from the failure log. H.264/HEVC `dash` should work post Phase 1; AV1 needs Phase 4. |
 | RedNote (Xiaohongshu) | _(add a note URL)_ | — | Phase 1 fix (bare `h264`/`aac`, no-ext URL) — verify live. |
 | Instagram | _(add a reel/post URL)_ | — | Gated; sign in via the in-app web view (Phase 2 confirmed wired). |
 | TikTok / Douyin | _(add a video URL)_ | — | Progressive H.264/AAC — expected to work today. |
