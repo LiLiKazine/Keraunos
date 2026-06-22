@@ -56,6 +56,17 @@ final class DownloadViewModel {   // main-actor by default (app target)
 
     func retry() async { await startDownload() }
 
+    /// Removes a finished download from disk and refreshes the list. A failed delete is
+    /// surfaced inline rather than thrown — it shouldn't tear down the screen.
+    func deleteDownload(_ file: URL) {
+        do {
+            try store.delete(file)
+            savedFiles = store.savedFiles()
+        } catch {
+            errorMessage = "Couldn't delete \(file.lastPathComponent)."
+        }
+    }
+
     private static func label(for phase: MediaAssembler.Phase) -> String {
         switch phase {
         case .downloading:      return "Downloading…"

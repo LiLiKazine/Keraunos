@@ -16,4 +16,14 @@ public struct DownloadStore {
             .filter { $0.pathExtension.lowercased() == "mp4" }
             .sorted { $0.lastPathComponent < $1.lastPathComponent }
     }
+
+    /// Removes a downloaded file. Absent files are treated as already-deleted (no throw)
+    /// so clearing a stale list row never surfaces an error; other I/O failures propagate.
+    public func delete(_ file: URL) throws {
+        do {
+            try FileManager.default.removeItem(at: file)
+        } catch let error as CocoaError where error.code == .fileNoSuchFile {
+            return
+        }
+    }
 }

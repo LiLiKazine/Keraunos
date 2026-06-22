@@ -44,7 +44,21 @@ struct DownloadScreen: View {
                         Text("No downloads yet.").foregroundStyle(.secondary)
                     } else {
                         ForEach(model.savedFiles, id: \.self) { file in
-                            Text(file.lastPathComponent)
+                            ShareLink(item: file) {
+                                HStack {
+                                    Text(file.deletingPathExtension().lastPathComponent)
+                                        .lineLimit(1)
+                                    Spacer()
+                                    Image(systemName: "square.and.arrow.up").foregroundStyle(.secondary)
+                                }
+                            }
+                            .swipeActions(edge: .trailing) {
+                                Button(role: .destructive) {
+                                    model.deleteDownload(file)
+                                } label: {
+                                    Label("Delete", systemImage: "trash")
+                                }
+                            }
                         }
                     }
                 }
