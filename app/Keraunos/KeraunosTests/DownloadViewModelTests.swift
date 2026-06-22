@@ -68,6 +68,38 @@ struct DownloadViewModelTests {
         #expect(model.currentTask == nil)     // no download started
     }
 
+    @Test func autoRetriesOnceOnTransientExtractNetwork() async {
+        // YouTube cold-start: first resolve fails extract_network, the warm retry succeeds.
+        let extractor = SequenceExtractor(results: [
+            .failure(.extractNetwork),
+            .success(progressive("clip.mp4")),
+        ])
+        let model = DownloadViewModel(
+            extractor: extractor,
+            assembler: MediaAssembler(downloader: SpyDownloader(), merger: MockMerger()),
+            store: DownloadStore(directory: tempDir()))
+        model.urlText = "https://x.test/post/1"
+        await model.startDownload()
+        #expect(model.lastSavedName == "clip.mp4")   // succeeded on the auto-retry
+        #expect(model.errorMessage == nil)            // the transient blip was never surfaced
+    }
+
+    @Test func doesNotAutoRetryTerminalErrors() async {
+        // A second attempt won't help unsupported, so it must surface immediately.
+        let extractor = SequenceExtractor(results: [
+            .failure(.unsupported),
+            .success(progressive("clip.mp4")),   // would be consumed only if it wrongly retried
+        ])
+        let model = DownloadViewModel(
+            extractor: extractor,
+            assembler: MediaAssembler(downloader: SpyDownloader(), merger: MockMerger()),
+            store: DownloadStore(directory: tempDir()))
+        model.urlText = "https://x.test/post/1"
+        await model.startDownload()
+        #expect(model.errorMessage == KeraunosError.unsupported.errorDescription)
+        #expect(model.lastSavedName == nil)
+    }
+
     @Test func transientFailureOffersRetryButNotSignIn() async {
         let model = vm(extractor: MockExtractor(result: .failure(.downloadNetwork)),
                        merger: MockMerger(), dir: tempDir())

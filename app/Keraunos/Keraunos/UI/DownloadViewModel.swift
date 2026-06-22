@@ -45,7 +45,7 @@ final class DownloadViewModel {   // main-actor by default (app target)
         failureLogURL = nil
     }
 
-    func startDownload() async {
+    func startDownload(isAutoRetry: Bool = false) async {
         guard let url = URLNormalizer.normalize(urlText) else {
             errorMessage = "Enter a valid http(s) link."
             return
@@ -72,6 +72,14 @@ final class DownloadViewModel {   // main-actor by default (app target)
             // User tapped Cancel — leave the screen clean, surface nothing.
         } catch let error as KeraunosError {
             guard error != .cancelled else { return }   // also a user-initiated cancel
+            // One transparent retry for a transient extraction-network blip (e.g. YouTube
+            // PoT/nsig cold start): the second attempt runs against warm caches. Done
+            // before surfacing or logging, so a recovered blip is invisible.
+            if error == .extractNetwork, !isAutoRetry {
+                statusText = "Retrying…"
+                await startDownload(isAutoRetry: true)
+                return
+            }
             errorMessage = error.errorDescription
             canRetry = error.isRetryable
             let detail = { if case .runtime(let d) = error { return d } else { return "" } }()
