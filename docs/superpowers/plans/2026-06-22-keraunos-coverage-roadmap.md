@@ -204,8 +204,12 @@ different operation (TS→container remux), and stays deferred.
 
 - **YouTube PoT path** (`keraunos_youtube_pot.py`) — hardcoded keys/`requestKey`, the
   most fragile surface; budget for ongoing repair.
+- **YouTube n/sig path** (`keraunos_youtube_jsc.py`) — a `JsChallengeProvider` that runs
+  yt-dlp's EJS solver bundle (`yt-dlp-ejs`) in JavaScriptCore. A yt-dlp bump must keep the
+  vendored `yt-dlp-ejs` version aligned with yt-dlp's expected `vendor.VERSION`/hashes, and
+  the EJS framework internals can shift — re-verify on-device after each bump.
 - **yt-dlp re-vendor** — manual bumps on the owner's cadence (currently pinned
-  `2025.10.14`).
+  `2026.6.9`; **requires Python ≥ 3.10** to test — dev venv must be 3.10+, embedded is 3.13).
 
 ---
 
