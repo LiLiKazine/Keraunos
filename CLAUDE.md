@@ -26,11 +26,11 @@ truth and read the latest one before working on extraction internals.
 ```bash
 # Build (simulator)
 xcodebuild -project app/Keraunos/Keraunos.xcodeproj -scheme Keraunos \
-  -destination 'platform=iOS Simulator,name=iPhone 16' build
+  -destination 'platform=iOS Simulator,name=iPhone 17' build
 
 # Test (Swift Testing)
 xcodebuild -project app/Keraunos/Keraunos.xcodeproj -scheme Keraunos \
-  -destination 'platform=iOS Simulator,name=iPhone 16' test
+  -destination 'platform=iOS Simulator,name=iPhone 17' test
 ```
 
 Day-to-day: open `app/Keraunos/Keraunos.xcodeproj` in Xcode, select the `Keraunos`

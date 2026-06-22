@@ -26,21 +26,26 @@ Under the hood, Keraunos builds on **yt-dlp**, the open-source extractor that kn
 
 **Working today**
 
-- 📥 **Paste a link, get a video** — resolve a URL with embedded yt-dlp and download it to your device.
+- 📥 **Paste a link, get a video** — one-tap paste with tolerant URL handling (adds a missing `https://`, trims stray whitespace), resolved by embedded yt-dlp and downloaded natively.
 - 🧩 **Automatic stream merging** — when a site serves video and audio separately (adaptive), both tracks download and are muxed into a single `.mp4` natively (AVFoundation, no ffmpeg).
+- ⏳ **Live progress & cancel** — a determinate progress bar during the transfer, cancellable at any point.
+- ▶️ **Manage downloads** — tap to play/preview in-app (Quick Look), share/export to Photos, Files, or AirDrop, and swipe to delete. Newest-first, with file sizes.
+- ♻️ **Resilient by default** — same-titled downloads never overwrite each other, titles with `/` or extreme length are handled safely, 0-byte duds are rejected, and recoverable failures offer a one-tap **Try again**.
+- 🩺 **Private diagnostics** — a local, on-device failure log (no telemetry) you can export to debug what a site did.
 - 📂 **Files app integration** — downloads land in the app's Documents folder, visible and usable in the Files app.
 - 🔐 **Account sign-in** — log in to a site in an in-app web view; cookies are reused for extraction so signed-in/age-gated content resolves.
 
 **In progress**
 
 - ▶️ **YouTube** — on-device extraction needs a Proof-of-Origin (PO) token; Keraunos mints one via [bgutils](https://github.com/Brainicism/bgutil-ytdlp-pot-provider) inside JavaScriptCore. Actively being hardened.
+- 🔗 **Share into Keraunos** — the app-side receiver (deep link / `onOpenURL`) is built and tested; registering the URL scheme and adding the Share Extension target are the remaining Xcode steps (see `docs/superpowers/plans/2026-06-22-share-into-keraunos.md`).
 
 **Planned**
 
 - 🎞️ Quality / format selection before downloading.
 - 🔊 Audio-only extraction.
-- 🔗 Share Sheet extension (send a link to Keraunos from another app).
-- 🗂️ Download queue and history.
+- 🗂️ Download queue.
+- 🛰️ Background transfer & resume for large (4K) files.
 
 ## Supported sites
 
