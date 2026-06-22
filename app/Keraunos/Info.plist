@@ -7,5 +7,14 @@
 	<true/>
 	<key>LSSupportsOpeningDocumentsInPlace</key>
 	<true/>
+	<!-- Some media CDNs serve over plain HTTP (e.g. RedNote/xhscdn returns an
+	     http:// .mp4). A downloader must fetch arbitrary, unpredictable media hosts,
+	     which can't be enumerated as per-domain exceptions — so allow cleartext loads.
+	     This only affects which media URLs URLSession will fetch, not app endpoints. -->
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsArbitraryLoads</key>
+		<true/>
+	</dict>
 </dict>
 </plist>
