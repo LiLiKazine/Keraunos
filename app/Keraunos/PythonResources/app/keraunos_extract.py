@@ -173,6 +173,16 @@ def _extract_impl(url, socket_timeout, cookiefile):
         # Content gone/private/geo-blocked — a distinct state from "unsupported".
         if any(hint in msg for hint in _UNAVAILABLE_HINTS):
             return _err("unavailable", str(e))
+        # "No video could be found in this tweet": X serves a bare TweetTombstone to
+        # logged-out (guest-token) clients for age-restricted/sensitive tweets, and
+        # yt-dlp — which only reads a populated tombstone — falls through to this generic
+        # no-formats message. The content was REACHED but withheld from guests, so this is
+        # neither a tool bug ("unsupported") nor a gone video ("unavailable"): the remedy
+        # is sign-in (or the tweet genuinely has no video). restricted_or_empty surfaces
+        # the Sign In button while staying honest about the ambiguity. Auth-explicit
+        # tombstones ("NSFW tweet requires authentication") still hit _AUTH_HINTS above.
+        if "no video could be found" in msg:
+            return _err("restricted_or_empty", str(e))
         if "unable to download" in msg or "timed out" in msg or "connection" in msg:
             # Extraction-side network failure. The download half (native URLSession,
             # Swift Downloader) emits download_network — keeping them distinct lets a

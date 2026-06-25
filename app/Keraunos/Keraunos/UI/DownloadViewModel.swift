@@ -89,7 +89,10 @@ final class DownloadViewModel {   // main-actor by default (app target)
             let detail = { if case .runtime(let d) = error { return d } else { return "" } }()
             failureLog.record(url: url.absoluteString, errorKind: error.kind, detail: detail, date: Date())
             failureLogURL = failureLog.fileURL
-            if error == .requiresAuth {
+            // Both surface the Sign In path: requiresAuth is an explicit auth wall;
+            // restrictedOrEmpty is a guest-access tombstone (e.g. an age-restricted tweet)
+            // whose message tells the owner to sign in, so the button must back that up.
+            if error == .requiresAuth || error == .restrictedOrEmpty {
                 requiresSignIn = true
                 signInURL = url
             }

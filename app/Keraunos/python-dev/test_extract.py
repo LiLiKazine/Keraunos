@@ -421,6 +421,25 @@ def test_private_with_signin_still_requires_auth(monkeypatch):
     assert out["error_kind"] == "requires_auth"
 
 
+def test_twitter_no_video_tombstone_maps_to_restricted_or_empty(monkeypatch):
+    # X/Twitter serves a bare TweetTombstone to logged-out (guest-token) clients for
+    # age-restricted/sensitive tweets. yt-dlp's tombstone handler only reads a populated
+    # 'tombstone' key, so a bare tombstone falls through to the generic
+    # raise_no_formats('No video could be found in this tweet'). That message is NOT a
+    # tool bug ("unsupported"): the content was reached but is withheld from guests, so
+    # the actionable remedy is sign-in. It must map to restricted_or_empty (which surfaces
+    # the Sign In button), never the "This link isn't supported" bucket.
+    from yt_dlp.utils import DownloadError
+    monkeypatch.setattr(
+        keraunos_extract.yt_dlp.YoutubeDL, "extract_info",
+        lambda *a, **kw: (_ for _ in ()).throw(
+            DownloadError("ERROR: [twitter] 123: No video could be found in this tweet")),
+    )
+    out = json.loads(keraunos_extract.extract("https://x.com/u/status/123"))
+    assert out["ok"] is False
+    assert out["error_kind"] == "restricted_or_empty"
+
+
 def test_instagram_login_required_maps_to_requires_auth(monkeypatch):
     # Phase 2: confirm the cookie path's trigger fires for Instagram. The IG extractor
     # signals "log in" via raise_login_required(), which appends yt-dlp's _login_hint

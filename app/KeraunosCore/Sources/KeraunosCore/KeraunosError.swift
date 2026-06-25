@@ -19,6 +19,12 @@ public enum KeraunosError: Error, Equatable {
     case unavailable
     /// Host is rate-limiting requests (HTTP 429). Manually retryable after a wait.
     case rateLimited
+    /// The page was reached but exposes no downloadable video to an anonymous client —
+    /// e.g. X/Twitter serves a guest-access tombstone for an age-restricted/sensitive
+    /// tweet, or the post genuinely has no video. Ambiguous by nature, so the remedy is
+    /// sign-in (which may unlock it); distinct from `unsupported` (tool can't handle the
+    /// site at all) and `unavailable` (content is gone/private/geo-blocked).
+    case restrictedOrEmpty
 }
 
 public extension KeraunosError {
@@ -35,6 +41,7 @@ public extension KeraunosError {
         case "timeout":          self = .timedOut
         case "unavailable":      self = .unavailable
         case "rate_limited":     self = .rateLimited
+        case "restricted_or_empty": self = .restrictedOrEmpty
         default:              self = .runtime(detail: detail.isEmpty ? errorKind : detail)
         }
     }
@@ -55,6 +62,7 @@ public extension KeraunosError {
         case .timedOut:        return "timeout"
         case .unavailable:     return "unavailable"
         case .rateLimited:     return "rate_limited"
+        case .restrictedOrEmpty: return "restricted_or_empty"
         }
     }
 
@@ -65,7 +73,8 @@ public extension KeraunosError {
         switch self {
         case .extractNetwork, .downloadNetwork, .timedOut, .runtime, .rateLimited:
             return true
-        case .unsupported, .needsFfmpeg, .requiresAuth, .cancelled, .mergeFailed, .unavailable:
+        case .unsupported, .needsFfmpeg, .requiresAuth, .cancelled, .mergeFailed,
+             .unavailable, .restrictedOrEmpty:
             return false
         }
     }
@@ -80,7 +89,7 @@ public extension KeraunosError {
         case .extractNetwork, .timedOut, .downloadNetwork:
             return true
         case .rateLimited, .runtime, .unsupported, .needsFfmpeg, .requiresAuth,
-             .cancelled, .mergeFailed, .unavailable:
+             .cancelled, .mergeFailed, .unavailable, .restrictedOrEmpty:
             return false
         }
     }
@@ -100,6 +109,7 @@ extension KeraunosError: LocalizedError {
         case .timedOut:           return "Extraction took too long and was stopped."
         case .unavailable:        return "This video is unavailable — it may be private, removed, or geo-blocked."
         case .rateLimited:        return "The site is limiting requests right now — wait a bit and try again."
+        case .restrictedOrEmpty:  return "No downloadable video found here. If it's age-restricted or sensitive, sign in and try again."
         }
     }
 }

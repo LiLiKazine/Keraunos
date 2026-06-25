@@ -25,6 +25,15 @@ struct KeraunosErrorTests {
     @Test func mapsContentStateErrorKinds() {
         #expect(KeraunosError(errorKind: "unavailable") == .unavailable)
         #expect(KeraunosError(errorKind: "rate_limited") == .rateLimited)
+        #expect(KeraunosError(errorKind: "restricted_or_empty") == .restrictedOrEmpty)
+    }
+
+    @Test func restrictedOrEmptyIsNotRetryableAndHasASignInMessage() {
+        // Like requiresAuth, the recovery path is sign-in, not a plain retry — so it's
+        // neither retryable nor auto-retryable, and the message points the owner at sign-in.
+        #expect(KeraunosError.restrictedOrEmpty.isRetryable == false)
+        #expect(KeraunosError.restrictedOrEmpty.isAutoRetryable == false)
+        #expect(KeraunosError.restrictedOrEmpty.errorDescription?.contains("sign in") == true)
     }
 
     @Test func contentStateRetryability() {
@@ -35,7 +44,7 @@ struct KeraunosErrorTests {
     }
 
     @Test func everyCaseHasAUserMessage() {
-        let cases: [KeraunosError] = [.unsupported, .needsFfmpeg, .requiresAuth, .extractNetwork, .downloadNetwork, .runtime(detail: "x"), .cancelled, .mergeFailed, .timedOut, .unavailable, .rateLimited]
+        let cases: [KeraunosError] = [.unsupported, .needsFfmpeg, .requiresAuth, .extractNetwork, .downloadNetwork, .runtime(detail: "x"), .cancelled, .mergeFailed, .timedOut, .unavailable, .rateLimited, .restrictedOrEmpty]
         for error in cases {
             #expect(error.errorDescription?.isEmpty == false)
         }
@@ -54,7 +63,8 @@ struct KeraunosErrorTests {
             #expect(error.isAutoRetryable, "\(error) should be auto-retryable")
         }
         for error in [KeraunosError.rateLimited, .runtime(detail: "x"), .unsupported,
-                      .needsFfmpeg, .requiresAuth, .cancelled, .mergeFailed, .unavailable] {
+                      .needsFfmpeg, .requiresAuth, .cancelled, .mergeFailed, .unavailable,
+                      .restrictedOrEmpty] {
             #expect(!error.isAutoRetryable, "\(error) should not be auto-retryable")
         }
     }
@@ -74,7 +84,7 @@ struct KeraunosErrorTests {
     @Test func deterministicAndUserDrivenFailuresAreNotRetryable() {
         // Re-running won't change an unsupported site, a missing-ffmpeg need, a failed
         // mux, a user cancel, or an auth wall (that one is handled by the sign-in flow).
-        for error in [KeraunosError.unsupported, .needsFfmpeg, .mergeFailed, .cancelled, .requiresAuth] {
+        for error in [KeraunosError.unsupported, .needsFfmpeg, .mergeFailed, .cancelled, .requiresAuth, .restrictedOrEmpty] {
             #expect(!error.isRetryable, "\(error) should not be retryable")
         }
     }
