@@ -100,7 +100,7 @@ extension KeraunosError: LocalizedError {
         switch self {
         case .unsupported:        return "This link isn't supported."
         case .needsFfmpeg:        return "This video needs format-merging support, coming in a later version."
-        case .requiresAuth:       return "This video requires sign-in (cookies), which isn't supported yet."
+        case .requiresAuth:       return "This video requires sign-in. Sign in to the site, then try again."
         case .extractNetwork:     return "Couldn't reach the site to read the video — check your connection."
         case .downloadNetwork:    return "Download failed — check your connection."
         case .runtime(let detail): return "Something went wrong: \(detail)"

@@ -102,6 +102,15 @@ struct KeraunosErrorTests {
         #expect(KeraunosError.mergeFailed.kind == "merge_failed")
     }
 
+    @Test func requiresAuthMessagePointsToSignInNotUnsupported() {
+        // The LoginWebView -> CookieStore -> cookiefile flow is wired and functional, so
+        // the message must direct the owner to sign in — not claim sign-in "isn't
+        // supported yet" (the old, stale wording).
+        let message = KeraunosError.requiresAuth.errorDescription?.lowercased()
+        #expect(message?.contains("sign in") == true)
+        #expect(message?.contains("isn't supported") == false)
+    }
+
     @Test func mergeFailedHasAMessage() {
         #expect(KeraunosError.mergeFailed.errorDescription?.isEmpty == false)
         #expect(KeraunosError.mergeFailed.errorDescription == "Couldn't combine the video and audio tracks.")
