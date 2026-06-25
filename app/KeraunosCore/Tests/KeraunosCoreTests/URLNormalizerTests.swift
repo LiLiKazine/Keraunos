@@ -58,4 +58,48 @@ struct URLNormalizerTests {
         #expect(url?.absoluteString.contains("/Watch") == true)
         #expect(url?.absoluteString.contains("V=AbC") == true)
     }
+
+    // MARK: - Embedded URL extraction (share-blob paste)
+
+    @Test func extractsURLFromDouyinShareBlob() {
+        // Douyin's share button copies promo text with the link buried in it, and
+        // even appends domain-shaped noise ("A@G.iP") that must NOT be mistaken for it.
+        let blob = "2.02 复制打开抖音，看看【雉鸣minz的作品】凡凡 可爱美丽又迷人 # 萤火虫漫展 # 漫展养眼...https://v.douyin.com/9GUjWCxpa18/ 凡凡  可爱美丽又迷人 #萤火虫漫展 #漫展养眼造型大赏 #夜晚拍照才有感觉 #yi凡凡 - 抖音 A@G.iP NWz:/ :2pm 05/25"
+        #expect(URLNormalizer.normalize(blob)?.absoluteString == "https://v.douyin.com/9GUjWCxpa18/")
+    }
+
+    @Test func extractsURLFromBilibiliShareBlob() {
+        let blob = "【高能预警！】 bilibili 我正在看这个视频 https://b23.tv/AbCd123 复制此链接，打开手机B站"
+        #expect(URLNormalizer.normalize(blob)?.absoluteString == "https://b23.tv/AbCd123")
+    }
+
+    @Test func extractsURLFromRedNoteShareBlob() {
+        let blob = "59 今天分享一个超好看的视频😆 http://xhslink.com/a/Xy9Zk2 点击链接查看，或复制本条信息打开【小红书】App"
+        #expect(URLNormalizer.normalize(blob)?.absoluteString == "http://xhslink.com/a/Xy9Zk2")
+    }
+
+    @Test func stopsAtNonURLCharacterWhenNoTrailingSpace() {
+        // A link butted directly against CJK text (no separating space) ends at the
+        // first character that can't appear in a URL.
+        #expect(URLNormalizer.normalize("看这个https://v.douyin.com/9GUjWCxpa18凡凡")?.absoluteString
+                == "https://v.douyin.com/9GUjWCxpa18")
+    }
+
+    @Test func stripsTrailingSentencePunctuation() {
+        // A URL ending a sentence shouldn't capture the period/comma or a wrapping paren.
+        #expect(URLNormalizer.normalize("watch it here: https://v.douyin.com/abc.")?.absoluteString
+                == "https://v.douyin.com/abc")
+        #expect(URLNormalizer.normalize("see (https://v.douyin.com/abc) now")?.absoluteString
+                == "https://v.douyin.com/abc")
+    }
+
+    @Test func picksFirstURLWhenBlobHasSeveral() {
+        let blob = "first https://v.douyin.com/first then https://v.douyin.com/second"
+        #expect(URLNormalizer.normalize(blob)?.absoluteString == "https://v.douyin.com/first")
+    }
+
+    @Test func findsEmbeddedURLRegardlessOfSchemeCase() {
+        #expect(URLNormalizer.normalize("看 HTTPS://v.douyin.com/abc 吧")?.absoluteString
+                == "https://v.douyin.com/abc")
+    }
 }

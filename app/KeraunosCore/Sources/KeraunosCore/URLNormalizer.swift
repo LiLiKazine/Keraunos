@@ -8,9 +8,15 @@ public enum URLNormalizer {
         let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return nil }
 
+        // Share buttons (Douyin/Bilibili/RedNote) copy promo text with the link buried
+        // inside, e.g. "…看看抖音…https://v.douyin.com/abc/ … A@G.iP …". Pull out the first
+        // explicit http(s):// link when there is one; a scheme-less whole-string input
+        // ("youtube.com/…") has no match and falls through to the path below.
+        let extracted = embeddedURL(in: trimmed) ?? trimmed
+
         // A scheme-less but link-shaped input ("youtube.com/…") gets https:// so the
         // user doesn't have to type it; anything with an explicit scheme is left as-is.
-        let candidate = hasScheme(trimmed) ? trimmed : "https://\(trimmed)"
+        let candidate = hasScheme(extracted) ? extracted : "https://\(extracted)"
 
         guard var components = URLComponents(string: candidate),
               let scheme = components.scheme?.lowercased(), scheme == "http" || scheme == "https",
@@ -23,6 +29,36 @@ public enum URLNormalizer {
         components.host = host.lowercased()
         return components.url
     }
+
+    /// The first `http(s)://` link embedded in free text, or nil if there isn't one.
+    /// The link runs from the scheme up to the first character not legal in a URI
+    /// (whitespace, CJK, a quote …); trailing sentence punctuation is then trimmed.
+    private static func embeddedURL(in text: String) -> String? {
+        guard let start = text.range(of: "https?://",
+                                     options: [.regularExpression, .caseInsensitive])?.lowerBound
+        else { return nil }
+
+        var url = text[start...].prefix { allowedURLCharacters.contains($0) }
+        // Trim trailing punctuation that reads as sentence/wrapping, not part of the link:
+        // ".,;!" always, and a ")" only when it isn't balanced by a "(" inside the URL
+        // (so "…/Foo_(bar)" is kept intact).
+        while let last = url.last {
+            if ".,;!".contains(last) {
+                url = url.dropLast()
+            } else if last == ")", !url.contains("(") {
+                url = url.dropLast()
+            } else {
+                break
+            }
+        }
+        return url.isEmpty ? nil : String(url)
+    }
+
+    /// Characters legal in a URI per RFC 3986 (unreserved + reserved + "%"). A character
+    /// outside this set marks the end of an embedded link.
+    private static let allowedURLCharacters = Set(
+        "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~:/?#[]@!$&'()*+,;=%"
+    )
 
     private static func hasScheme(_ s: String) -> Bool {
         // RFC 3986 scheme prefix: ALPHA *( ALPHA / DIGIT / "+" / "-" / "." ) ":"
