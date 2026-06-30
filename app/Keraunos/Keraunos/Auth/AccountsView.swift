@@ -7,6 +7,7 @@ struct AccountsView: View {
     @State private var hosts: [String] = []
     @State private var siteText = ""
     @State private var loginTarget: LoginTarget?
+    @State private var loginStatus: LoginWebView.LoadStatus = .loading
 
     /// Identifiable wrapper so the login sheet can be driven by `.sheet(item:)`.
     private struct LoginTarget: Identifiable { let id = UUID(); let url: URL }
@@ -53,10 +54,20 @@ struct AccountsView: View {
         .task { await reload() }
         .sheet(item: $loginTarget) { target in
             NavigationStack {
-                LoginWebView(url: target.url, dataStore: cookieStore.dataStore)
+                LoginWebView(url: target.url, dataStore: cookieStore.dataStore, status: $loginStatus)
                     // Bottom-only: keep the nav bar from overlapping the page's top
                     // content (e.g. the site's login button).
                     .ignoresSafeArea(.container, edges: .bottom)
+                    .overlay {
+                        if case .failed(let reason) = loginStatus {
+                            ContentUnavailableView {
+                                Label("Couldn't open \(target.url.host ?? "the page")", systemImage: "wifi.exclamationmark")
+                            } description: {
+                                Text(reason)
+                            }
+                        }
+                    }
+                    .onAppear { loginStatus = .loading }
                     .navigationTitle(target.url.host ?? "Sign in")
                     .navigationBarTitleDisplayMode(.inline)
                     .toolbar {

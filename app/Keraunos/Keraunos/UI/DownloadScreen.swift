@@ -4,6 +4,7 @@ import QuickLook   // provides the .quickLookPreview(_:) view modifier
 struct DownloadScreen: View {
     @State private var model: DownloadViewModel
     @State private var showLogin = false
+    @State private var loginStatus: LoginWebView.LoadStatus = .loading
     @State private var previewURL: URL?
     let cookieStore: CookieStore
 
@@ -116,10 +117,22 @@ struct DownloadScreen: View {
             .sheet(isPresented: $showLogin) {
                 NavigationStack {
                     if let url = model.signInURL {
-                        LoginWebView(url: url, dataStore: cookieStore.dataStore)
+                        LoginWebView(url: url, dataStore: cookieStore.dataStore, status: $loginStatus)
                             // Bottom-only: keep the nav bar from overlapping the page's
                             // top content (e.g. the site's login button).
                             .ignoresSafeArea(.container, edges: .bottom)
+                            .overlay {
+                                // A failed load otherwise shows a blank white page with no
+                                // clue why — surface the WebKit error instead.
+                                if case .failed(let reason) = loginStatus {
+                                    ContentUnavailableView {
+                                        Label("Couldn't open \(url.host ?? "the page")", systemImage: "wifi.exclamationmark")
+                                    } description: {
+                                        Text(reason)
+                                    }
+                                }
+                            }
+                            .onAppear { loginStatus = .loading }
                             .navigationTitle(url.host ?? "Sign in")
                             .navigationBarTitleDisplayMode(.inline)
                             .toolbar {
