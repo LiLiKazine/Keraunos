@@ -10,6 +10,8 @@
 		B34032942FDFFAD400DB8BC1 /* KeraunosCore in Frameworks */ = {isa = PBXBuildFile; productRef = B34032932FDFFAD400DB8BC1 /* KeraunosCore */; };
 		B3403B842FE0075D00DB8BC1 /* Python.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = B3403B832FE0075D00DB8BC1 /* Python.xcframework */; };
 		B3403B852FE0075D00DB8BC1 /* Python.xcframework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = B3403B832FE0075D00DB8BC1 /* Python.xcframework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		B3E082F22FF3FC33000DA2DE /* KeraunosShareExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = B3E082E82FF3FC33000DA2DE /* KeraunosShareExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		B3E082F92FF3FC54000DA2DE /* KeraunosCore in Frameworks */ = {isa = PBXBuildFile; productRef = B3E082F82FF3FC54000DA2DE /* KeraunosCore */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -27,6 +29,13 @@
 			remoteGlobalIDString = B340325B2FDFDC2000DB8BC1;
 			remoteInfo = Keraunos;
 		};
+		B3E082F02FF3FC33000DA2DE /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = B34032542FDFDC2000DB8BC1 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = B3E082E72FF3FC33000DA2DE;
+			remoteInfo = KeraunosShareExtension;
+		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -41,6 +50,17 @@
 			name = "Embed Frameworks";
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		B3E082F32FF3FC33000DA2DE /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				B3E082F22FF3FC33000DA2DE /* KeraunosShareExtension.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
@@ -48,7 +68,18 @@
 		B34032692FDFDC2100DB8BC1 /* KeraunosTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = KeraunosTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		B34032732FDFDC2100DB8BC1 /* KeraunosUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = KeraunosUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		B3403B832FE0075D00DB8BC1 /* Python.xcframework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcframework; name = Python.xcframework; path = PythonResources/Python.xcframework; sourceTree = "<group>"; };
+		B3E082E82FF3FC33000DA2DE /* KeraunosShareExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = KeraunosShareExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		B3E082F62FF3FC33000DA2DE /* Exceptions for "KeraunosShareExtension" folder in "KeraunosShareExtension" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = B3E082E72FF3FC33000DA2DE /* KeraunosShareExtension */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		B340325E2FDFDC2000DB8BC1 /* Keraunos */ = {
@@ -64,6 +95,14 @@
 		B34032762FDFDC2100DB8BC1 /* KeraunosUITests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = KeraunosUITests;
+			sourceTree = "<group>";
+		};
+		B3E082E92FF3FC33000DA2DE /* KeraunosShareExtension */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				B3E082F62FF3FC33000DA2DE /* Exceptions for "KeraunosShareExtension" folder in "KeraunosShareExtension" target */,
+			);
+			path = KeraunosShareExtension;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -92,6 +131,14 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		B3E082E52FF3FC33000DA2DE /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				B3E082F92FF3FC54000DA2DE /* KeraunosCore in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -101,6 +148,7 @@
 				B340325E2FDFDC2000DB8BC1 /* Keraunos */,
 				B340326C2FDFDC2100DB8BC1 /* KeraunosTests */,
 				B34032762FDFDC2100DB8BC1 /* KeraunosUITests */,
+				B3E082E92FF3FC33000DA2DE /* KeraunosShareExtension */,
 				B3403B822FE0075D00DB8BC1 /* Frameworks */,
 				B340325D2FDFDC2000DB8BC1 /* Products */,
 			);
@@ -112,6 +160,7 @@
 				B340325C2FDFDC2000DB8BC1 /* Keraunos.app */,
 				B34032692FDFDC2100DB8BC1 /* KeraunosTests.xctest */,
 				B34032732FDFDC2100DB8BC1 /* KeraunosUITests.xctest */,
+				B3E082E82FF3FC33000DA2DE /* KeraunosShareExtension.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -136,10 +185,12 @@
 				B340325A2FDFDC2000DB8BC1 /* Resources */,
 				B3403B862FE0075D00DB8BC1 /* Embed Frameworks */,
 				B3403C012FE009AE00DB8BC1 /* Process Python libraries */,
+				B3E082F32FF3FC33000DA2DE /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				B3E082F12FF3FC33000DA2DE /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				B340325E2FDFDC2000DB8BC1 /* Keraunos */,
@@ -198,6 +249,29 @@
 			productReference = B34032732FDFDC2100DB8BC1 /* KeraunosUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
 		};
+		B3E082E72FF3FC33000DA2DE /* KeraunosShareExtension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = B3E082F72FF3FC33000DA2DE /* Build configuration list for PBXNativeTarget "KeraunosShareExtension" */;
+			buildPhases = (
+				B3E082E42FF3FC33000DA2DE /* Sources */,
+				B3E082E52FF3FC33000DA2DE /* Frameworks */,
+				B3E082E62FF3FC33000DA2DE /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				B3E082E92FF3FC33000DA2DE /* KeraunosShareExtension */,
+			);
+			name = KeraunosShareExtension;
+			packageProductDependencies = (
+				B3E082F82FF3FC54000DA2DE /* KeraunosCore */,
+			);
+			productName = KeraunosShareExtension;
+			productReference = B3E082E82FF3FC33000DA2DE /* KeraunosShareExtension.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -218,6 +292,9 @@
 					B34032722FDFDC2100DB8BC1 = {
 						CreatedOnToolsVersion = 26.5;
 						TestTargetID = B340325B2FDFDC2000DB8BC1;
+					};
+					B3E082E72FF3FC33000DA2DE = {
+						CreatedOnToolsVersion = 26.5;
 					};
 				};
 			};
@@ -241,6 +318,7 @@
 				B340325B2FDFDC2000DB8BC1 /* Keraunos */,
 				B34032682FDFDC2100DB8BC1 /* KeraunosTests */,
 				B34032722FDFDC2100DB8BC1 /* KeraunosUITests */,
+				B3E082E72FF3FC33000DA2DE /* KeraunosShareExtension */,
 			);
 		};
 /* End PBXProject section */
@@ -267,6 +345,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		B3E082E62FF3FC33000DA2DE /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXShellScriptBuildPhase section */
@@ -287,12 +372,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "set -e
-source \"$PROJECT_DIR/PythonResources/Python.xcframework/build/utils.sh\"
-rsync -a --delete \"$PROJECT_DIR/PythonResources/app/\" \"$CODESIGNING_FOLDER_PATH/app/\"
-rsync -a --delete \"$PROJECT_DIR/PythonResources/app_packages/\" \"$CODESIGNING_FOLDER_PATH/app_packages/\"
-install_python \"PythonResources/Python.xcframework\" \"app\" \"app_packages\"
-";
+			shellScript = "set -e\nsource \"$PROJECT_DIR/PythonResources/Python.xcframework/build/utils.sh\"\nrsync -a --delete \"$PROJECT_DIR/PythonResources/app/\" \"$CODESIGNING_FOLDER_PATH/app/\"\nrsync -a --delete \"$PROJECT_DIR/PythonResources/app_packages/\" \"$CODESIGNING_FOLDER_PATH/app_packages/\"\ninstall_python \"PythonResources/Python.xcframework\" \"app\" \"app_packages\"\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 
@@ -318,6 +398,13 @@ install_python \"PythonResources/Python.xcframework\" \"app\" \"app_packages\"
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		B3E082E42FF3FC33000DA2DE /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -330,6 +417,11 @@ install_python \"PythonResources/Python.xcframework\" \"app\" \"app_packages\"
 			isa = PBXTargetDependency;
 			target = B340325B2FDFDC2000DB8BC1 /* Keraunos */;
 			targetProxy = B34032742FDFDC2100DB8BC1 /* PBXContainerItemProxy */;
+		};
+		B3E082F12FF3FC33000DA2DE /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = B3E082E72FF3FC33000DA2DE /* KeraunosShareExtension */;
+			targetProxy = B3E082F02FF3FC33000DA2DE /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -463,6 +555,7 @@ install_python \"PythonResources/Python.xcframework\" \"app\" \"app_packages\"
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Info.plist;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
@@ -471,7 +564,6 @@ install_python \"PythonResources/Python.xcframework\" \"app\" \"app_packages\"
 				"INFOPLIST_KEY_UILaunchScreen_Generation[sdk=iphonesimulator*]" = YES;
 				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphoneos*]" = UIStatusBarStyleDefault;
 				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphonesimulator*]" = UIStatusBarStyleDefault;
-				INFOPLIST_FILE = Info.plist;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				IPHONEOS_DEPLOYMENT_TARGET = 26.5;
@@ -509,6 +601,7 @@ install_python \"PythonResources/Python.xcframework\" \"app\" \"app_packages\"
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Info.plist;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
@@ -517,7 +610,6 @@ install_python \"PythonResources/Python.xcframework\" \"app\" \"app_packages\"
 				"INFOPLIST_KEY_UILaunchScreen_Generation[sdk=iphonesimulator*]" = YES;
 				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphoneos*]" = UIStatusBarStyleDefault;
 				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphonesimulator*]" = UIStatusBarStyleDefault;
-				INFOPLIST_FILE = Info.plist;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				IPHONEOS_DEPLOYMENT_TARGET = 26.5;
@@ -644,6 +736,69 @@ install_python \"PythonResources/Python.xcframework\" \"app\" \"app_packages\"
 			};
 			name = Release;
 		};
+		B3E082F42FF3FC33000DA2DE /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = PJBUF7JSHK;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = KeraunosShareExtension/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = Keraunos;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 26.5;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "io.github.lilikazine.Keraunos.KeraunosShareExtension";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		B3E082F52FF3FC33000DA2DE /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = PJBUF7JSHK;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = KeraunosShareExtension/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = Keraunos;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 26.5;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "io.github.lilikazine.Keraunos.KeraunosShareExtension";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -683,6 +838,15 @@ install_python \"PythonResources/Python.xcframework\" \"app\" \"app_packages\"
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
+		B3E082F72FF3FC33000DA2DE /* Build configuration list for PBXNativeTarget "KeraunosShareExtension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				B3E082F42FF3FC33000DA2DE /* Debug */,
+				B3E082F52FF3FC33000DA2DE /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 /* End XCConfigurationList section */
 
 /* Begin XCLocalSwiftPackageReference section */
@@ -695,6 +859,11 @@ install_python \"PythonResources/Python.xcframework\" \"app\" \"app_packages\"
 /* Begin XCSwiftPackageProductDependency section */
 		B34032932FDFFAD400DB8BC1 /* KeraunosCore */ = {
 			isa = XCSwiftPackageProductDependency;
+			productName = KeraunosCore;
+		};
+		B3E082F82FF3FC54000DA2DE /* KeraunosCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = B34032922FDFFAD400DB8BC1 /* XCLocalSwiftPackageReference "../KeraunosCore" */;
 			productName = KeraunosCore;
 		};
 /* End XCSwiftPackageProductDependency section */
