@@ -9,10 +9,8 @@ public enum IncomingURL {
         switch url.scheme?.lowercased() {
         case "http", "https":
             return URLNormalizer.normalize(url.absoluteString)
-        case "keraunos":
-            let raw = URLComponents(url: url, resolvingAgainstBaseURL: false)?
-                .queryItems?.first { $0.name == "url" }?.value
-            return raw.flatMap(URLNormalizer.normalize)
+        case KeraunosDeepLink.scheme:
+            return KeraunosDeepLink.mediaURL(from: url).flatMap(URLNormalizer.normalize)
         default:
             return nil
         }
