@@ -172,23 +172,33 @@ def _fmt_size(fmt):
 
 def _muxable_height_options(formats):
     """One AVFoundation-muxable option per distinct height (best tbr wins), sorted high→low.
-    Progressive rows (muxable vcodec + AAC) carry their own size; adaptive rows (video-only
-    muxable vcodec) are sized as video + best AAC audio, and are emitted only when a muxable
-    audio track exists. Pure: no network. Mirrors the selector's muxability rules."""
+    Three admitted shapes, all mirroring what the _FORMAT selector already downloads:
+    (1) progressive with muxable vcodec + AAC — sized by its own filesize;
+    (2) video-only with muxable vcodec — adaptive, sized as video + best AAC audio, emitted
+        only when a muxable audio track exists;
+    (3) already-muxed direct-file mp4 with UNPROBED codecs (vcodec/acodec both None — e.g.
+        Twitter/X, RedNote renditions, which yt-dlp doesn't probe under skip_download) — a
+        progressive file we download as-is, mirroring the selector's best[...][ext=mp4]
+        fallback. Explicit "none" tracks (genuinely absent video/audio) are never admitted.
+    Pure: no network."""
     audio = _best_aac_audio(formats)
     audio_size = _fmt_size(audio) if audio else None
     by_height = {}
     for f in formats:
         h = f.get("height")
-        if not _is_http(f) or not h or not _muxable_vcodec(f.get("vcodec")):
+        if not _is_http(f) or not h:
             continue
-        acodec = f.get("acodec") or "none"
-        progressive = acodec != "none" and bool(_RE_AAC.match(acodec))
-        adaptive = acodec == "none"
-        if adaptive and audio is None:
-            continue                      # no muxable audio to pair with → not muxable
-        if not (progressive or adaptive):
-            continue                      # video with non-AAC muxed audio → skip
+        vcodec, acodec = f.get("vcodec"), f.get("acodec")
+        if _muxable_vcodec(vcodec) and acodec and _RE_AAC.match(acodec):
+            adaptive = False              # (1) muxable progressive
+        elif _muxable_vcodec(vcodec) and acodec == "none":
+            if audio is None:
+                continue                  # (2) video-only but no muxable audio → not muxable
+            adaptive = True
+        elif not vcodec and not acodec and (f.get("ext") or "") == "mp4":
+            adaptive = False              # (3) already-muxed direct-file mp4, codecs unprobed
+        else:
+            continue                      # non-muxable, non-mp4, or explicit "none" track
         cur = by_height.get(h)
         if cur is None or (f.get("tbr") or 0) > (cur[0].get("tbr") or 0):
             by_height[h] = (f, adaptive)

@@ -520,3 +520,45 @@ def test_instagram_login_required_maps_to_requires_auth(monkeypatch):
     out = json.loads(keraunos_extract.extract("https://www.instagram.com/reel/ABC123/"))
     assert out["ok"] is False
     assert out["error_kind"] == "requires_auth"
+
+
+# --- list_formats: already-muxed direct-file MP4s (Twitter/X, RedNote) ------------
+# Twitter's direct MP4 renditions (twitter.py _extract_variant_formats) carry url,
+# format_id, tbr, and height parsed from the URL — but NO vcodec/acodec (yt-dlp doesn't
+# probe codecs under skip_download; they come back None). The _FORMAT selector's trailing
+# best[protocol^=http][ext=mp4] branch and _payload_for_info both accept these already-
+# muxed files, so they DOWNLOAD — but the options scanner must surface their heights too,
+# or multi-resolution direct-file sites never get a picker.
+
+def test_options_admit_muxed_directfile_mp4_without_probed_codecs():
+    opts = _muxable_height_options([
+        {"format_id": "http-2176", "url": "https://video.twimg.com/x/1280x720/a.mp4",
+         "protocol": "https", "ext": "mp4", "height": 720, "tbr": 2176},
+        {"format_id": "http-950", "url": "https://video.twimg.com/x/640x360/b.mp4",
+         "protocol": "https", "ext": "mp4", "height": 360, "tbr": 950},
+    ])
+    assert [o["height"] for o in opts] == [720, 360]
+    assert all(o["adaptive"] is False for o in opts)      # already-muxed → download as-is
+    assert opts[0]["format_id"] == "http-2176"
+    assert opts[0]["codec"] == ""                          # codecs unprobed → no codec label
+    assert opts[0]["approx_bytes"] is None                 # Twitter variants report no filesize
+
+
+def test_options_reject_explicit_none_video_even_if_mp4():
+    # acodec/vcodec == "none" (the STRING) means the track is genuinely absent — not the
+    # unprobed direct-file case (None). A video-less "mp4" must never become an option.
+    opts = _muxable_height_options([
+        {"format_id": "audioonly", "url": "https://x/a.mp4", "protocol": "https",
+         "ext": "mp4", "height": 480, "tbr": 128, "vcodec": "none", "acodec": "mp4a"},
+    ])
+    assert opts == []
+
+
+def test_options_directfile_requires_mp4_ext():
+    # The direct-file admission mirrors _FORMAT's best[...][ext=mp4] fallback: only mp4.
+    # A codec-less webm (VP8/9/Opus territory) is not AVFoundation-muxable → skip.
+    opts = _muxable_height_options([
+        {"format_id": "webm", "url": "https://x/a.webm", "protocol": "https",
+         "ext": "webm", "height": 720, "tbr": 2000},
+    ])
+    assert opts == []
