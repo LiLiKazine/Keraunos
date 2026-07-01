@@ -89,4 +89,46 @@ public enum ExtractionDecoder {
         if let name, !name.isEmpty { return name }
         return fallbackURL.lastPathComponent
     }
+
+    /// Decodes the phase-1 (`list_formats`) payload. A `"choices"` kind yields
+    /// `.choices`; any other success kind is delegated to `decode(_:)` and wrapped in
+    /// `.ready`; failure payloads throw the mapped `KeraunosError`.
+    public static func decodeListing(_ data: Data) throws -> FormatListing {
+        struct Envelope: Decodable {
+            let ok: Bool
+            let kind: String?
+            let options: [OptionPayload]?
+            let errorKind: String?
+            let detail: String?
+            enum CodingKeys: String, CodingKey {
+                case ok, kind, options, detail
+                case errorKind = "error_kind"
+            }
+        }
+        struct OptionPayload: Decodable {
+            let height: Int
+            let codec: String?
+            let approx_bytes: Int64?
+            let format_id: String
+            let adaptive: Bool
+        }
+        let envelope: Envelope
+        do {
+            envelope = try JSONDecoder().decode(Envelope.self, from: data)
+        } catch {
+            throw KeraunosError.runtime(detail: "malformed extraction result")
+        }
+        guard envelope.ok else {
+            throw KeraunosError(errorKind: envelope.errorKind ?? "runtime", detail: envelope.detail ?? "")
+        }
+        if envelope.kind == "choices" {
+            let options = (envelope.options ?? []).map {
+                FormatOption(height: $0.height, codecLabel: $0.codec ?? "",
+                             approxBytes: $0.approx_bytes, formatID: $0.format_id,
+                             isAdaptive: $0.adaptive)
+            }
+            return .choices(options)
+        }
+        return .ready(try decode(data))
+    }
 }
