@@ -105,6 +105,10 @@ def _track(fmt):
         "vcodec": fmt.get("vcodec"),
         "acodec": fmt.get("acodec"),
         "ext": fmt.get("ext"),
+        # yt-dlp tags googlevideo (YouTube) formats with a chunk size; the native
+        # Downloader honors it with ranged requests to avoid googlevideo throttling
+        # single-shot GETs. None for hosts that download fine unranged.
+        "chunk_size": (fmt.get("downloader_options") or {}).get("http_chunk_size"),
     }
 
 

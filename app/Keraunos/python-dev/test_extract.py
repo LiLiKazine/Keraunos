@@ -562,3 +562,18 @@ def test_options_directfile_requires_mp4_ext():
          "ext": "webm", "height": 720, "tbr": 2000},
     ])
     assert opts == []
+
+
+# --- _track surfaces the chunk-size hint (for ranged downloads) -------------------
+def test_track_surfaces_http_chunk_size_from_downloader_options():
+    t = keraunos_extract._track({
+        "url": "https://r.googlevideo.com/x", "http_headers": {"User-Agent": "yt"},
+        "vcodec": "avc1", "acodec": "none", "ext": "mp4",
+        "downloader_options": {"http_chunk_size": 10485760},
+    })
+    assert t["chunk_size"] == 10485760
+
+
+def test_track_chunk_size_none_without_downloader_options():
+    t = keraunos_extract._track({"url": "https://x/a.mp4", "ext": "mp4"})
+    assert t["chunk_size"] is None
