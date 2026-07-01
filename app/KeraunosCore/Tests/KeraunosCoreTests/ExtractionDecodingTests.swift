@@ -53,4 +53,24 @@ struct ExtractionDecodingTests {
             try ExtractionDecoder.decode(Data("not json".utf8))
         }
     }
+
+    @Test func decodesChunkSizeFromWire() throws {
+        let json = #"""
+        {"ok":true,"kind":"progressive","title":"T","filename":"c.mp4",
+         "media":{"url":"https://x.test/v.mp4","headers":{},"vcodec":"avc1","acodec":"mp4a","ext":"mp4","chunk_size":10485760}}
+        """#
+        let media = try ExtractionDecoder.decode(Data(json.utf8))
+        guard case let .progressive(track) = media.kind else { Issue.record("expected progressive"); return }
+        #expect(track.chunkSize == 10485760)
+    }
+
+    @Test func chunkSizeNilWhenAbsent() throws {
+        let json = #"""
+        {"ok":true,"kind":"progressive","title":"T","filename":"c.mp4",
+         "media":{"url":"https://x.test/v.mp4","headers":{},"vcodec":"avc1","acodec":"mp4a","ext":"mp4"}}
+        """#
+        let media = try ExtractionDecoder.decode(Data(json.utf8))
+        guard case let .progressive(track) = media.kind else { Issue.record("expected progressive"); return }
+        #expect(track.chunkSize == nil)
+    }
 }

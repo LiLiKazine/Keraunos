@@ -24,6 +24,11 @@ private struct TrackPayload: Decodable {
     let vcodec: String?
     let acodec: String?
     let ext: String?
+    let chunkSize: Int?
+    enum CodingKeys: String, CodingKey {
+        case url, headers, vcodec, acodec, ext
+        case chunkSize = "chunk_size"
+    }
 }
 
 private struct ExtractionResult: Decodable {
@@ -82,7 +87,8 @@ public enum ExtractionDecoder {
         return MediaTrack(url: url,
                           httpHeaders: payload.headers ?? [:],
                           codec: payload.vcodec ?? payload.acodec ?? "",
-                          fileExtension: payload.ext ?? url.pathExtension)
+                          fileExtension: payload.ext ?? url.pathExtension,
+                          chunkSize: payload.chunkSize)
     }
 
     private static func filename(_ name: String?, fallbackURL: URL) -> String {
