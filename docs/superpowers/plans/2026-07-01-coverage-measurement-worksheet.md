@@ -80,10 +80,13 @@ does the >1080p VP9/AV1 format come back as a **fetchable URL** or is it **SABR-
      it exposes one complete `BaseURL`).
 4. **Revert both edits.**
 
-**One-line result:**
+**One-line result (run 2026-07-01, video `psbbXL2a2K8`):**
 ```
-YouTube >1080p web-client: [ FETCHABLE(single-file) | FETCHABLE(fragmented) | SABR-ONLY ]
+YouTube >1080p web-client: SABR-ONLY
 ```
+Forcing the web client (PoT provider active), YouTube skipped **all** https formats as
+missing-URL — *"YouTube is forcing SABR streaming for this client"* — leaving only
+storyboard images (`sb0–sb3`), no video at any resolution. Definitive SABR-only.
 
 ## Verdict → decisions
 
@@ -96,3 +99,11 @@ YouTube >1080p web-client: [ FETCHABLE(single-file) | FETCHABLE(fragmented) | SA
   helps **Bilibili AV1 only**; decide if one site is worth the libav maintenance cost.
 - **SABR = SABR-ONLY** → YouTube >1080p is off the table regardless of libav → Phase 4
   justifies itself on **Bilibili AV1 only** → likely **not worth it**; close Phase 4.
+
+## Outcome (2026-07-01): Phase 4 CLOSED, roadmap effectively complete
+The spike returned **SABR-ONLY**, so YouTube >1080p is unreachable regardless of libav,
+and Phase 4 would serve **Bilibili AV1 only** — not worth the permanent libav
+cross-compile + `LibavRemuxer` + Downloader-rewrite maintenance for one site. **Phase 4
+is closed.** Combined with 6/7 sites downloading at ≤1080p, the coverage roadmap is
+effectively complete. (Per the plan, the SABR verdict is a YouTube-server property and can
+flip if they narrow the SABR experiment — worth a re-run only if >1080p becomes a real need.)
