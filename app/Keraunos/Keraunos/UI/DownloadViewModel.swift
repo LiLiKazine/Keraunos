@@ -19,6 +19,11 @@ final class DownloadViewModel {   // main-actor by default (app target)
     /// Message from the last Save-to-Photos attempt; drives a one-off alert. nil when idle.
     private(set) var saveMessage: String?
 
+    /// Non-nil when the picker is showing: the resolutions available for the pasted link.
+    private(set) var pendingOptions: [FormatOption]?
+    /// The URL the pending options were listed for; resolved in `selectFormat`.
+    private var pendingURL: URL?
+
     /// The in-flight download task, retained so the UI can cancel it. Readable in tests.
     private(set) var currentTask: Task<Void, Never>?
 
@@ -54,6 +59,52 @@ final class DownloadViewModel {   // main-actor by default (app target)
             errorMessage = "Enter a valid http(s) link."
             return
         }
+        beginWork()
+        defer { endWork() }
+        do {
+            switch try await extractor.listFormats(url) {
+            case .ready(let media):
+                try await assembleAndRecord(media)
+            case .choices(let options):
+                pendingOptions = options
+                pendingURL = url
+            }
+        } catch {
+            await handleFailure(error, url: url, isAutoRetry: isAutoRetry) {
+                await self.startDownload(isAutoRetry: true)
+            }
+        }
+    }
+
+    /// Downloads the user's chosen resolution. Cancels any prior task first.
+    func selectFormat(_ option: FormatOption) {
+        guard let url = pendingURL else { return }
+        pendingOptions = nil
+        pendingURL = nil
+        currentTask?.cancel()
+        currentTask = Task { await self.resolveSelected(url: url, option: option) }
+    }
+
+    /// Dismisses the picker without downloading.
+    func cancelSelection() {
+        pendingOptions = nil
+        pendingURL = nil
+    }
+
+    private func resolveSelected(url: URL, option: FormatOption, isAutoRetry: Bool = false) async {
+        beginWork()
+        defer { endWork() }
+        do {
+            let media = try await extractor.resolve(url, option: option)
+            try await assembleAndRecord(media)
+        } catch {
+            await handleFailure(error, url: url, isAutoRetry: isAutoRetry) {
+                await self.resolveSelected(url: url, option: option, isAutoRetry: true)
+            }
+        }
+    }
+
+    private func beginWork() {
         isWorking = true
         errorMessage = nil
         requiresSignIn = false
@@ -61,31 +112,37 @@ final class DownloadViewModel {   // main-actor by default (app target)
         canRetry = false
         downloadProgress = nil
         statusText = "Resolving…"
-        defer { isWorking = false; statusText = nil; downloadProgress = nil }
-        do {
-            let media = try await extractor.resolve(url, option: nil)
-            let saved = try await assembler.assemble(media, into: store, onPhase: { phase in
-                self.statusText = Self.label(for: phase)
-            }, onProgress: { fraction in
-                // The download delegate fires off the main actor; hop back to mutate state.
-                Task { @MainActor in self.downloadProgress = fraction }
-            })
-            lastSavedName = saved.lastPathComponent
-            savedFiles = store.savedFiles()
-        } catch is CancellationError {
-            // User tapped Cancel — leave the screen clean, surface nothing.
-        } catch let error as KeraunosError {
-            guard error != .cancelled else { return }   // also a user-initiated cancel
-            // One transparent retry for a transient transport fault. Two shapes hit this:
-            // a YouTube cold-start (the first run mints a PoT and solves n/sig by running
-            // yt-dlp's EJS bundle in JavaScriptCore — heavy enough to occasionally exceed
-            // the watchdog or blip the network), and a mid-transfer download-side blip.
-            // The warm retry runs against cached player/nsig and a minted token, so it's
-            // fast. Done before surfacing/logging, so it's invisible. `isAutoRetryable` is
-            // the single source of truth (a strict subset of `isRetryable`).
+    }
+
+    private func endWork() {
+        isWorking = false
+        statusText = nil
+        downloadProgress = nil
+    }
+
+    private func assembleAndRecord(_ media: ResolvedMedia) async throws {
+        let saved = try await assembler.assemble(media, into: store, onPhase: { phase in
+            self.statusText = Self.label(for: phase)
+        }, onProgress: { fraction in
+            Task { @MainActor in self.downloadProgress = fraction }
+        })
+        lastSavedName = saved.lastPathComponent
+        savedFiles = store.savedFiles()
+    }
+
+    /// Shared failure handling for both phases: transparent one-shot auto-retry for
+    /// transient faults (via `retry`), else surface/log the error and route auth walls
+    /// to the Sign-In flow.
+    private func handleFailure(_ error: Error, url: URL, isAutoRetry: Bool,
+                               retry: () async -> Void) async {
+        switch error {
+        case is CancellationError:
+            return
+        case let error as KeraunosError:
+            guard error != .cancelled else { return }
             if error.isAutoRetryable, !isAutoRetry {
                 statusText = "Retrying…"
-                await startDownload(isAutoRetry: true)
+                await retry()
                 return
             }
             errorMessage = error.errorDescription
@@ -93,19 +150,13 @@ final class DownloadViewModel {   // main-actor by default (app target)
             let detail = { if case .runtime(let d) = error { return d } else { return "" } }()
             failureLog.record(url: url.absoluteString, errorKind: error.kind, detail: detail, date: Date())
             failureLogURL = failureLog.fileURL
-            // Both surface the Sign In path: requiresAuth is an explicit auth wall;
-            // restrictedOrEmpty is a guest-access tombstone (e.g. an age-restricted tweet)
-            // whose message tells the owner to sign in, so the button must back that up.
             if error == .requiresAuth || error == .restrictedOrEmpty {
                 requiresSignIn = true
-                // Sign in at the site's origin root, not the deep/short video link — the
-                // latter can 302 to an app scheme (WKWebView can't follow) and never sets
-                // the site's guest cookies. The origin renders and seeds those cookies.
                 signInURL = URLNormalizer.origin(of: url) ?? url
             }
-        } catch {
+        default:
             errorMessage = KeraunosError.runtime(detail: error.localizedDescription).errorDescription
-            canRetry = true   // unknown runtime fault — a retry may clear it
+            canRetry = true
             failureLog.record(url: url.absoluteString, errorKind: "runtime",
                               detail: error.localizedDescription, date: Date())
             failureLogURL = failureLog.fileURL

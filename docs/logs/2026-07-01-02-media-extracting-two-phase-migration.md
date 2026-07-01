@@ -1,6 +1,6 @@
 # 2026-07-01-02: MediaExtracting two-phase migration (listFormats + resolve:option)
 
-**Status:** Implemented
+**Status:** Implemented (DownloadViewModel wiring completed in Task 6, see Commits)
 
 ## Context
 
@@ -81,3 +81,10 @@ the interim/final wiring split across Task 5 and Task 6.
   double's synchronization primitive must be audited against every call path
   that can reach it, not just the one path the brief's author had in mind when
   writing the double.
+
+## Commits
+
+| Date | Commit | Summary |
+|------|--------|---------|
+| 2026-07-01 | (Task 5, this migration's original commit) | protocol split + interim `resolve(url, option: nil)` call site |
+| 2026-07-01 | (see below) | Task 6: `DownloadViewModel` rewired to call `listFormats` first; `.ready` downloads, `.choices` populates `pendingOptions`/`pendingURL` for a resolution picker; `selectFormat`/`cancelSelection` added; `beginWork`/`endWork`/`assembleAndRecord`/`handleFailure` extracted so both phases share identical error mapping, auto-retry, failure logging, and Sign-In routing. `HangingExtractor`'s dual-yield decision (above) paid off unchanged — no further edits to the test doubles were needed for this task. |

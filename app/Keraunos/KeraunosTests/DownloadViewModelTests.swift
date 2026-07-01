@@ -20,6 +20,15 @@ struct DownloadViewModelTests {
                           assembler: MediaAssembler(downloader: SpyDownloader(), merger: merger),
                           store: DownloadStore(directory: dir))
     }
+    private func choices(_ options: [FormatOption]) -> MockExtractor {
+        var m = MockExtractor(result: .success(progressive("picked.mp4")))
+        m.listing = .success(.choices(options))
+        return m
+    }
+    private var sampleOption: FormatOption {
+        FormatOption(height: 720, codecLabel: "H.264", approxBytes: nil,
+                     formatID: "22", isAdaptive: false)
+    }
 
     final class MockPhotoSaver: PhotoSaving {
         var result: PhotoSaveResult
@@ -221,6 +230,49 @@ struct DownloadViewModelTests {
         #expect(model.isWorking == false)
         #expect(model.errorMessage == nil)   // a user-initiated cancel is not an error
         #expect(model.lastSavedName == nil)
+    }
+
+    @Test func multipleFormatsShowPickerAndDoNotDownloadYet() async {
+        let dir = tempDir()
+        let model = vm(extractor: choices([sampleOption,
+            FormatOption(height: 360, codecLabel: "H.264", approxBytes: nil,
+                         formatID: "18", isAdaptive: false)]),
+                       merger: MockMerger(), dir: dir)
+        model.urlText = "https://x.test/v"
+        await model.startDownload()
+        #expect(model.pendingOptions?.count == 2)
+        #expect(model.lastSavedName == nil)                 // nothing downloaded yet
+        #expect(model.savedFiles.isEmpty)
+    }
+
+    @Test func selectFormatResolvesAndSaves() async {
+        let dir = tempDir()
+        let model = vm(extractor: choices([sampleOption]), merger: MockMerger(), dir: dir)
+        model.urlText = "https://x.test/v"
+        await model.startDownload()
+        model.selectFormat(sampleOption)
+        await model.currentTask?.value
+        #expect(model.pendingOptions == nil)
+        #expect(model.lastSavedName == "picked.mp4")
+    }
+
+    @Test func cancelSelectionClearsPickerWithoutDownloading() async {
+        let model = vm(extractor: choices([sampleOption]), merger: MockMerger(), dir: tempDir())
+        model.urlText = "https://x.test/v"
+        await model.startDownload()
+        model.cancelSelection()
+        #expect(model.pendingOptions == nil)
+        #expect(model.lastSavedName == nil)
+    }
+
+    @Test func listFormatsErrorMapsLikeResolveError() async {
+        var mock = MockExtractor()
+        mock.listing = .failure(.requiresAuth)
+        let model = vm(extractor: mock, merger: MockMerger(), dir: tempDir())
+        model.urlText = "https://x.test/v"
+        await model.startDownload()
+        #expect(model.requiresSignIn)                        // same routing as a resolve failure
+        #expect(model.pendingOptions == nil)
     }
 
     @Test func retryAfterLoginSucceedsAndClearsSignIn() async {
