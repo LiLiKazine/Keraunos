@@ -5,7 +5,7 @@ import Foundation
 /// Photos can't import). `PHAssetCreationRequest` reliably accepts only these MP4/QuickTime
 /// containers.
 public enum PhotosCompatibility {
-    static let extensions: Set<String> = ["mp4", "m4v", "mov"]
+    private static let extensions: Set<String> = ["mp4", "m4v", "mov"]
 
     public static func canSave(_ url: URL) -> Bool {
         extensions.contains(url.pathExtension.lowercased())
