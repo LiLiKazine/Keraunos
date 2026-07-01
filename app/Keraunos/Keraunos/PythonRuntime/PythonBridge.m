@@ -105,7 +105,8 @@ int keraunos_python_init(const char *resourcePath, const char *caCertPath) {
     return 0;
 }
 
-char *keraunos_python_extract(const char *url, const char *cookieFilePath) {
+char *keraunos_python_extract(const char *url, const char *cookieFilePath,
+                              const char *formatID, int adaptive) {
     PyGILState_STATE gil = PyGILState_Ensure();
     char *out = NULL;
 
@@ -113,14 +114,55 @@ char *keraunos_python_extract(const char *url, const char *cookieFilePath) {
     if (module) {
         PyObject *func = PyObject_GetAttrString(module, "extract");
         if (func && PyCallable_Check(func)) {
-            PyObject *args = Py_BuildValue("(s)", url);                 // (url,)
+            PyObject *args = Py_BuildValue("(s)", url);
+            PyObject *kwargs = PyDict_New();
+            if (cookieFilePath && cookieFilePath[0] != '\0') {
+                PyObject *cf = PyUnicode_FromString(cookieFilePath);
+                if (cf) { PyDict_SetItemString(kwargs, "cookiefile", cf); Py_DECREF(cf); }
+            }
+            if (formatID && formatID[0] != '\0') {
+                PyObject *fid = PyUnicode_FromString(formatID);
+                if (fid) { PyDict_SetItemString(kwargs, "format_id", fid); Py_DECREF(fid); }
+                PyObject *adap = PyBool_FromLong(adaptive);
+                if (adap) { PyDict_SetItemString(kwargs, "adaptive", adap); Py_DECREF(adap); }
+            }
+            if (args && kwargs) {
+                PyObject *result = PyObject_Call(func, args, kwargs);
+                if (result) {
+                    const char *utf8 = PyUnicode_AsUTF8(result);
+                    if (utf8) out = strdup(utf8);
+                    Py_DECREF(result);
+                }
+            }
+            Py_XDECREF(args);
+            Py_XDECREF(kwargs);
+        }
+        Py_XDECREF(func);
+        Py_DECREF(module);
+    }
+    if (!out && PyErr_Occurred()) PyErr_Clear();
+    PyGILState_Release(gil);
+
+    if (!out) out = strdup("{\"ok\":false,\"error_kind\":\"runtime\",\"detail\":\"python bridge failure\"}");
+    return out;
+}
+
+char *keraunos_python_list_formats(const char *url, const char *cookieFilePath) {
+    PyGILState_STATE gil = PyGILState_Ensure();
+    char *out = NULL;
+
+    PyObject *module = PyImport_ImportModule("keraunos_extract");
+    if (module) {
+        PyObject *func = PyObject_GetAttrString(module, "list_formats");
+        if (func && PyCallable_Check(func)) {
+            PyObject *args = Py_BuildValue("(s)", url);
             PyObject *kwargs = PyDict_New();
             if (cookieFilePath && cookieFilePath[0] != '\0') {
                 PyObject *cf = PyUnicode_FromString(cookieFilePath);
                 if (cf) { PyDict_SetItemString(kwargs, "cookiefile", cf); Py_DECREF(cf); }
             }
             if (args && kwargs) {
-                PyObject *result = PyObject_Call(func, args, kwargs);   // extract(url, cookiefile=...)
+                PyObject *result = PyObject_Call(func, args, kwargs);
                 if (result) {
                     const char *utf8 = PyUnicode_AsUTF8(result);
                     if (utf8) out = strdup(utf8);

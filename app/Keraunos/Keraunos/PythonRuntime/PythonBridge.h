@@ -9,10 +9,15 @@
 /// has no system trust store). Returns 0 on success.
 int keraunos_python_init(const char *resourcePath, const char *caCertPath);
 
-/// Calls keraunos_extract.extract(url). Returns a malloc'd UTF-8 JSON string the
-/// caller must free(). Returns NULL only on catastrophic bridge failure.
-// cookieFilePath may be NULL or "" for "no cookies".
-char *keraunos_python_extract(const char *url, const char *cookieFilePath);
+/// Calls keraunos_extract.extract(url, cookiefile=..., format_id=..., adaptive=...).
+/// formatID NULL/empty selects the default best-muxable stream (unchanged behavior).
+/// Returns a malloc'd UTF-8 JSON string the caller must free().
+char *keraunos_python_extract(const char *url, const char *cookieFilePath,
+                              const char *formatID, int adaptive);
+
+/// Calls keraunos_extract.list_formats(url, cookiefile=...). Returns a malloc'd UTF-8
+/// JSON string (a choices payload, a .ready payload, or an error payload) to free().
+char *keraunos_python_list_formats(const char *url, const char *cookieFilePath);
 
 // Implemented in Swift (@_cdecl). Evaluates JS via JavaScriptCore and returns a
 // malloc'd UTF-8 string the caller must free(). On JS error the string is prefixed
