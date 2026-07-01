@@ -65,4 +65,5 @@ additive. The `canSaveToPhotos` guard delegates to `PhotosCompatibility.canSave`
 
 | Hash | Description |
 |------|-------------|
-| (see git log) | feat(photos): inject PhotoSaving into DownloadViewModel, map result to message |
+| d41664b | feat(photos): inject PhotoSaving into DownloadViewModel, map result to message |
+| TBD | feat(photos): Save-to-Photos swipe action + real PhotoLibrarySaver |

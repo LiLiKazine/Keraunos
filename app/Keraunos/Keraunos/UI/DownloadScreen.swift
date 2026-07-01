@@ -96,6 +96,14 @@ struct DownloadScreen: View {
                                     Label("Share", systemImage: "square.and.arrow.up")
                                 }
                                 .tint(.blue)
+                                if model.canSaveToPhotos(file) {
+                                    Button {
+                                        Task { await model.saveToPhotos(file) }
+                                    } label: {
+                                        Label("Save to Photos", systemImage: "arrow.down.to.line")
+                                    }
+                                    .tint(.indigo)
+                                }
                             }
                         }
                     }
@@ -114,6 +122,14 @@ struct DownloadScreen: View {
             .navigationTitle("Keraunos")
             .onOpenURL { model.openIncoming($0) }   // deep link / share / Shortcut entry
             .quickLookPreview($previewURL)
+            .alert("Save to Photos", isPresented: Binding(
+                get: { model.saveMessage != nil },
+                set: { if !$0 { model.dismissSaveMessage() } }
+            )) {
+                Button("OK", role: .cancel) { model.dismissSaveMessage() }
+            } message: {
+                Text(model.saveMessage ?? "")
+            }
             .sheet(isPresented: $showLogin) {
                 NavigationStack {
                     if let url = model.signInURL {

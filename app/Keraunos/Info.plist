@@ -16,6 +16,10 @@
 			</array>
 		</dict>
 	</array>
+	<!-- Add-only Photos access for the "Save to Photos" action on a finished download.
+	     A usage string only — not a signing capability. -->
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>Keraunos saves a downloaded video to your Photos library when you tap Save to Photos.</string>
 	<!-- Expose the app's Documents folder in the Files app (On My iPhone). -->
 	<key>UIFileSharingEnabled</key>
 	<true/>

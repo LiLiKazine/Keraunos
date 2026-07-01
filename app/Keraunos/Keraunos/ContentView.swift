@@ -9,7 +9,8 @@ struct ContentView: View {
             model: DownloadViewModel(
                 extractor: PythonExtractor(cookieProvider: cookieStore),
                 assembler: MediaAssembler(downloader: Downloader(), merger: AVFoundationMerger()),
-                store: DownloadStore()),
+                store: DownloadStore(),
+                photoSaver: PhotoLibrarySaver()),
             cookieStore: cookieStore)
     }
 }
