@@ -25,6 +25,10 @@ public struct Downloader: FileDownloading {
     public func download(_ track: MediaTrack, to destination: URL,
                          onProgress: @escaping @Sendable (Double) -> Void) async throws {
         do {
+            if let chunk = track.chunkSize, chunk > 0 {
+                try await downloadChunked(track, chunkSize: chunk, to: destination, onProgress: onProgress)
+                return
+            }
             var request = URLRequest(url: track.url)
             for (field, value) in track.httpHeaders { request.setValue(value, forHTTPHeaderField: field) }
             let (tempURL, response) = try await session.download(
@@ -47,6 +51,64 @@ public struct Downloader: FileDownloading {
         } catch {
             throw KeraunosError.downloadNetwork
         }
+    }
+
+    /// Downloads a track in sequential HTTP Range chunks (for hosts like googlevideo that
+    /// throttle unranged full-file GETs), assembling into a temp file then moving into place.
+    /// A `200` response means the server ignored `Range` — that body IS the whole file.
+    private func downloadChunked(_ track: MediaTrack, chunkSize: Int, to destination: URL,
+                                 onProgress: @escaping @Sendable (Double) -> Void) async throws {
+        let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        guard FileManager.default.createFile(atPath: tempURL.path, contents: nil) else {
+            throw KeraunosError.downloadNetwork
+        }
+        let handle = try FileHandle(forWritingTo: tempURL)
+        var closed = false
+        defer { if !closed { try? handle.close() } }
+
+        var offset = 0
+        var total: Int64?
+        while true {
+            try Task.checkCancellation()
+            var request = URLRequest(url: track.url)
+            for (field, value) in track.httpHeaders { request.setValue(value, forHTTPHeaderField: field) }
+            request.setValue("bytes=\(offset)-\(offset + chunkSize - 1)", forHTTPHeaderField: "Range")
+            let (data, response) = try await session.data(for: request)
+            guard let http = response as? HTTPURLResponse else { throw KeraunosError.downloadNetwork }
+            if http.statusCode == 200 {          // server ignored Range → whole file
+                try handle.write(contentsOf: data)
+                offset += data.count
+                onProgress(1.0)
+                break
+            } else if http.statusCode == 206 {
+                if total == nil { total = Self.totalBytes(fromContentRange: http) }
+                try handle.write(contentsOf: data)
+                offset += data.count
+                if let t = total, t > 0 { onProgress(min(1.0, Double(offset) / Double(t))) }
+                if data.isEmpty { break }
+                if let t = total, Int64(offset) >= t { break }
+            } else {
+                throw KeraunosError.downloadNetwork
+            }
+        }
+
+        try handle.close(); closed = true
+        let size = (try? tempURL.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0
+        guard size > 0 else {
+            try? FileManager.default.removeItem(at: tempURL)
+            throw KeraunosError.downloadNetwork
+        }
+        try? FileManager.default.removeItem(at: destination)
+        try FileManager.default.moveItem(at: tempURL, to: destination)
+    }
+
+    /// Parses the total size out of a `Content-Range: bytes a-b/total` header. Returns nil
+    /// for an unknown total (`.../*`), in which case progress isn't reported but assembly
+    /// still terminates on a short/empty chunk.
+    private static func totalBytes(fromContentRange http: HTTPURLResponse) -> Int64? {
+        guard let value = http.value(forHTTPHeaderField: "Content-Range"),
+              let slash = value.lastIndex(of: "/") else { return nil }
+        return Int64(value[value.index(after: slash)...].trimmingCharacters(in: .whitespaces))
     }
 }
 
