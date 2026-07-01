@@ -63,7 +63,7 @@ final class DownloadViewModel {   // main-actor by default (app target)
         statusText = "Resolving…"
         defer { isWorking = false; statusText = nil; downloadProgress = nil }
         do {
-            let media = try await extractor.resolve(url)
+            let media = try await extractor.resolve(url, option: nil)
             let saved = try await assembler.assemble(media, into: store, onPhase: { phase in
                 self.statusText = Self.label(for: phase)
             }, onProgress: { fraction in

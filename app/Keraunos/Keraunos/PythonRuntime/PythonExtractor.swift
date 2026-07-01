@@ -21,24 +21,43 @@ actor PythonExtractor: MediaExtracting {
         self.timeout = timeout
     }
 
-    func resolve(_ url: URL) async throws -> ResolvedMedia {
+    func listFormats(_ url: URL) async throws -> FormatListing {
         try ensureInitialized()
         let cookieURL = await cookieProvider?.cookieFile()
         defer { if let cookieURL { try? FileManager.default.removeItem(at: cookieURL) } }
         let cookiePath = cookieURL?.path
-        // Only the extraction call is bounded: ensureInitialized() (first-call
-        // Python init) and the cookieProvider hop above run before the timeout
-        // window. The blocking C call runs on this actor's serial executor (via the
-        // actor-isolated blockingExtract); the timeout's timer runs on the
-        // cooperative pool. On timeout the C call is orphaned on the serial
-        // executor until it returns — the next resolve queues behind it.
         return try await withTimeout(timeout) { [self] in
-            try await blockingExtract(url, cookiePath: cookiePath)
+            try await blockingList(url, cookiePath: cookiePath)
         }
     }
 
-    private func blockingExtract(_ url: URL, cookiePath: String?) throws -> ResolvedMedia {
-        guard let cString = keraunos_python_extract(url.absoluteString, cookiePath) else {
+    // Only the extraction call is bounded: ensureInitialized() (first-call
+    // Python init) and the cookieProvider hop above run before the timeout
+    // window. The blocking C call runs on this actor's serial executor (via the
+    // actor-isolated blockingExtract); the timeout's timer runs on the
+    // cooperative pool. On timeout the C call is orphaned on the serial
+    // executor until it returns — the next resolve queues behind it.
+    func resolve(_ url: URL, option: FormatOption?) async throws -> ResolvedMedia {
+        try ensureInitialized()
+        let cookieURL = await cookieProvider?.cookieFile()
+        defer { if let cookieURL { try? FileManager.default.removeItem(at: cookieURL) } }
+        let cookiePath = cookieURL?.path
+        return try await withTimeout(timeout) { [self] in
+            try await blockingExtract(url, cookiePath: cookiePath, option: option)
+        }
+    }
+
+    private func blockingList(_ url: URL, cookiePath: String?) throws -> FormatListing {
+        guard let cString = keraunos_python_list_formats(url.absoluteString, cookiePath) else {
+            throw KeraunosError.runtime(detail: "null extraction result")
+        }
+        defer { free(cString) }
+        return try ExtractionDecoder.decodeListing(Data(String(cString: cString).utf8))
+    }
+
+    private func blockingExtract(_ url: URL, cookiePath: String?, option: FormatOption?) throws -> ResolvedMedia {
+        guard let cString = keraunos_python_extract(url.absoluteString, cookiePath,
+                                                    option?.formatID, (option?.isAdaptive ?? false) ? 1 : 0) else {
             throw KeraunosError.runtime(detail: "null extraction result")
         }
         defer { free(cString) }

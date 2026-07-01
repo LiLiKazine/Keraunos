@@ -243,17 +243,19 @@ struct DownloadViewModelTests {
     }
 }
 
-/// Returns a queued sequence of results across successive resolve() calls.
+/// Returns a queued sequence of results across successive phase-1 calls.
 final class SequenceExtractor: MediaExtracting, @unchecked Sendable {
     private var results: [Result<ResolvedMedia, KeraunosError>]
     init(results: [Result<ResolvedMedia, KeraunosError>]) { self.results = results }
-    func resolve(_ url: URL) async throws -> ResolvedMedia {
+    private func next() throws -> ResolvedMedia {
         try (results.isEmpty ? .failure(.runtime(detail: "no more results")) : results.removeFirst()).get()
     }
+    func listFormats(_ url: URL) async throws -> FormatListing { .ready(try next()) }
+    func resolve(_ url: URL, option: FormatOption?) async throws -> ResolvedMedia { try next() }
 }
 
-/// Suspends inside resolve() until the task is cancelled, signalling when it has
-/// actually entered resolve() so a test can cancel a genuinely in-flight download.
+/// Suspends inside phase 1 until cancelled, signalling when it has actually entered so a
+/// test can cancel a genuinely in-flight download.
 final class HangingExtractor: MediaExtracting, @unchecked Sendable {
     let resolving: AsyncStream<Void>
     private let entered: AsyncStream<Void>.Continuation
@@ -262,9 +264,14 @@ final class HangingExtractor: MediaExtracting, @unchecked Sendable {
         resolving = AsyncStream { continuation = $0 }
         entered = continuation
     }
-    func resolve(_ url: URL) async throws -> ResolvedMedia {
+    func listFormats(_ url: URL) async throws -> FormatListing {
         entered.yield(())
-        try await Task.sleep(for: .seconds(60))   // cancellation throws CancellationError here
+        try await Task.sleep(for: .seconds(60))
+        throw KeraunosError.runtime(detail: "should have been cancelled")
+    }
+    func resolve(_ url: URL, option: FormatOption?) async throws -> ResolvedMedia {
+        entered.yield(())
+        try await Task.sleep(for: .seconds(60))
         throw KeraunosError.runtime(detail: "should have been cancelled")
     }
 }
