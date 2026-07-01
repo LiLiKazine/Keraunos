@@ -1,9 +1,14 @@
 # Share / deep-link a URL into Keraunos
 
-> The app-side **receiving** logic, the `keraunos://` scheme registration, the shared
-> deep-link contract, and the Share Extension **source** are all done in code. What
-> remains is one Xcode step — creating the extension *target* — plus on-device
-> verification. Both need the IDE + signing, so they stay owner-manual.
+> ✅ **DONE — verified on-device (2026-07-01).** Sharing a YouTube link → tapping Keraunos
+> now foregrounds the app and auto-starts the download. Everything below is kept as the
+> record of how it was built and the one gotcha that bit us.
+>
+> **iOS 18+ gotcha (cost a debug cycle):** a share extension must open the host app via
+> the responder chain calling `open(_:options:completionHandler:)` — the deprecated
+> `openURL:` selector is blocked ("BUG IN CLIENT OF UIKIT …") and silently fails — and
+> must defer `completeRequest` into that completion handler or the open is cancelled.
+> See `KeraunosShareExtension/ShareViewController.swift` and commit 7009d1e.
 
 ## What already works (in code, tested / built)
 - `IncomingURL.target(from:)` resolves a direct `http(s)` link or a
