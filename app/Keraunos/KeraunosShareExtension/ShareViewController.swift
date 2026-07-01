@@ -13,12 +13,13 @@ final class ShareViewController: UIViewController {
     }
 
     private func forwardSharedURL() async {
-        if let shared = await firstSharedURL(),
-           let deepLink = KeraunosDeepLink.url(forMediaURL: shared.absoluteString) {
-            openHostApp(deepLink)
+        guard let shared = await firstSharedURL(),
+              let deepLink = KeraunosDeepLink.url(forMediaURL: shared.absoluteString) else {
+            // Nothing usable was shared — just dismiss so the sheet doesn't hang.
+            extensionContext?.completeRequest(returningItems: nil)
+            return
         }
-        // Always complete, even on a miss, so the share sheet doesn't hang.
-        extensionContext?.completeRequest(returningItems: nil)
+        openHostApp(deepLink)   // completes the request inside its completion handler
     }
 
     /// The first usable URL among the shared attachments: a `public.url` item (a link
@@ -45,19 +46,27 @@ final class ShareViewController: UIViewController {
         return detector?.firstMatch(in: text, range: range)?.url
     }
 
-    /// A share extension can't reach `UIApplication.shared`, so walk the responder chain
-    /// to find the object that responds to `openURL:` (the application) and ask it to open
-    /// our scheme. `extensionContext.open(_:)` is documented to be unreliable for share
-    /// extensions, so this is the dependable path.
+    /// Opens the host app with our `keraunos://` URL by walking the responder chain to the
+    /// `UIApplication` and calling the non-deprecated `open(_:options:completionHandler:)`.
+    ///
+    /// Two iOS 18+ gotchas this avoids:
+    /// - A share extension can't touch `UIApplication.shared`, and the old `openURL:`
+    ///   selector is now blocked outright — UIKit logs "BUG IN CLIENT OF UIKIT … migrate
+    ///   to open(_:options:completionHandler:)" and returns false without opening.
+    /// - `completeRequest` is deferred into the completion handler: tearing the extension
+    ///   down before the open dispatches cancels it (the app never comes forward).
     private func openHostApp(_ url: URL) {
-        let selector = sel_registerName("openURL:")
         var responder: UIResponder? = self
         while let current = responder {
-            if current.responds(to: selector) {
-                _ = current.perform(selector, with: url)
+            if let application = current as? UIApplication {
+                application.open(url, options: [:]) { [weak self] _ in
+                    self?.extensionContext?.completeRequest(returningItems: nil)
+                }
                 return
             }
             responder = current.next
         }
+        // No UIApplication in the responder chain — nothing to open; dismiss.
+        extensionContext?.completeRequest(returningItems: nil)
     }
 }
