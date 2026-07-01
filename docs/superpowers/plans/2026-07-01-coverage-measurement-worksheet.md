@@ -24,15 +24,28 @@ Pick a normal, public, non-age-gated post per site. For YouTube also keep a **>1
 video handy for Part B. Test both a **paste** and a **share-sheet** entry for at least
 one site to confirm both paths.
 
-| # | Site | Pick a URL that is… | Expectation (per roadmap) | Result | Codec / errorKind | Notes |
-|---|------|--------------------|---------------------------|--------|-------------------|-------|
-| 1 | **YouTube** | a normal ≤1080p video | PASS (PoT/nsig via JS bridge) | ⬜ | | |
-| 2 | **Twitter / X** | a tweet with a native video | PASS ≤720p; >720p is MPEG-TS (deferred) | ⬜ | | |
-| 3 | **Reddit** | a v.redd.it post | PASS — **codec-regex fix target** | ⬜ | | |
-| 4 | **Bilibili** | a standard video (H.264) | PASS — **codec-regex fix target** | ⬜ | | |
-| 5 | **RedNote (Xiaohongshu)** | a video note | PASS — **codec-regex fix target**; may serve http:// mp4 | ⬜ | | |
-| 6 | **Instagram** | a public reel/post | PASS **only if signed in** (needs cookies) — else `requires_auth` | ⬜ | | |
-| 7 | **TikTok / Douyin** | a public video | PASS | ⬜ | | |
+**Result of the 2026-07-01 pass: 6 / 7 PASS. Douyin unsupported in-app (see below).**
+
+| # | Site | Expectation (per roadmap) | Result (2026-07-01) |
+|---|------|---------------------------|---------------------|
+| 1 | **YouTube** | PASS (PoT/nsig via JS bridge) | ✅ PASS |
+| 2 | **Twitter / X** | PASS ≤720p; >720p is MPEG-TS (deferred) | ✅ PASS |
+| 3 | **Reddit** | PASS — **codec-regex fix target** | ✅ PASS — **fix confirmed live** |
+| 4 | **Bilibili** | PASS — **codec-regex fix target** | ✅ PASS — **fix confirmed live** |
+| 5 | **RedNote (Xiaohongshu)** | PASS — **codec-regex fix target** | ✅ PASS — **fix confirmed live** |
+| 6 | **Instagram** | PASS only if signed in (needs cookies) | ✅ PASS (sign-in via login WebView) |
+| 7 | **TikTok / Douyin** | PASS | ❌ **UNSUPPORTED in-app** |
+
+**Douyin (#7) — why it fails, investigated 2026-07-01:** yt-dlp's Douyin extractor
+(`tiktok.py:1478`) calls `www.douyin.com/aweme/v1/web/aweme/detail/` and errors "Fresh
+cookies (not necessarily logged in) are needed" when it comes back empty. Confirmed it is
+**not** ours to fix cheaply: (a) our pipeline passes cookies correctly; (b) we ship the
+latest yt-dlp stable and `tiktok.py` is unchanged on master; (c) our extraction opts are
+clean; (d) that call uses plain `urllib` (no impersonation), so it's the *request
+environment*. Plain `yt-dlp <url>` with **no cookies** works on the owner's laptop but the
+in-app request returns empty → Douyin's API is **IP/anti-bot gated** against the embedded
+request. Also `curl_cffi` (browser-TLS impersonation) can't be bundled on iOS — a separate
+gap for impersonation-dependent extractors. **Verdict: parked as not-supported-in-app.**
 
 **Auth note (site 6):** if Instagram fails with `requires_auth`, sign in via the app's
 login WebView first (that's the Safari-UA path we just fixed), then retry. Record whether
