@@ -323,6 +323,11 @@ def extract(url, socket_timeout=_SOCKET_TIMEOUT, cookiefile=None,
     the next extraction is serialized by the caller)."""
     if format_id:
         if adaptive:
+            # First branch (AAC-constrained) is what actually resolves: list_formats only
+            # emits an adaptive option when muxable AAC audio exists, so that branch always
+            # pairs. The middle `{id}+bestaudio` (no codec filter) is a defensive fallback,
+            # NOT a license to pair with Opus — if you ever loosen the list_formats audio
+            # gate, keep an AAC constraint here or you'll silently mux a non-AVFoundation pair.
             fmt = (f"{format_id}+bestaudio[protocol^=http][{_ACODEC_AAC}]/"
                    f"{format_id}+bestaudio/{_FORMAT}")
         else:

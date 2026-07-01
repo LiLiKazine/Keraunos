@@ -19,7 +19,7 @@ public struct FormatOption: Equatable, Sendable {
         self.isAdaptive = isAdaptive
     }
 
-    /// Picker row text, e.g. "1080p · H.264 · 45 MB". Codec and size segments are
+    /// Picker row text, e.g. "1080p · H.264 · 47.2 MB". Codec and size segments are
     /// dropped when unavailable so a bare "720p" is still shown.
     public var displayLabel: String {
         var parts = ["\(height)p"]
