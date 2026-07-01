@@ -31,6 +31,21 @@ struct LoginWebView: UIViewRepresentable {
         case failed(String)
     }
 
+    /// The failure reason to surface for a navigation error, or nil to ignore it. We only
+    /// blank the WebView for a genuine failure on the *initial* load (otherwise a mystery
+    /// blank page). Ignored cases:
+    /// - a page has already committed (`hasCommittedAPage`): a later failed navigation just
+    ///   leaves the user on the current page — don't cover a usable view;
+    /// - `NSURLErrorCancelled` (-999): a superseded / redirected load;
+    /// - WebKit `102` (FrameLoadInterruptedByPolicyChange): a normal redirect or
+    ///   custom-scheme hop (e.g. v.douyin.com bouncing to a deep link), not a real failure.
+    static func failureReason(for error: NSError, hasCommittedAPage: Bool) -> String? {
+        if hasCommittedAPage { return nil }
+        if error.code == NSURLErrorCancelled { return nil }
+        if error.domain == "WebKitErrorDomain" && error.code == 102 { return nil }
+        return "\(error.localizedDescription) (\(error.domain) \(error.code))"
+    }
+
     func makeCoordinator() -> Coordinator { Coordinator(status: $status) }
 
     func makeUIView(context: Context) -> WKWebView {
@@ -47,6 +62,9 @@ struct LoginWebView: UIViewRepresentable {
 
     final class Coordinator: NSObject, WKNavigationDelegate {
         private let status: Binding<LoadStatus>
+        /// True once any navigation has committed a page. After that, transient errors
+        /// (redirects, policy interruptions, mid-flow 4xx) must not blank a usable view.
+        private var hasCommittedAPage = false
 
         init(status: Binding<LoadStatus>) { self.status = status }
 
@@ -54,14 +72,22 @@ struct LoginWebView: UIViewRepresentable {
             status.wrappedValue = .loading
         }
 
+        func webView(_ webView: WKWebView, didCommit navigation: WKNavigation!) {
+            hasCommittedAPage = true
+        }
+
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+            hasCommittedAPage = true
             status.wrappedValue = .finished
         }
 
-        // Server reachable but returned an error status (e.g. 403/404) on the main frame.
+        // A reachable-but-error status (e.g. 403/404) on the main frame — but only worth
+        // surfacing while the FIRST page is still loading. Once a page is up, sites
+        // legitimately return non-2xx main-frame responses mid-flow.
         func webView(_ webView: WKWebView, decidePolicyFor navigationResponse: WKNavigationResponse,
                      decisionHandler: @escaping (WKNavigationResponsePolicy) -> Void) {
-            if let http = navigationResponse.response as? HTTPURLResponse,
+            if !hasCommittedAPage,
+               let http = navigationResponse.response as? HTTPURLResponse,
                http.statusCode >= 400, navigationResponse.isForMainFrame {
                 status.wrappedValue = .failed("Site returned HTTP \(http.statusCode).")
             }
@@ -78,10 +104,10 @@ struct LoginWebView: UIViewRepresentable {
         }
 
         private func record(_ error: Error) {
-            let ns = error as NSError
-            // -999 (cancelled) is normal — a superseded/redirected load, not a failure.
-            guard ns.code != NSURLErrorCancelled else { return }
-            status.wrappedValue = .failed("\(ns.localizedDescription) (\(ns.domain) \(ns.code))")
+            if let reason = LoginWebView.failureReason(for: error as NSError,
+                                                       hasCommittedAPage: hasCommittedAPage) {
+                status.wrappedValue = .failed(reason)
+            }
         }
     }
 }
