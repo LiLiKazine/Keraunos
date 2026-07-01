@@ -22,12 +22,17 @@ struct DownloaderTests {
     /// Serves `body` honoring the Range header with 206 + Content-Range (or a single
     /// 200 with the whole body when `ignoreRange`), counting requests. Thread-safe;
     /// the Downloader issues chunk requests serially so contention is nil in practice.
+    /// When `unknownTotal`, the Content-Range total is reported as `*` (still serving
+    /// the correct byte slice) to simulate a server that never reveals a total size.
     final class ChunkServer: @unchecked Sendable {
         let body: Data
         let ignoreRange: Bool
+        let unknownTotal: Bool
         private let lock = NSLock()
         private var _count = 0
-        init(body: Data, ignoreRange: Bool = false) { self.body = body; self.ignoreRange = ignoreRange }
+        init(body: Data, ignoreRange: Bool = false, unknownTotal: Bool = false) {
+            self.body = body; self.ignoreRange = ignoreRange; self.unknownTotal = unknownTotal
+        }
         var requestCount: Int { lock.lock(); defer { lock.unlock() }; return _count }
         func respond(_ req: URLRequest) -> (HTTPURLResponse, Data) {
             lock.lock(); _count += 1; lock.unlock()
@@ -39,9 +44,31 @@ struct DownloaderTests {
             let start = Int(parts.first ?? "") ?? 0
             let end = min(Int(parts.count > 1 ? parts[1] : "") ?? (body.count - 1), body.count - 1)
             let slice = body.subdata(in: start..<(end + 1))
+            let totalField = unknownTotal ? "*" : "\(body.count)"
             let resp = HTTPURLResponse(url: req.url!, statusCode: 206, httpVersion: nil,
-                headerFields: ["Content-Range": "bytes \(start)-\(end)/\(body.count)"])!
+                headerFields: ["Content-Range": "bytes \(start)-\(end)/\(totalField)"])!
             return (resp, slice)
+        }
+    }
+
+    /// Scripted server for the "206 then inconsistent 200" scenario: returns a partial
+    /// 206 (with Content-Range) on the first request, then a full-body 200 on every
+    /// subsequent request — simulating a server that stops honoring Range mid-stream.
+    final class ScriptedThenFullBodyServer: @unchecked Sendable {
+        let firstChunk: Data
+        let fullBody: Data
+        private let lock = NSLock()
+        private var _count = 0
+        init(firstChunk: Data, fullBody: Data) { self.firstChunk = firstChunk; self.fullBody = fullBody }
+        var requestCount: Int { lock.lock(); defer { lock.unlock() }; return _count }
+        func respond(_ req: URLRequest) -> (HTTPURLResponse, Data) {
+            lock.lock(); _count += 1; let n = _count; lock.unlock()
+            if n == 1 {
+                let resp = HTTPURLResponse(url: req.url!, statusCode: 206, httpVersion: nil,
+                    headerFields: ["Content-Range": "bytes 0-\(firstChunk.count - 1)/\(fullBody.count)"])!
+                return (resp, firstChunk)
+            }
+            return (HTTPURLResponse(url: req.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!, fullBody)
         }
     }
 
@@ -156,6 +183,35 @@ struct DownloaderTests {
     @Test func chunkedDownloadMapsCancellation() async throws {
         StubURLProtocol.handler = { _ in throw URLError(.cancelled) }
         await #expect(throws: KeraunosError.cancelled) {
+            try await Downloader(session: StubURLProtocol.session()).download(chunkedTrack(chunk: 10), to: tempFile("clip.mp4"))
+        }
+    }
+
+    @Test func chunkedDownloadTerminatesOnShortChunkWithUnknownTotal() async throws {
+        // 25 bytes, chunk 10, unknown total (Content-Range: bytes a-b/*) → the third
+        // response is a short 5-byte chunk. Without a short-read termination check,
+        // neither `data.isEmpty` nor `offset >= total` (total is nil) ever fires, so
+        // the loop would issue a 4th request (which would come back empty and only
+        // then terminate) instead of stopping right after the short chunk.
+        let body = Data((0..<25).map { UInt8($0) })
+        let server = ChunkServer(body: body, unknownTotal: true)
+        StubURLProtocol.handler = { server.respond($0) }
+        let dest = tempFile("clip.mp4")
+        try await Downloader(session: StubURLProtocol.session()).download(chunkedTrack(chunk: 10), to: dest)
+        #expect(try Data(contentsOf: dest) == body)
+        #expect(server.requestCount == 3)
+    }
+
+    @Test func chunkedDownloadRejectsInconsistent200AfterPartialContent() async throws {
+        // First request returns a 10-byte 206 (bytes 0-9/25); second request returns
+        // a full-body 200 instead of continuing the range. Appending the full body on
+        // top of the already-written partial bytes would corrupt the file, so a 200
+        // is only trustworthy as "whole file" when it's the very first response.
+        let firstChunk = Data((0..<10).map { UInt8($0) })
+        let fullBody = Data((0..<25).map { UInt8($0) })
+        let server = ScriptedThenFullBodyServer(firstChunk: firstChunk, fullBody: fullBody)
+        StubURLProtocol.handler = { server.respond($0) }
+        await #expect(throws: KeraunosError.downloadNetwork) {
             try await Downloader(session: StubURLProtocol.session()).download(chunkedTrack(chunk: 10), to: tempFile("clip.mp4"))
         }
     }

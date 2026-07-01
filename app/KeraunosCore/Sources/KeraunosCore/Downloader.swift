@@ -76,6 +76,9 @@ public struct Downloader: FileDownloading {
             let (data, response) = try await session.data(for: request)
             guard let http = response as? HTTPURLResponse else { throw KeraunosError.downloadNetwork }
             if http.statusCode == 200 {          // server ignored Range → whole file
+                // Only valid as "whole file" on the very first request; a 200 after
+                // prior 206s already wrote bytes would corrupt the file if appended.
+                guard offset == 0 else { throw KeraunosError.downloadNetwork }
                 try handle.write(contentsOf: data)
                 offset += data.count
                 onProgress(1.0)
@@ -85,7 +88,9 @@ public struct Downloader: FileDownloading {
                 try handle.write(contentsOf: data)
                 offset += data.count
                 if let t = total, t > 0 { onProgress(min(1.0, Double(offset) / Double(t))) }
-                if data.isEmpty { break }
+                // A chunk shorter than requested means the resource ended — needed to
+                // terminate when the server never reports a total (Content-Range: */*).
+                if data.isEmpty || data.count < chunkSize { break }
                 if let t = total, Int64(offset) >= t { break }
             } else {
                 throw KeraunosError.downloadNetwork
