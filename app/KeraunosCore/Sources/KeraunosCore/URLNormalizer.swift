@@ -30,6 +30,22 @@ public enum URLNormalizer {
         return components.url
     }
 
+    /// The scheme+host root (`https://host/`) of a URL — the page to load when signing in
+    /// to a site. A raw video URL is often a deep/short link (e.g. `v.douyin.com/abc/`)
+    /// that 302-redirects toward an app scheme, which WKWebView can't follow, so it never
+    /// lands anywhere that sets the site's (guest) cookies. The origin root renders, lets
+    /// the user log in via the site's own UI, and seeds those cookies. Returns nil if the
+    /// URL has no scheme/host.
+    public static func origin(of url: URL) -> URL? {
+        guard let scheme = url.scheme, let host = url.host else { return nil }
+        var components = URLComponents()
+        components.scheme = scheme
+        components.host = host
+        if let port = url.port { components.port = port }
+        components.path = "/"
+        return components.url
+    }
+
     /// The first `http(s)://` link embedded in free text, or nil if there isn't one.
     /// The link runs from the scheme up to the first character not legal in a URI
     /// (whitespace, CJK, a quote …); trailing sentence punctuation is then trimmed.

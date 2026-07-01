@@ -3,6 +3,19 @@ import Foundation
 import KeraunosCore
 
 struct URLNormalizerTests {
+    @Test func originStripsAVideoLinkToTheSiteRoot() {
+        // Sign-in should target the site root, not the deep/short link that redirects.
+        #expect(URLNormalizer.origin(of: URL(string: "https://v.douyin.com/AbCdEf/?x=1")!)?
+            .absoluteString == "https://v.douyin.com/")
+        #expect(URLNormalizer.origin(of: URL(string: "https://www.instagram.com/reel/XYZ/")!)?
+            .absoluteString == "https://www.instagram.com/")
+    }
+
+    @Test func originPreservesAnExplicitPort() {
+        #expect(URLNormalizer.origin(of: URL(string: "http://localhost:8080/v/1")!)?
+            .absoluteString == "http://localhost:8080/")
+    }
+
     @Test func keepsAValidHTTPSURL() {
         #expect(URLNormalizer.normalize("https://youtu.be/abc?si=x")?.absoluteString
                 == "https://youtu.be/abc?si=x")

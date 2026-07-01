@@ -152,7 +152,9 @@ struct DownloadViewModelTests {
         model.urlText = "https://www.instagram.com/reel/ABC/"
         await model.startDownload()
         #expect(model.requiresSignIn == true)
-        #expect(model.signInURL?.host == "www.instagram.com")
+        // Sign-in targets the site origin root, not the deep reel link (which can redirect
+        // to an app scheme and never set the site's guest cookies).
+        #expect(model.signInURL?.absoluteString == "https://www.instagram.com/")
         #expect(model.errorMessage == KeraunosError.requiresAuth.errorDescription)
     }
 

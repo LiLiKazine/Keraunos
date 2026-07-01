@@ -94,7 +94,10 @@ final class DownloadViewModel {   // main-actor by default (app target)
             // whose message tells the owner to sign in, so the button must back that up.
             if error == .requiresAuth || error == .restrictedOrEmpty {
                 requiresSignIn = true
-                signInURL = url
+                // Sign in at the site's origin root, not the deep/short video link — the
+                // latter can 302 to an app scheme (WKWebView can't follow) and never sets
+                // the site's guest cookies. The origin renders and seeds those cookies.
+                signInURL = URLNormalizer.origin(of: url) ?? url
             }
         } catch {
             errorMessage = KeraunosError.runtime(detail: error.localizedDescription).errorDescription
