@@ -1,5 +1,6 @@
 import SwiftUI
 import QuickLook   // provides the .quickLookPreview(_:) view modifier
+import KeraunosCore
 
 struct DownloadScreen: View {
     @State private var model: DownloadViewModel
@@ -122,6 +123,19 @@ struct DownloadScreen: View {
             .navigationTitle("Keraunos")
             .onOpenURL { model.openIncoming($0) }   // deep link / share / Shortcut entry
             .quickLookPreview($previewURL)
+            .confirmationDialog(
+                "Choose quality",
+                isPresented: Binding(
+                    get: { model.pendingOptions != nil },
+                    set: { if !$0 { model.cancelSelection() } }
+                ),
+                titleVisibility: .visible
+            ) {
+                ForEach(model.pendingOptions ?? [], id: \.formatID) { option in
+                    Button(option.displayLabel) { model.selectFormat(option) }
+                }
+                Button("Cancel", role: .cancel) { model.cancelSelection() }
+            }
             .alert("Save to Photos", isPresented: Binding(
                 get: { model.saveMessage != nil },
                 set: { if !$0 { model.dismissSaveMessage() } }
