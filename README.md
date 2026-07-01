@@ -20,7 +20,9 @@ Save videos from X (Twitter), YouTube, and hundreds of other sites, straight to 
 
 Under the hood, Keraunos builds on **yt-dlp**, the open-source extractor that knows how to find media on [a thousand-plus sites](https://github.com/yt-dlp/yt-dlp/blob/master/supported-sites.md). Keraunos runs that extraction logic on the phone itself — nothing is sent to a backend — and downloads with native iOS networking.
 
-> **⚠️ Project status:** Keraunos is in **early development**. There is no installable release — this repository is for people who want to build it themselves, follow along, or contribute. Pasting a link and getting an `.mp4` works end-to-end today for YouTube, X, RedNote, and TikTok/Douyin (with Reddit, Bilibili, and Instagram once signed in); see [Status](#project-status).
+## Project status
+
+> **⚠️ Early development.** There is no installable release — this repository is for people who want to build it themselves, follow along, or contribute. Pasting a link and getting an `.mp4` works end-to-end today for YouTube, X, RedNote, and TikTok (with Reddit, Bilibili, and Instagram once signed in; Douyin is currently gated out).
 
 ## Features
 
@@ -28,7 +30,8 @@ Under the hood, Keraunos builds on **yt-dlp**, the open-source extractor that kn
 
 - 📥 **Paste a link, get a video** — one-tap paste with tolerant URL handling (adds a missing `https://`, trims stray whitespace), resolved by embedded yt-dlp and downloaded natively.
 - 🧩 **Automatic stream merging** — when a site serves video and audio separately (adaptive), both tracks download and are muxed into a single `.mp4` natively (AVFoundation, no ffmpeg).
-- ▶️ **YouTube on-device** — mints a Proof-of-Origin token via [bgutils](https://github.com/Brainicism/bgutil-ytdlp-pot-provider) and solves the n/sig challenge by running yt-dlp's solver bundle inside JavaScriptCore — entirely on the phone, no server. The slower first ("cold") run is auto-retried so it's seamless.
+- ▶️ **YouTube on-device** — mints a Proof-of-Origin token via [bgutils](https://github.com/Brainicism/bgutil-ytdlp-pot-provider) and solves the n/sig challenge by running yt-dlp's solver bundle inside JavaScriptCore — entirely on the phone, no server. The slower first ("cold") run is auto-retried so it's seamless. Adaptive YouTube streams (which googlevideo throttles on a plain full-file GET) download in HTTP Range chunks, so higher-resolution transfers don't stall.
+- 🎚️ **Resolution picker** — when a video offers more than one downloadable resolution, a picker lists them (e.g. `1080p · H.264 · ~45 MB`) so you choose before downloading; single-stream or direct-file links skip straight to the download with no added friction.
 - ⏳ **Live progress & cancel** — a determinate progress bar during the transfer, cancellable at any point.
 - ▶️ **Manage downloads** — tap to play/preview in-app (Quick Look), share/export to Photos, Files, or AirDrop, and swipe to delete. Newest-first, with file sizes.
 - ♻️ **Resilient by default** — same-titled downloads never overwrite each other, titles with `/` or extreme length are handled safely, 0-byte duds are rejected, and recoverable failures (network blips, cold-start timeouts) auto-retry or offer a one-tap **Try again**.
@@ -42,7 +45,6 @@ Under the hood, Keraunos builds on **yt-dlp**, the open-source extractor that kn
 
 **Planned**
 
-- 🎞️ Quality / format selection before downloading.
 - 🔊 Audio-only extraction.
 - 🗂️ Download queue.
 - 🛰️ Background transfer & resume for large (4K) files.
@@ -51,7 +53,7 @@ Under the hood, Keraunos builds on **yt-dlp**, the open-source extractor that kn
 
 Keraunos inherits its reach from yt-dlp — see the full, always-current list in the [yt-dlp supported sites](https://github.com/yt-dlp/yt-dlp/blob/master/supported-sites.md) document. In practice, support depends on what each extractor needs at runtime: extractors that resolve to a **progressive or adaptive** stream work well, while anything that requires **HLS remuxing or shelling out to ffmpeg** is not supported on-device (see [How it works](#how-it-works)).
 
-Verified end-to-end on-device: **X (Twitter)**, **YouTube**, **RedNote (Xiaohongshu)**, and **TikTok / Douyin**. **Reddit**, **Bilibili**, and **Instagram** extract once you sign in (they bot-/login-gate unauthenticated requests). Resolutions above 1080p (which require VP9/AV1/Opus and an ffmpeg-style merge) are not yet supported.
+Verified end-to-end on-device: **X (Twitter)**, **YouTube**, **RedNote (Xiaohongshu)**, and **TikTok**. **Reddit**, **Bilibili**, and **Instagram** extract once you sign in (they bot-/login-gate unauthenticated requests). **Douyin** is currently not supported in-app — its API is IP/anti-bot gated against the embedded request environment (and `curl_cffi` browser-TLS impersonation can't be bundled on iOS). Resolutions above 1080p (which require VP9/AV1/Opus and an ffmpeg-style merge) aren't supported: YouTube gates them behind SABR and no other single site justifies bundling a native remuxer.
 
 ## How it works
 
@@ -122,11 +124,12 @@ Then in Xcode:
 - [x] Account sign-in / cookie reuse for gated content
 - [x] YouTube extraction (PO token + n/sig solved in JavaScriptCore) — *working on-device*
 - [x] In-app playback/preview, share/export, and delete for downloads
-- [ ] Quality and audio-only options
+- [x] Per-download resolution/quality picker
+- [ ] Audio-only extraction
 - [ ] Share Sheet extension — *app-side receiver done; Xcode target pending*
 - [ ] Download queue
 - [ ] Background transfer & resume for large (4K) files
-- [ ] >1080p (VP9/AV1/Opus) via an ffmpeg-style merge
+- [x] >1080p (VP9/AV1/Opus) — *investigated & closed: YouTube is SABR-gated and Bilibili-AV1-only doesn't justify bundling an ffmpeg-style merge*
 
 ## Contributing
 

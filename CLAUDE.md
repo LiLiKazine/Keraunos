@@ -69,3 +69,8 @@ scheme, set your development team under *Signing & Capabilities*, ▶ Run.
   re-sync `PythonResources/` (the "Process Python libraries" phase is `alwaysOutOfDate`),
   but can ship **stale compiled Swift/ObjC** — if on-device behavior contradicts the
   source, suspect a stale binary first and ⇧⌘K (Clean Build Folder) before debugging.
+- **YouTube (googlevideo) throttles unranged full-file GETs** → a single
+  `URLSession.download` receives no bytes and dies with `-1001`. yt-dlp hints
+  `downloader_options.http_chunk_size` on those formats; `Downloader` honors it with
+  HTTP Range chunks (`downloadChunked`). Only hinted tracks are chunked — every other
+  site stays single-shot. Don't "simplify" the chunked path away.
