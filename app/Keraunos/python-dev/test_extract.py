@@ -440,6 +440,62 @@ def test_twitter_no_video_tombstone_maps_to_restricted_or_empty(monkeypatch):
     assert out["error_kind"] == "restricted_or_empty"
 
 
+
+# --- list_formats height options (Phase: resolution picker) ----------------------
+from keraunos_extract import _muxable_height_options  # noqa: E402
+
+
+def test_options_group_by_height_prefer_highest_tbr():
+    # Two muxable video-only H.264 rows at 1080p (pick the higher-tbr one) + one 720p,
+    # plus an AAC audio-only stream. Expect 2 options, sorted 1080 then 720, adaptive.
+    opts = _muxable_height_options([
+        {"format_id": "v1080a", "protocol": "https", "vcodec": "avc1", "acodec": "none",
+         "height": 1080, "tbr": 4000, "filesize": 40_000_000},
+        {"format_id": "v1080b", "protocol": "https", "vcodec": "avc1", "acodec": "none",
+         "height": 1080, "tbr": 5000, "filesize": 50_000_000},
+        {"format_id": "v720", "protocol": "https", "vcodec": "avc1", "acodec": "none",
+         "height": 720, "tbr": 2000, "filesize": 20_000_000},
+        {"format_id": "a", "protocol": "https", "vcodec": "none", "acodec": "mp4a",
+         "tbr": 128, "filesize": 2_000_000},
+    ])
+    assert [o["height"] for o in opts] == [1080, 720]
+    assert opts[0]["format_id"] == "v1080b"          # higher tbr wins
+    assert opts[0]["codec"] == "H.264"
+    assert opts[0]["adaptive"] is True
+    assert opts[0]["approx_bytes"] == 52_000_000     # 50M video + 2M audio
+
+
+def test_options_progressive_row_uses_own_size_and_marks_non_adaptive():
+    opts = _muxable_height_options([
+        {"format_id": "prog", "protocol": "https", "vcodec": "h264", "acodec": "aac",
+         "height": 480, "tbr": 1000, "filesize_approx": 10_000_000},
+    ])
+    assert len(opts) == 1
+    assert opts[0]["adaptive"] is False
+    assert opts[0]["approx_bytes"] == 10_000_000     # progressive: its own size, no audio add
+
+
+def test_options_skip_non_http_and_non_muxable_and_unknown_height():
+    opts = _muxable_height_options([
+        {"format_id": "hls", "protocol": "m3u8_native", "vcodec": "avc1", "acodec": "none",
+         "height": 1080},                                    # non-http → skip
+        {"format_id": "av1", "protocol": "https", "vcodec": "av01", "acodec": "none",
+         "height": 1080},                                    # non-muxable vcodec → skip
+        {"format_id": "noh", "protocol": "https", "vcodec": "avc1", "acodec": "none"},  # no height → skip
+    ])
+    assert opts == []
+
+
+def test_options_hevc_labeled_and_codec_family_detected():
+    opts = _muxable_height_options([
+        {"format_id": "h", "protocol": "https", "vcodec": "hvc1.1.6", "acodec": "none",
+         "height": 1080, "tbr": 3000},
+        {"format_id": "a", "protocol": "https", "vcodec": "none", "acodec": "mp4a", "tbr": 128},
+    ])
+    assert opts[0]["codec"] == "HEVC"
+    assert opts[0]["approx_bytes"] is None               # no sizes reported anywhere
+
+
 def test_instagram_login_required_maps_to_requires_auth(monkeypatch):
     # Phase 2: confirm the cookie path's trigger fires for Instagram. The IG extractor
     # signals "log in" via raise_login_required(), which appends yt-dlp's _login_hint
