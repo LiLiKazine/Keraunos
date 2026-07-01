@@ -16,6 +16,8 @@ final class DownloadViewModel {   // main-actor by default (app target)
     private(set) var savedFiles: [URL] = []
     /// 0...1 transfer progress while downloading; nil when not downloading or size unknown.
     private(set) var downloadProgress: Double?
+    /// Message from the last Save-to-Photos attempt; drives a one-off alert. nil when idle.
+    private(set) var saveMessage: String?
 
     /// The in-flight download task, retained so the UI can cancel it. Readable in tests.
     private(set) var currentTask: Task<Void, Never>?
@@ -24,13 +26,15 @@ final class DownloadViewModel {   // main-actor by default (app target)
     private let assembler: MediaAssembler
     private let store: DownloadStore
     private let failureLog: FailureLog
+    private let photoSaver: (any PhotoSaving)?
 
     init(extractor: any MediaExtracting, assembler: MediaAssembler, store: DownloadStore,
-         failureLog: FailureLog? = nil) {
+         failureLog: FailureLog? = nil, photoSaver: (any PhotoSaving)? = nil) {
         self.extractor = extractor
         self.assembler = assembler
         self.store = store
         self.failureLog = failureLog ?? FailureLog(directory: store.directory)
+        self.photoSaver = photoSaver
         self.savedFiles = store.savedFiles()
         self.failureLogURL = self.failureLog.hasEntries ? self.failureLog.fileURL : nil
     }
@@ -143,6 +147,22 @@ final class DownloadViewModel {   // main-actor by default (app target)
             errorMessage = "Couldn't delete \(file.lastPathComponent)."
         }
     }
+
+    /// Whether the Downloads UI should offer "Save to Photos" for this file.
+    func canSaveToPhotos(_ file: URL) -> Bool { PhotosCompatibility.canSave(file) }
+
+    /// Saves a finished download to Photos and reports the outcome via `saveMessage`.
+    func saveToPhotos(_ file: URL) async {
+        guard canSaveToPhotos(file), let photoSaver else { return }
+        switch await photoSaver.save(file) {
+        case .saved:            saveMessage = "Saved to Photos."
+        case .permissionDenied: saveMessage = "Allow Photos access in Settings to save videos."
+        case .failed:           saveMessage = "Couldn't save to Photos."
+        }
+    }
+
+    /// Clears the Save-to-Photos alert message.
+    func dismissSaveMessage() { saveMessage = nil }
 
     private static func label(for phase: MediaAssembler.Phase) -> String {
         switch phase {

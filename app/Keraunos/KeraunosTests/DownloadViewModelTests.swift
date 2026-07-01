@@ -21,6 +21,51 @@ struct DownloadViewModelTests {
                           store: DownloadStore(directory: dir))
     }
 
+    final class MockPhotoSaver: PhotoSaving {
+        var result: PhotoSaveResult
+        private(set) var savedURLs: [URL] = []
+        init(result: PhotoSaveResult) { self.result = result }
+        func save(_ fileURL: URL) async -> PhotoSaveResult {
+            savedURLs.append(fileURL); return result
+        }
+    }
+
+    private func saverVM(_ saver: any PhotoSaving) -> DownloadViewModel {
+        DownloadViewModel(extractor: MockExtractor(),
+                          assembler: MediaAssembler(downloader: SpyDownloader(), merger: MockMerger()),
+                          store: DownloadStore(directory: tempDir()),
+                          photoSaver: saver)
+    }
+
+    @Test func saveToPhotosReportsSuccess() async {
+        let saver = MockPhotoSaver(result: .saved)
+        let model = saverVM(saver)
+        let file = URL(fileURLWithPath: "/tmp/clip.mp4")
+        await model.saveToPhotos(file)
+        #expect(saver.savedURLs == [file])
+        #expect(model.saveMessage == "Saved to Photos.")
+    }
+
+    @Test func saveToPhotosReportsPermissionDenied() async {
+        let model = saverVM(MockPhotoSaver(result: .permissionDenied))
+        await model.saveToPhotos(URL(fileURLWithPath: "/tmp/clip.mp4"))
+        #expect(model.saveMessage == "Allow Photos access in Settings to save videos.")
+    }
+
+    @Test func saveToPhotosReportsFailure() async {
+        let model = saverVM(MockPhotoSaver(result: .failed))
+        await model.saveToPhotos(URL(fileURLWithPath: "/tmp/clip.mp4"))
+        #expect(model.saveMessage == "Couldn't save to Photos.")
+    }
+
+    @Test func saveToPhotosSkipsIncompatibleFileAndDoesNotCallSaver() async {
+        let saver = MockPhotoSaver(result: .saved)
+        let model = saverVM(saver)
+        await model.saveToPhotos(URL(fileURLWithPath: "/tmp/clip.mkv"))
+        #expect(saver.savedURLs.isEmpty)
+        #expect(model.saveMessage == nil)
+    }
+
     @Test func successfulProgressiveDownloadAddsFile() async {
         let dir = tempDir()
         let model = vm(extractor: MockExtractor(result: .success(progressive("clip.mp4"))),
