@@ -5,7 +5,7 @@ struct ContentView: View {
     private let cookieStore = CookieStore()
 
     var body: some View {
-        DownloadScreen(
+        HomeScreen(
             model: DownloadViewModel(
                 extractor: PythonExtractor(cookieProvider: cookieStore),
                 assembler: MediaAssembler(downloader: Downloader(), merger: AVFoundationMerger()),
@@ -17,7 +17,7 @@ struct ContentView: View {
 
 #Preview {
     let cookieStore = CookieStore()
-    DownloadScreen(
+    HomeScreen(
         model: DownloadViewModel(
             extractor: MockExtractor(),
             assembler: MediaAssembler(downloader: Downloader(), merger: AVFoundationMerger()),
