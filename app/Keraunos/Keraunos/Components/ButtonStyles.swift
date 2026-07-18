@@ -1,15 +1,18 @@
 import SwiftUI
 
-/// Full-width filled call-to-action (accent). The primary action on a screen.
+/// Filled call-to-action (accent). Full-width by default (the primary action on a screen);
+/// `fullWidth: false` hugs its label for inline use (e.g. the iPad hero row).
 struct PrimaryButtonStyle: ButtonStyle {
+    var fullWidth = true
     @Environment(\.isEnabled) private var isEnabled
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .font(.system(size: 16, weight: .semibold))
             .foregroundStyle(Color.Theme.onAccent)
-            .frame(maxWidth: .infinity)
+            .frame(maxWidth: fullWidth ? .infinity : nil)
             .padding(.vertical, 15)
+            .padding(.horizontal, fullWidth ? 0 : 22)
             .background(
                 (configuration.isPressed ? Color.Theme.accentDim : Color.Theme.accent)
                     .opacity(isEnabled ? 1 : 0.4),
@@ -52,6 +55,7 @@ struct GhostButtonStyle: ButtonStyle {
 
 extension ButtonStyle where Self == PrimaryButtonStyle {
     static var primary: PrimaryButtonStyle { PrimaryButtonStyle() }
+    static var primaryInline: PrimaryButtonStyle { PrimaryButtonStyle(fullWidth: false) }
 }
 extension ButtonStyle where Self == SecondaryButtonStyle {
     static var secondary: SecondaryButtonStyle { SecondaryButtonStyle() }

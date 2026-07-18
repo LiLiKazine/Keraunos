@@ -2,75 +2,59 @@ import SwiftUI
 import QuickLook
 import KeraunosCore
 
-/// The Download screen — paste a link, start a transfer, watch progress, and reach
-/// recent downloads. Rebuilt in the "Refined Native" system; wired to the existing
-/// `DownloadViewModel` (behavior unchanged from the PoC `DownloadScreen`).
+/// The Download screen — paste a link, start a transfer, watch progress, reach recent
+/// downloads. Adapts between compact (own header, stacked hero, Recent list) and regular
+/// (nav-bar title, inline hero, Library preview grid). Wired to `DownloadViewModel`.
 struct HomeScreen: View {
-    @State private var model: DownloadViewModel
+    let model: DownloadViewModel
+    let cookieStore: CookieStore
+    @Binding var selection: AppSection
+    var onSettings: (() -> Void)?
+
+    @Environment(\.horizontalSizeClass) private var hSize
+    @Environment(ToastCenter.self) private var toasts
     @State private var showLogin = false
-    @State private var showSettings = false
     @State private var loginStatus: LoginWebView.LoadStatus = .loading
     @State private var previewURL: URL?
-    let cookieStore: CookieStore
+    @State private var pendingDelete: URL?
 
-    init(model: DownloadViewModel, cookieStore: CookieStore) {
-        _model = State(initialValue: model)
-        self.cookieStore = cookieStore
-    }
+    private var isRegular: Bool { hSize == .regular }
 
     var body: some View {
         ZStack {
             Color.Theme.bg.ignoresSafeArea()
             ScrollView {
                 VStack(alignment: .leading, spacing: Space.xl) {
-                    header
+                    if isRegular {
+                        PaneTitle(title: "Download")
+                    } else {
+                        CompactHeader(title: "Keraunos", brand: true, onSettings: onSettings)
+                    }
                     heroCard
                     if model.isWorking { downloadingSection }
                     if let error = model.errorMessage { errorNotice(error) }
-                    recentSection
+                    contentSection
                 }
                 .padding(.horizontal, 20)
-                .padding(.top, Space.xs)
+                .padding(.top, isRegular ? Space.xs : Space.sm)
                 .padding(.bottom, Space.xxl)
+                .frame(maxWidth: 860, alignment: .leading)
+                .frame(maxWidth: .infinity)
             }
         }
         .onOpenURL { model.openIncoming($0) }
         .quickLookPreview($previewURL)
         .qualityPicker(model: model)
-        .saveToPhotosAlert(model: model)
         .loginSheet(model: model, cookieStore: cookieStore, showLogin: $showLogin, loginStatus: $loginStatus)
-        .sheet(isPresented: $showSettings) {
-            NavigationStack { SettingsView(model: model) }
+        .deleteConfirmation($pendingDelete, model: model, toasts: toasts)
+        .saveMessageToast(model: model, toasts: toasts)
+        .onChange(of: model.lastSavedName) { _, name in
+            guard name != nil, let newest = model.savedFiles.first else { return }
+            toasts.show(ToastData(
+                icon: "checkmark", title: "Download complete",
+                subtitle: newest.deletingPathExtension().lastPathComponent,
+                actionTitle: "View", action: { previewURL = newest }))
         }
-    }
-
-    // MARK: - Header
-
-    private var header: some View {
-        HStack {
-            HStack(spacing: 10) {
-                Image(systemName: "bolt.fill")
-                    .font(.system(size: 26))
-                    .foregroundStyle(Color.Theme.accent)
-                    .accessibilityHidden(true)
-                Text("Keraunos")
-                    .font(.Theme.screenTitle)
-                    .foregroundStyle(Color.Theme.text1)
-            }
-            Spacer()
-            Button {
-                showSettings = true
-            } label: {
-                Image(systemName: "gearshape")
-                    .font(.system(size: 18))
-                    .foregroundStyle(Color.Theme.text2)
-                    .frame(width: 38, height: 38)
-                    .background(Color.Theme.surface2, in: Circle())
-                    .overlay(Circle().strokeBorder(Color.Theme.hairline, lineWidth: Stroke.hairline))
-            }
-            .accessibilityLabel("Settings")
-        }
-        .padding(.top, Space.sm)
     }
 
     // MARK: - Hero
@@ -78,16 +62,28 @@ struct HomeScreen: View {
     private var heroCard: some View {
         VStack(alignment: .leading, spacing: Space.md) {
             Text("Paste a video link").sectionLabelStyle()
-            LinkPasteField(text: $model.urlText)
-            Button {
-                model.start()
-            } label: {
-                Label("Download", systemImage: "arrow.down.to.line")
+            if isRegular {
+                HStack(spacing: Space.md) {
+                    LinkPasteField(text: Binding(get: { model.urlText }, set: { model.urlText = $0 }))
+                    downloadButton
+                        .buttonStyle(.primaryInline)
+                }
+            } else {
+                LinkPasteField(text: Binding(get: { model.urlText }, set: { model.urlText = $0 }))
+                downloadButton
+                    .buttonStyle(.primary)
             }
-            .buttonStyle(.primary)
-            .disabled(model.urlText.isEmpty || model.isWorking)
         }
         .card(padding: 18)
+    }
+
+    private var downloadButton: some View {
+        Button {
+            model.start()
+        } label: {
+            Label("Download", systemImage: "arrow.down.to.line")
+        }
+        .disabled(model.urlText.isEmpty || model.isWorking)
     }
 
     // MARK: - Downloading
@@ -97,83 +93,106 @@ struct HomeScreen: View {
             SectionHeader("Downloading")
             DownloadProgressCard(
                 status: model.statusText ?? "Working…",
-                host: sourceHost,
+                host: URLNormalizer.normalize(model.urlText)?.host,
                 progress: model.downloadProgress,
                 onCancel: { model.cancel() }
             )
         }
     }
 
-    // MARK: - Error / sign-in
+    // MARK: - Error / sign-in notice
 
     private func errorNotice(_ error: String) -> some View {
         let host = model.signInURL?.host
-        let signInAction = model.requiresSignIn && host != nil
+        let signIn = model.requiresSignIn && host != nil
         return NoticeCard(
-            tone: model.requiresSignIn ? .warning : .error,
+            tone: signIn ? .warning : .error,
+            title: signIn ? "Sign in required" : "Couldn’t download",
             message: error,
-            actionTitle: signInAction ? "Sign in to \(host!)" : (model.canRetry ? "Try again" : nil),
-            action: signInAction ? { showLogin = true } : (model.canRetry ? { model.start() } : nil)
+            primaryTitle: signIn ? "Sign in to \(host!)" : (model.canRetry ? "Try again" : nil),
+            primaryAction: signIn ? { showLogin = true } : (model.canRetry ? { model.start() } : nil),
+            secondaryTitle: (!signIn && model.failureLogURL != nil) ? "Open Settings for diagnostics" : nil,
+            secondaryAction: (!signIn && model.failureLogURL != nil) ? { onSettings?() ?? (selection = .settings) } : nil
         )
     }
 
-    // MARK: - Recent
+    // MARK: - Recent (compact) / Library preview (regular) / first-run
 
-    private var recentSection: some View {
+    @ViewBuilder
+    private var contentSection: some View {
+        if model.savedFiles.isEmpty {
+            if !model.isWorking && model.errorMessage == nil {
+                firstRunEmpty
+            }
+        } else if isRegular {
+            libraryPreviewGrid
+        } else {
+            recentList
+        }
+    }
+
+    private var firstRunEmpty: some View {
+        EmptyStateView(
+            symbol: "arrow.down.to.line",
+            title: "Your first download",
+            message: "Copy a video link from any site, paste it above, and Keraunos pulls it straight to your device."
+        )
+        .frame(maxWidth: .infinity)
+        .padding(.top, Space.xl)
+    }
+
+    private var recentList: some View {
         VStack(alignment: .leading, spacing: Space.sm) {
-            SectionHeader("Recent")
-            if model.savedFiles.isEmpty {
-                EmptyStateView(
-                    symbol: "tray",
-                    title: "No downloads yet",
-                    message: "Paste a link above and Keraunos pulls the best stream to your device."
-                )
-                .frame(maxWidth: .infinity)
-                .padding(.top, Space.sm)
-            } else {
-                VStack(spacing: 0) {
-                    ForEach(Array(model.savedFiles.enumerated()), id: \.element) { index, file in
-                        if index > 0 {
-                            Rectangle()
-                                .fill(Color.Theme.hairline)
-                                .frame(height: Stroke.hairline)
-                        }
-                        recentRow(file)
+            SectionHeader("Recent") {
+                Button("See all") { selection = .library }
+                    .buttonStyle(.ghost)
+            }
+            VStack(spacing: 0) {
+                ForEach(Array(recent.enumerated()), id: \.element) { index, file in
+                    if index > 0 {
+                        Rectangle().fill(Color.Theme.hairline).frame(height: Stroke.hairline)
                     }
+                    recentRow(file)
                 }
             }
         }
     }
+
+    private var libraryPreviewGrid: some View {
+        VStack(alignment: .leading, spacing: Space.lg) {
+            SectionHeader("Library") {
+                Button("See all") { selection = .library }
+                    .buttonStyle(.ghost)
+            }
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 200), spacing: Space.lg)], spacing: Space.lg) {
+                ForEach(recent, id: \.self) { file in
+                    Button { previewURL = file } label: {
+                        DownloadTile(title: file.deletingPathExtension().lastPathComponent,
+                                     subtitle: model.librarySubtitle(file), progress: nil)
+                    }
+                    .buttonStyle(.plain)
+                    .downloadContextMenu(file: file, model: model,
+                                         onPlay: { previewURL = file },
+                                         onDelete: { pendingDelete = file })
+                }
+            }
+        }
+    }
+
+    /// The most recent handful for the Home preview; the full set lives in Library.
+    private var recent: [URL] { Array(model.savedFiles.prefix(6)) }
 
     private func recentRow(_ file: URL) -> some View {
         Button {
             previewURL = file
         } label: {
-            DownloadRow(
-                title: file.deletingPathExtension().lastPathComponent,
-                subtitle: model.fileSizeText(file)
-            )
+            DownloadRow(title: file.deletingPathExtension().lastPathComponent,
+                        subtitle: model.librarySubtitle(file))
         }
         .buttonStyle(.plain)
         .accessibilityHint("Plays this download")
-        .contextMenu {
-            ShareLink(item: file) { Label("Share", systemImage: "square.and.arrow.up") }
-            if model.canSaveToPhotos(file) {
-                Button {
-                    Task { await model.saveToPhotos(file) }
-                } label: {
-                    Label("Save to Photos", systemImage: "arrow.down.to.line")
-                }
-            }
-            Button(role: .destructive) {
-                model.deleteDownload(file)
-            } label: {
-                Label("Delete", systemImage: "trash")
-            }
-        }
-    }
-
-    private var sourceHost: String? {
-        URLNormalizer.normalize(model.urlText)?.host
+        .downloadContextMenu(file: file, model: model,
+                             onPlay: { previewURL = file },
+                             onDelete: { pendingDelete = file })
     }
 }

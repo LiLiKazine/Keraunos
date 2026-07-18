@@ -32,16 +32,26 @@ final class DownloadViewModel {   // main-actor by default (app target)
     private let store: DownloadStore
     private let failureLog: FailureLog
     private let photoSaver: (any PhotoSaving)?
+    private let preferences: Preferences
 
     init(extractor: any MediaExtracting, assembler: MediaAssembler, store: DownloadStore,
-         failureLog: FailureLog? = nil, photoSaver: (any PhotoSaving)? = nil) {
+         failureLog: FailureLog? = nil, photoSaver: (any PhotoSaving)? = nil,
+         preferences: Preferences = Preferences()) {
         self.extractor = extractor
         self.assembler = assembler
         self.store = store
         self.failureLog = failureLog ?? FailureLog(directory: store.directory)
         self.photoSaver = photoSaver
+        self.preferences = preferences
         self.savedFiles = store.savedFiles()
         self.failureLogURL = self.failureLog.hasEntries ? self.failureLog.fileURL : nil
+    }
+
+    /// The stream to download when the user hasn't chosen: the highest muxed (non-adaptive)
+    /// resolution, or the highest overall if every option needs a separate audio track.
+    static func bestOption(_ options: [FormatOption]) -> FormatOption? {
+        let muxed = options.filter { !$0.isAdaptive }
+        return (muxed.isEmpty ? options : muxed).max { $0.height < $1.height }
     }
 
     /// Local failure log file, if any failures have been recorded (for diagnostics export).
@@ -66,8 +76,14 @@ final class DownloadViewModel {   // main-actor by default (app target)
             case .ready(let media):
                 try await assembleAndRecord(media)
             case .choices(let options):
-                pendingOptions = options
-                pendingURL = url
+                // Honor the "highest available" preference by skipping the picker entirely.
+                if preferences.defaultQuality == .highest, let best = Self.bestOption(options) {
+                    let media = try await extractor.resolve(url, option: best)
+                    try await assembleAndRecord(media)
+                } else {
+                    pendingOptions = options
+                    pendingURL = url
+                }
             }
         } catch {
             await handleFailure(error, url: url, isAutoRetry: isAutoRetry) {
@@ -128,6 +144,11 @@ final class DownloadViewModel {   // main-actor by default (app target)
         })
         lastSavedName = saved.lastPathComponent
         savedFiles = store.savedFiles()
+        // Auto-save to Photos when enabled and the file is compatible; `saveToPhotos`
+        // reports the outcome via `saveMessage` (surfaced as a toast).
+        if preferences.autoSaveToPhotos {
+            await saveToPhotos(saved)
+        }
     }
 
     /// Shared failure handling for both phases: transparent one-shot auto-retry for
@@ -186,6 +207,27 @@ final class DownloadViewModel {   // main-actor by default (app target)
     /// Human-readable size of a finished download (e.g. "12.4 MB"), or nil if unreadable.
     func fileSizeText(_ file: URL) -> String? {
         store.fileSize(file).map { $0.formatted(.byteCount(style: .file)) }
+    }
+
+    /// Short saved date (e.g. "Jul 12") from the file's modification date, or nil.
+    func savedDateText(_ file: URL) -> String? {
+        guard let date = try? file.resourceValues(forKeys: [.contentModificationDateKey])
+            .contentModificationDate else { return nil }
+        return date.formatted(.dateTime.month(.abbreviated).day())
+    }
+
+    /// Uppercased container type for a file (e.g. "MP4"), for a metadata chip.
+    func fileTypeLabel(_ file: URL) -> String { file.pathExtension.uppercased() }
+
+    /// A metadata subtitle from what we can read off disk: size, then saved date.
+    func librarySubtitle(_ file: URL) -> String {
+        [fileSizeText(file), savedDateText(file)].compactMap { $0 }.joined(separator: " · ")
+    }
+
+    /// Total on-device size of all finished downloads, formatted (e.g. "3.4 GB").
+    var totalDownloadsSizeText: String {
+        savedFiles.reduce(Int64(0)) { $0 + (store.fileSize($1) ?? 0) }
+            .formatted(.byteCount(style: .file))
     }
 
     /// Removes a finished download from disk and refreshes the list. A failed delete is

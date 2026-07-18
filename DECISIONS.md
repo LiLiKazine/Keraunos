@@ -44,8 +44,48 @@ irreversible actions). This is a build-from-source personal app; no external com
 - **Deleted `DownloadScreen.swift`; `ContentView` → `HomeScreen`.** The old PoC screen is
   superseded. Reversible: yes (git). Confidence: high.
 
-### Deferred to later phases (not regressions to ship — in-progress branch state)
-- Bottom tab bar + Library + Accounts screens + iPad `NavigationSplitView` (steps 3–4).
-  Until the shell lands, Accounts is reachable only via the in-flow sign-in sheet, not a
-  standalone tab. Diagnostics live in the Settings stub.
-- Quality-picker chip sheet, toasts + delete confirmation (Feedback board).
+## [checkpoint 2] Steps 2–4 — components, screens, adaptive shell (user approved "proceed with all of it")
+- **Direct sequential implementation (not subagent swarm):** UI fidelity needs the on-sim
+  screenshot loop and I hold the design-system context I just authored. SDD spirit executed
+  by me, verified per screen. Reversible: yes. Confidence: high.
+- **Data honesty over pixel-literal metadata:** boards show duration/resolution/source/
+  byte-rate/codec chips per file that the store does not persist. Render only real data
+  (filename, size, saved date via file mod-date, file type; quality options use real
+  `FormatOption` height/codec/bytes). No fabricated figures. Reversible: yes. Confidence: high.
+- **Settings preferences — implement the two that wire to real behavior** (`defaultQuality`
+  ask/highest → skips picker & auto-picks best; `autoSaveToPhotos` → saves after a compatible
+  download), backed by `Preferences` (UserDefaults) and covered by tests. **Omit "Download
+  over Wi-Fi only"** — would require threading URLSession config through `Downloader`/
+  `MediaAssembler` in KeraunosCore (out of scope, destabilizing). Theme row is a static
+  "Dark" value (app is dark-only). No dead switches shipped. Reversible: yes. Confidence: med.
+- **Adaptive shell:** 2-column `NavigationSplitView` (custom sidebar + `NavigationStack`
+  detail with system title/toggle) at regular width; `TabView` at compact. Library owns its
+  own master-detail (grid + player pane) inside the detail column, so the app shell stays
+  2-column. Reversible: yes. Confidence: med — verify on-sim.
+- **Row/tile actions:** context menu (long-press) + iPad detail-pane buttons; destructive
+  Delete routes through a confirmation dialog; save/complete surface a toast. Reversible: yes.
+
+### [checkpoint 2] Review outcome
+Whole-branch review via the code-reviewer agent: no critical/high findings; concurrency
+(no GCD, MainActor-correct), force-unwraps (all guarded), and observation/ownership all
+confirmed sound. Fixed: iPad Library kept a stale `selected` when its file was deleted
+elsewhere (now reconciled via `.onChange(of: savedFiles)`); removed dead code (unused
+`saveToPhotosAlert`, unused `ToastCenter` env in `DetailPane`). Left as acceptable judgment
+calls: a benign auto-save toast that briefly precedes the "Saved to Photos" toast; a few
+intentional design radii as literals; three similar-but-distinct surface-2 input fields.
+
+### Verification (checkpoint 2)
+Build green (iPhone 17 + iPad Pro 11"); 42/42 tests pass. Screenshotted on-sim: iPhone
+Home (first-run + populated), Library, Accounts, Settings; iPad Download + Library
+(grid + player detail). Temporary DEBUG launch hooks used only to screenshot each screen
+without UI-automation taps were removed before commit.
+
+### Known tuning items / honest deviations (not blockers)
+- iPad 11" **portrait with the sidebar expanded** shows a single Library grid column
+  (sidebar 260 + detail 340 leaves a narrow middle); it reflows to 2–3 columns when the
+  sidebar is collapsed or on larger/landscape iPads. Acceptable size-class behavior.
+- The **quality-picker sheet** is code-verified but not screenshotted live (needs a real
+  multi-format extraction from a site, which the localhost/mock path doesn't produce).
+- Per-file **duration / resolution / source host / byte-rate** and the Settings **storage
+  bar denominator** are not shown — the data model doesn't persist them; we show only real
+  values (size, saved date, file type). "Download over Wi-Fi only" omitted (see checkpoint 2).

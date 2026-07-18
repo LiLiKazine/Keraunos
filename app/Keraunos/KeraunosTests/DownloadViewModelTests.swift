@@ -275,6 +275,56 @@ struct DownloadViewModelTests {
         #expect(model.pendingOptions == nil)
     }
 
+    private func prefs(quality: DefaultQuality = .ask, autoSave: Bool = false) -> Preferences {
+        let p = Preferences(defaults: UserDefaults(suiteName: UUID().uuidString)!)
+        p.defaultQuality = quality
+        p.autoSaveToPhotos = autoSave
+        return p
+    }
+
+    @Test func bestOptionPrefersHighestMuxedOverAdaptive() {
+        let options = [
+            FormatOption(height: 2160, codecLabel: "HEVC", approxBytes: nil, formatID: "a", isAdaptive: true),
+            FormatOption(height: 1080, codecLabel: "H.264", approxBytes: nil, formatID: "b", isAdaptive: false),
+            FormatOption(height: 720, codecLabel: "H.264", approxBytes: nil, formatID: "c", isAdaptive: false),
+        ]
+        // A 2160p adaptive stream needs a separate audio track + merge, so the highest
+        // already-muxed stream (1080p) is preferred for a no-question download.
+        #expect(DownloadViewModel.bestOption(options)?.formatID == "b")
+    }
+
+    @Test func highestQualityPreferenceSkipsPickerAndDownloadsBest() async {
+        let dir = tempDir()
+        let options = [
+            FormatOption(height: 360, codecLabel: "H.264", approxBytes: nil, formatID: "18", isAdaptive: false),
+            FormatOption(height: 1080, codecLabel: "H.264", approxBytes: nil, formatID: "137", isAdaptive: false),
+        ]
+        let model = DownloadViewModel(
+            extractor: choices(options),
+            assembler: MediaAssembler(downloader: SpyDownloader(), merger: MockMerger()),
+            store: DownloadStore(directory: dir),
+            preferences: prefs(quality: .highest))
+        model.urlText = "https://x.test/v"
+        await model.startDownload()
+        #expect(model.pendingOptions == nil)              // picker skipped entirely
+        #expect(model.lastSavedName == "picked.mp4")      // resolved and saved without asking
+    }
+
+    @Test func autoSaveToPhotosSavesAfterCompatibleDownload() async {
+        let saver = MockPhotoSaver(result: .saved)
+        let model = DownloadViewModel(
+            extractor: MockExtractor(result: .success(progressive("clip.mp4"))),
+            assembler: MediaAssembler(downloader: SpyDownloader(), merger: MockMerger()),
+            store: DownloadStore(directory: tempDir()),
+            photoSaver: saver,
+            preferences: prefs(autoSave: true))
+        model.urlText = "https://x.test/v"
+        await model.startDownload()
+        #expect(model.lastSavedName == "clip.mp4")
+        #expect(saver.savedURLs.count == 1)               // auto-saved without a manual tap
+        #expect(model.saveMessage == "Saved to Photos.")
+    }
+
     @Test func retryAfterLoginSucceedsAndClearsSignIn() async {
         let dir = tempDir()
         let extractor = SequenceExtractor(results: [
