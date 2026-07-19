@@ -25,3 +25,6 @@ Python.xcframework/
 # Python dev venv
 app/Keraunos/python-dev/.venv/
 __pycache__/
+
+# asc CLI repo-local profile pin (references a keychain profile by name; no secret)
+.asc/
