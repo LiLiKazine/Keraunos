@@ -1,0 +1,112 @@
+<!doctype html><html><head><meta charset="utf-8">
+<style>
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: #0a0c11; }
+  .poster {
+    position: relative; overflow: hidden;
+    font-family: -apple-system, system-ui, "SF Pro Display", sans-serif;
+    
+  --bg: oklch(0.17 0.006 260); --s1: oklch(0.215 0.008 260); --s2: oklch(0.262 0.008 260);
+  --hair: oklch(0.32 0.008 260); --tx1: oklch(0.96 0.004 260); --tx2: oklch(0.72 0.008 260); --tx3: oklch(0.58 0.01 260);
+  --accent: oklch(0.68 0.13 248); --accent-soft: oklch(0.68 0.13 248 / 0.16); --on-accent: oklch(0.99 0 0);
+  --success: oklch(0.72 0.14 155); --error: oklch(0.64 0.17 25);
+  --shadow: 0 1px 2px oklch(0 0 0 / 0.4), 0 6px 20px oklch(0 0 0 / 0.3);
+
+    color: var(--tx1);
+    background:
+      radial-gradient(125% 80% at 50% -8%, oklch(0.37 0.11 248 / 0.55), transparent 52%),
+      radial-gradient(58% 30% at 50% 60%, oklch(0.55 0.14 248 / 0.16), transparent 70%),
+      radial-gradient(110% 75% at 50% 118%, oklch(0.30 0.09 288 / 0.32), transparent 60%),
+      linear-gradient(180deg, oklch(0.165 0.006 260), oklch(0.115 0.006 260));
+  }
+  .p-caption { position: absolute; left: 0; right: 0; top: 0; display: flex; flex-direction: column; align-items: center; text-align: center; }
+  .p-caption h1 { margin: 0; font-weight: 700; letter-spacing: -0.03em; line-height: 1.03; }
+  .p-caption p { margin: 0; color: var(--tx2); font-weight: 500; letter-spacing: -0.01em; }
+  .p-caption .accent { color: var(--accent); }
+  .p-stage { position: absolute; left: 50%; transform-origin: top center; }
+  .p-stage .device { position: relative !important; left: auto !important; top: auto !important; margin: 0 !important; }
+
+
+  .device { background: var(--bg); color: var(--tx1); overflow: hidden; box-shadow: 0 50px 130px oklch(0 0 0 / 0.55); border: 1px solid var(--hair); }
+  .iphone { width: 393px; height: 852px; border-radius: 46px; }
+  .ipad { width: 1180px; height: 820px; border-radius: 26px; }
+  .bolt { fill: var(--accent); }
+  .col { display: flex; flex-direction: column; }
+  .statusbar { height: 52px; display: flex; align-items: center; justify-content: space-between; padding: 0 30px 0 34px; font-size: 15px; font-weight: 600; flex: none; }
+  .statusbar .glyphs { display: flex; align-items: center; gap: 6px; }
+  .statusbar .glyphs svg { width: 17px; height: 17px; }
+  .phone-body { flex: 1; display: flex; flex-direction: column; padding: 4px 18px 0; gap: 18px; overflow: hidden; }
+  .lg-head { display: flex; align-items: center; justify-content: space-between; }
+  .lg-title { font-size: 32px; font-weight: 700; letter-spacing: -0.02em; }
+  .icon-btn { width: 38px; height: 38px; border-radius: 50%; background: var(--s2); border: 1px solid var(--hair); display: flex; align-items: center; justify-content: center; color: var(--tx2); flex: none; }
+  .icon-btn svg { width: 20px; height: 20px; }
+  .hint { font-size: 13px; color: var(--tx3); line-height: 1.45; }
+  .sec-label { font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--tx3); font-weight: 600; margin-bottom: -6px; }
+  .add { display: flex; gap: 10px; align-items: center; }
+  .site-input { flex: 1; min-width: 0; display: flex; align-items: center; background: var(--s2); border: 1px solid var(--hair); border-radius: 12px; padding: 12px 14px; color: var(--tx3); font-size: 15px; }
+  .add-btn { flex: none; background: var(--accent); color: var(--on-accent); font-size: 15px; font-weight: 600; padding: 12px 18px; border-radius: 12px; box-shadow: var(--shadow); }
+  .card-list { background: var(--s1); border: 1px solid var(--hair); border-radius: 16px; overflow: hidden; box-shadow: var(--shadow); }
+  .acct-row { display: flex; align-items: center; gap: 13px; padding: 13px 15px; border-top: 1px solid var(--hair); }
+  .acct-row:first-child { border-top: none; }
+  .monogram { width: 36px; height: 36px; border-radius: 10px; flex: none; background: var(--accent-soft); color: var(--accent); display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: 700; }
+  .acct-host { flex: 1; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+  .acct-name { font-size: 15px; font-weight: 500; }
+  .acct-state { font-size: 11.5px; color: var(--tx3); }
+  .signout { font-size: 14px; font-weight: 600; color: var(--accent); flex: none; }
+  .danger-btn { text-align: center; padding: 14px; border-radius: 12px; background: var(--s1); border: 1px solid var(--hair); color: var(--error); font-size: 15px; font-weight: 600; }
+  .tabbar { flex: none; height: 86px; border-top: 1px solid var(--hair); background: oklch(0.19 0.007 260 / 0.92); display: flex; padding: 10px 0 22px; margin-top: auto; }
+  .tab { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 5px; font-size: 10.5px; font-weight: 500; color: var(--tx3); }
+  .tab svg { width: 25px; height: 25px; }
+  .tab.active { color: var(--accent); }
+  .home-ind { position: absolute; bottom: 8px; left: 50%; transform: translateX(-50%); width: 134px; height: 5px; border-radius: 3px; background: var(--tx1); opacity: 0.5; }
+  .ipad-layout { display: flex; height: 100%; }
+  .sidebar { width: 260px; flex: none; border-right: 1px solid var(--hair); background: oklch(0.19 0.007 260 / 0.6); padding: 26px 16px; display: flex; flex-direction: column; gap: 6px; }
+  .side-brand { display: flex; align-items: center; gap: 12px; padding: 6px 12px 22px; }
+  .side-tile { width: 40px; height: 40px; border-radius: 11px; background: var(--s2); border: 1px solid var(--hair); display: flex; align-items: center; justify-content: center; box-shadow: var(--shadow); }
+  .side-tile svg { width: 26px; height: 26px; }
+  .side-word { font-size: 20px; font-weight: 700; letter-spacing: -0.02em; }
+  .nav { display: flex; align-items: center; gap: 13px; padding: 12px 14px; border-radius: 10px; color: var(--tx2); font-size: 15px; font-weight: 500; }
+  .nav svg { width: 20px; height: 20px; }
+  .nav.active { background: var(--accent-soft); color: var(--accent); }
+  .side-foot { margin-top: auto; }
+  .acct-main { flex: 1; min-width: 0; padding: 28px 40px; display: flex; flex-direction: column; gap: 22px; overflow: hidden; }
+  .acct-head { display: flex; align-items: center; gap: 14px; }
+  .toggle { width: 34px; height: 34px; border-radius: 12px; border: 1px solid var(--hair); background: var(--s1); display: flex; align-items: center; justify-content: center; color: var(--tx2); flex: none; }
+  .toggle svg { width: 18px; height: 18px; }
+  .acct-title { font-size: 28px; font-weight: 700; letter-spacing: -0.02em; }
+  .acct-col { max-width: 640px; display: flex; flex-direction: column; gap: 22px; }
+
+</style></head><body>
+<div class="poster" style="width:1320px;height:2868px">
+  <div class="p-caption" style="padding:186px 8% 0;gap:34px">
+    <h1 style="font-size:99px">Sign in to reach<br>your own content.</h1>
+    <p style="font-size:42px">Cookies stay on your device.</p>
+  </div>
+  <div class="p-stage" style="top:563px;transform:translateX(-50%) scale(2.4855)">
+    
+<div class="device iphone col">
+  <div class="statusbar"><span class="num">9:41</span><span class="glyphs"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M2 15h3v5H2zM7 11h3v9H7zM12 7h3v13h-3zM17 3h3v17h-3z"/></svg><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="2" y="7" width="18" height="10" rx="3"/><rect x="4" y="9" width="12" height="6" rx="1" fill="currentColor" stroke="none"/></svg></span></div>
+  <div class="phone-body">
+    <div class="lg-head"><div class="lg-title">Accounts</div><div class="icon-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 00-.1-1l2-1.5-2-3.5-2.4 1a7 7 0 00-1.7-1L16.5 3h-4l-.3 2.5a7 7 0 00-1.7 1l-2.4-1-2 3.5 2 1.5a7 7 0 000 2l-2 1.5 2 3.5 2.4-1a7 7 0 001.7 1l.3 2.5h4l.3-2.5a7 7 0 001.7-1l2.4 1 2-3.5-2-1.5a7 7 0 00.1-1z"/></svg></div></div>
+    <div class="hint">Sign in to a site to download private, members-only, or age-restricted videos. Keraunos only stores the site's login cookies on this device.</div>
+    <div class="sec-label">Add a site</div>
+    <div class="add"><div class="site-input">site, e.g. example.com</div><div class="add-btn">Sign in</div></div>
+    <div class="sec-label">Signed in</div>
+    <div class="card-list">
+      <div class="acct-row"><div class="monogram">E</div><div class="acct-host"><div class="acct-name">example.com</div><div class="acct-state">Signed in</div></div><div class="signout">Sign out</div></div>
+      <div class="acct-row"><div class="monogram">C</div><div class="acct-host"><div class="acct-name">clips.example</div><div class="acct-state">Signed in</div></div><div class="signout">Sign out</div></div>
+      <div class="acct-row"><div class="monogram">S</div><div class="acct-host"><div class="acct-name">stream.example</div><div class="acct-state">Signed in</div></div><div class="signout">Sign out</div></div>
+    </div>
+    <div class="danger-btn">Sign out of everything</div>
+  </div>
+  <div class="tabbar">
+  <div class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 4v12m0 0l-4-4m4 4l4-4M5 20h14" stroke-linecap="round" stroke-linejoin="round"/></svg>Download</div>
+  <div class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>Library</div>
+  <div class="tab active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 4-6 8-6s8 2 8 6"/></svg>Accounts</div>
+</div>
+  <div class="home-ind"></div>
+</div>
+  </div>
+</div>
+</body></html>

@@ -1,0 +1,92 @@
+<!doctype html><html><head><meta charset="utf-8">
+<style>
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: #0a0c11; }
+  .poster {
+    position: relative; overflow: hidden;
+    font-family: -apple-system, system-ui, "SF Pro Display", sans-serif;
+    
+  --bg: oklch(0.17 0.006 260); --s1: oklch(0.215 0.008 260); --s2: oklch(0.262 0.008 260);
+  --hair: oklch(0.32 0.008 260); --tx1: oklch(0.96 0.004 260); --tx2: oklch(0.72 0.008 260); --tx3: oklch(0.58 0.01 260);
+  --accent: oklch(0.68 0.13 248); --accent-soft: oklch(0.68 0.13 248 / 0.16); --on-accent: oklch(0.99 0 0);
+  --success: oklch(0.72 0.14 155); --error: oklch(0.64 0.17 25);
+  --shadow: 0 1px 2px oklch(0 0 0 / 0.4), 0 6px 20px oklch(0 0 0 / 0.3);
+
+    color: var(--tx1);
+    background:
+      radial-gradient(125% 80% at 50% -8%, oklch(0.37 0.11 248 / 0.55), transparent 52%),
+      radial-gradient(58% 30% at 50% 60%, oklch(0.55 0.14 248 / 0.16), transparent 70%),
+      radial-gradient(110% 75% at 50% 118%, oklch(0.30 0.09 288 / 0.32), transparent 60%),
+      linear-gradient(180deg, oklch(0.165 0.006 260), oklch(0.115 0.006 260));
+  }
+  .p-caption { position: absolute; left: 0; right: 0; top: 0; display: flex; flex-direction: column; align-items: center; text-align: center; }
+  .p-caption h1 { margin: 0; font-weight: 700; letter-spacing: -0.03em; line-height: 1.03; }
+  .p-caption p { margin: 0; color: var(--tx2); font-weight: 500; letter-spacing: -0.01em; }
+  .p-caption .accent { color: var(--accent); }
+  .p-stage { position: absolute; left: 50%; transform-origin: top center; }
+  .p-stage .device { position: relative !important; left: auto !important; top: auto !important; margin: 0 !important; }
+
+
+  .num { font-variant-numeric: tabular-nums; }
+  .device { background: var(--bg); color: var(--tx1); overflow: hidden; box-shadow: 0 50px 130px oklch(0 0 0 / 0.55); border: 1px solid var(--hair); }
+  .iphone { width: 393px; height: 852px; border-radius: 46px; }
+  .ipad { width: 1180px; height: 820px; border-radius: 26px; }
+  .bolt { fill: var(--accent); }
+  .backdrop-home { position: absolute; inset: 0; padding: 60px 22px; display: flex; flex-direction: column; gap: 18px; filter: saturate(0.9); }
+  .bh-title { font-size: 28px; font-weight: 700; letter-spacing: -0.02em; opacity: 0.8; }
+  .bh-block { background: var(--s1); border: 1px solid var(--hair); border-radius: 16px; height: 92px; opacity: 0.5; }
+  .scrim { position: absolute; inset: 0; background: oklch(0 0 0 / 0.55); }
+  .sheet { position: absolute; left: 0; right: 0; bottom: 0; background: var(--s1); border-top: 1px solid var(--hair); border-radius: 24px 24px 0 0; padding: 8px 14px 32px; display: flex; flex-direction: column; }
+  .grabber { width: 38px; height: 5px; border-radius: 3px; background: var(--hair); margin: 6px auto 10px; }
+  .sheet-title { font-size: 20px; font-weight: 700; text-align: center; }
+  .sheet-sub { font-size: 13px; color: var(--tx3); text-align: center; margin: 2px 0 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 0 20px; }
+  .opt { display: flex; align-items: center; gap: 14px; padding: 13px 12px; border-radius: 12px; }
+  .opt.sel { background: var(--accent-soft); }
+  .opt-main { flex: 1; display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+  .opt-res { font-size: 16px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+  .opt-sub { font-size: 12px; color: var(--tx3); }
+  .opt-size { font-size: 13px; color: var(--tx2); flex: none; }
+  .check { color: var(--accent); flex: none; display: flex; }
+  .check svg { width: 22px; height: 22px; }
+  .tag { font-size: 9.5px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--accent); background: var(--accent-soft); padding: 2px 7px; border-radius: 6px; }
+  .badge4k { font-size: 10px; font-weight: 700; color: var(--bg); background: var(--tx2); padding: 2px 6px; border-radius: 5px; }
+  .divider { height: 1px; background: var(--hair); margin: 2px 12px; }
+  .sheet-cancel { margin-top: 12px; text-align: center; padding: 15px; font-size: 16px; font-weight: 600; color: var(--accent); background: var(--s2); border-radius: 13px; }
+  .dialog { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 460px; background: var(--s1); border: 1px solid var(--hair); border-radius: 20px; padding: 24px 20px 20px; display: flex; flex-direction: column; box-shadow: 0 40px 120px oklch(0 0 0 / 0.6); }
+  .dialog .sheet-title { font-size: 21px; }
+  .dialog-actions { display: flex; gap: 12px; margin-top: 16px; }
+  .btn { flex: 1; text-align: center; padding: 13px; border-radius: 12px; font-size: 15px; font-weight: 600; }
+  .btn-secondary { background: var(--s2); color: var(--tx1); border: 1px solid var(--hair); }
+  .btn-primary { background: var(--accent); color: var(--on-accent); box-shadow: var(--shadow); }
+
+</style></head><body>
+<div class="poster" style="width:2752px;height:2064px">
+  <div class="p-caption" style="padding:175px 8% 0;gap:37px">
+    <h1 style="font-size:110px">Your quality, your call.</h1>
+    <p style="font-size:46px">From audio-only to 4K HDR.</p>
+  </div>
+  <div class="p-stage" style="top:521px;transform:translateX(-50%) scale(1.6325)">
+    
+<div class="device ipad">
+  <div class="backdrop-home" style="padding:40px 48px">
+    <div class="bh-title">Download</div>
+    <div class="bh-block" style="height:96px;max-width:720px"></div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:18px;opacity:0.5"><div class="bh-block" style="height:150px"></div><div class="bh-block" style="height:150px"></div><div class="bh-block" style="height:150px"></div></div>
+  </div>
+  <div class="scrim"></div>
+  <div class="dialog">
+    <div class="sheet-title">Choose quality</div>
+    <div class="sheet-sub">Aurora timelapse — 4K HDR</div>
+    <div class="opt"><div class="opt-main"><div class="opt-res">2160p <span class="badge4k">4K</span></div><div class="opt-sub">MP4 · HEVC</div></div><span class="opt-size num">210 MB</span></div>
+    <div class="opt sel"><div class="opt-main"><div class="opt-res">1080p <span class="tag">Recommended</span></div><div class="opt-sub">MP4 · H.264</div></div><span class="opt-size num">48 MB</span><span class="check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M5 13l4 4L19 7" stroke-linecap="round" stroke-linejoin="round"/></svg></span></div>
+    <div class="opt"><div class="opt-main"><div class="opt-res">720p</div><div class="opt-sub">MP4 · H.264</div></div><span class="opt-size num">26 MB</span></div>
+    <div class="opt"><div class="opt-main"><div class="opt-res">480p</div><div class="opt-sub">MP4 · H.264</div></div><span class="opt-size num">12 MB</span></div>
+    <div class="divider"></div>
+    <div class="opt"><div class="opt-main"><div class="opt-res">Audio only</div><div class="opt-sub">M4A · AAC</div></div><span class="opt-size num">4 MB</span></div>
+    <div class="dialog-actions"><div class="btn btn-secondary">Cancel</div><div class="btn btn-primary">Download 1080p</div></div>
+  </div>
+</div>
+  </div>
+</div>
+</body></html>
