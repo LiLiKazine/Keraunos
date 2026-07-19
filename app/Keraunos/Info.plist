@@ -2,6 +2,12 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<!-- Export compliance: Keraunos's only encryption is standard HTTPS/TLS (URLSession
+	     downloads + Python's OpenSSL/certifi for HTTPS extraction) — no proprietary or
+	     non-standard crypto — so it qualifies for the export exemption. Declaring it here
+	     bypasses the per-build "App Encryption Documentation" prompt in App Store Connect. -->
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<!-- The keraunos:// scheme the Share Extension / Shortcuts open the app with. The
 	     app's .onOpenURL → IncomingURL path turns keraunos://download?url=… into a
 	     download. CFBundleURLName is just a unique id for this URL type. -->
