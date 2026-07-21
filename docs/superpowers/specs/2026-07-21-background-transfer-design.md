@@ -356,10 +356,30 @@ Success-only, in-app (failures stay as persistent rows, never a toast).
 - **Out of scope (separate feature):** a *local notification* for completion while the app
   is fully backgrounded — the toast covers the foreground/relaunched case only.
 
-### Deferred UI details
+### Start flow & quality picker
 
-Changes to the quality-picker flow (if any) are not yet designed — revisit before the
-Phase-6 UI build.
+Extraction and the quality pick happen **up front, before a job enters the queue** — the
+queue holds only jobs that are actually transferring.
+
+1. Paste + Download (or share/deep-link) → the hero shows a **cancelable "Resolving…"**
+   state while `extractor.listFormats` runs (Python/yt-dlp, foreground).
+2. **Preference "Highest"** (or a single format) → auto-select, **no picker**; the job
+   enqueues directly.
+3. **Preference "Ask"** with multiple formats → the existing **quality-picker sheet**
+   (`QualityPicker.dc.html` chips, unchanged) presents; the user taps a chip → the job
+   enqueues.
+4. The chosen **`formatSelection` is persisted on the job** and reused for the silent
+   re-extraction on `.needsRefresh` — the picker is **never** re-shown after the first
+   pick.
+5. Cancel during "Resolving…" aborts; nothing is enqueued.
+
+Starts are **serial** (one quick foreground pick at a time); downloads run **concurrently**
+once enqueued — the bottleneck is only the brief extraction/pick, not the transfer.
+Enqueue-first pipelining (resolving as a queue row so several pastes can be queued without
+waiting) is a **deferred enhancement**, out of scope for v1.
+
+The only new UI element is the hero's **"Resolving…"** state; the picker itself is
+unchanged. (Not yet added to the design system — a minor addition for the Phase-6 build.)
 
 ## Error handling
 
