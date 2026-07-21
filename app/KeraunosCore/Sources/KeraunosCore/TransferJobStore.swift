@@ -58,6 +58,21 @@ public actor TransferJobStore {
         try persist()
     }
 
+    /// Deletes part files with no owning job — e.g. a crash between cancel and cleanup.
+    /// Application Support is never auto-purged, so this reconciliation runs on launch.
+    /// Returns the removed names (sorted) for logging.
+    @discardableResult
+    public func reconcileOrphanParts() throws -> [String] {
+        let referenced = Set(jobs.flatMap(\.trackPartFileNames))
+        let contents = (try? FileManager.default.contentsOfDirectory(atPath: partsDirectory.path)) ?? []
+        var removed: [String] = []
+        for name in contents where !referenced.contains(name) {
+            try? FileManager.default.removeItem(at: partFileURL(for: name))
+            removed.append(name)
+        }
+        return removed.sorted()
+    }
+
     /// Resolves a part-file name to its absolute URL. `nonisolated` — it reads only the
     /// immutable `partsDirectory`, so callers don't need to `await`.
     public nonisolated func partFileURL(for name: String) -> URL {
