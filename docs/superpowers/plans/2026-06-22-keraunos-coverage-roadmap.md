@@ -134,16 +134,18 @@ file lands. While here, **split the overloaded `network` error-kind** into
 `keraunos_extract.py:169-170`, `KeraunosError.swift:25`) so *your own* debugging can tell
 which side failed. This is a **local log**, not telemetry.
 
-#### Phase 3.5 — SABR de-risk spike  *(GATES Phase 4)*  ⏳ PROCEDURE READY (owner-manual run)
-> Detailed spike plan written: **`2026-06-22-phase-3.5-sabr-spike.md`**. It pins the
-> exact code-grounded pass/fail marker (`youtube/_video.py:3463-3479`: a SABR-only
-> format has **no `url`/`signatureCipher`** and yt-dlp logs *"forcing SABR streaming"* +
-> drops it) and the temporary edits to run it. **Cannot run in the loop** — the web
-> client needs a PoT + nsig minted via the JavaScriptCore bridge, which only exists in
-> the running app, and there is no localhost proxy for this. Confirmed the PoT provider
-> already supports `web` (`keraunos_youtube_pot.py:131`). Owner runs the spike on-device,
-> records FETCHABLE(single-file|fragmented)/SABR-ONLY, and that result decides whether
-> Phase 4 includes YouTube or is **Bilibili-AV1-only**.
+#### Phase 3.5 — SABR de-risk spike  *(GATES Phase 4)*  ✅ DONE — SABR-ONLY (2026-07-21)
+> Detailed spike plan: **`2026-06-22-phase-3.5-sabr-spike.md`**. **Result: SABR-ONLY**.
+> Run on iOS Simulator (iPhone 17, iOS 26.3) against `aqz-KE-bpKQ` with the web client
+> forced and the format selector relaxed to `bestvideo+bestaudio/best`. yt-dlp emitted
+> the code-grounded pass/fail marker verbatim:
+> *"Some web client https formats have been skipped as they are missing a URL. YouTube
+> is forcing SABR streaming for this client."* All VP9/AV1 and >1080p H.264 formats
+> were dropped for missing URL; only legacy **itag 18** (360p H.264+AAC unified
+> pre-merge stream) survived. Confirmed **not a Keraunos wiring bug**: KeraunosPoTokenProvider
+> was registered and picked up by yt-dlp (`[pot] PO Token Providers: KeraunosPoTokenProvider-0.1.0`),
+> `[jsc:javascriptcore]` nsig solver ran, cookies loaded — this is a YouTube-server
+> verdict on the `web` client family, not on our wiring.
 
 For YouTube, force the **web client + the existing PoT provider**
 (`keraunos_youtube_pot.py:131` already supports `web`/`web_safari`/`mweb`) and dump the
@@ -155,7 +157,20 @@ experimental SABR client).
   cost is worth it for one site.
 - **If fetchable:** proceed to Phase 4.
 
-### Phase 4 — The >1080p bundle  *(one effort; only if 3.5 clears)*
+### Phase 4 — The >1080p bundle  ⏸ DEFERRED (2026-07-21) — wait for yt-dlp SABR downloader
+> **Decision:** short-term accept a ≤1080p YouTube ceiling; revisit when yt-dlp lands
+> stable SABR download support (issue [#12482](https://github.com/yt-dlp/yt-dlp/issues/12482)).
+> Phase 3.5 came back SABR-ONLY, which means libav alone cannot unlock YouTube >1080p —
+> the URLs aren't fetchable via `URLSession` regardless of muxing. When yt-dlp's SABR
+> downloader ships, the plan of record becomes a **bifurcated download path**
+> (yt-dlp/Python SABR for YouTube >1080p only, native `URLSession` for everything else),
+> not a native Swift SABR reimplementation. Bilibili AV1 alone was judged insufficient
+> justification for a permanent hand-cross-compiled libav on this project's scope, so
+> it's deferred with the same reconsideration trigger. The current `tv`/`tv_embedded`/
+> `android_vr` client set covers YouTube ≤1080p H.264+AAC without incident.
+>
+> **Original bundle plan (preserved for the revisit):**
+
 A single coordinated change driven by the large-file / high-codec use case. Output is
 `.mkv` and **not Photos-playable** (VLC / transfer off-device) — explicitly accepted.
 AVFoundation stays the **default** merge path so all ≤1080p H.264/HEVC+AAC sites keep
