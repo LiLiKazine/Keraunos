@@ -87,4 +87,28 @@ struct TransferJobStoreTests {
         // real ~/Library/Application Support/Transfers on the host during tests.
         #expect(TransferJobStore.defaultDirectory.path.contains("Application Support"))
     }
+
+    @Test func reconcileOrphanPartsRemovesUnreferencedFilesOnly() async throws {
+        let dir = tempDir()
+        let store = try TransferJobStore(directory: dir)
+        try await store.upsert(progressiveJob(partName: "keep.part"))
+        // One referenced part, one orphan left behind by a crash between cancel and cleanup.
+        try Data([1]).write(to: store.partFileURL(for: "keep.part"))
+        try Data([2]).write(to: store.partFileURL(for: "orphan.part"))
+
+        let removed = try await store.reconcileOrphanParts()
+
+        #expect(removed == ["orphan.part"])
+        #expect(FileManager.default.fileExists(atPath: store.partFileURL(for: "keep.part").path))
+        #expect(!FileManager.default.fileExists(atPath: store.partFileURL(for: "orphan.part").path))
+    }
+
+    @Test func reconcileOrphanPartsNoopWhenAllReferenced() async throws {
+        let dir = tempDir()
+        let store = try TransferJobStore(directory: dir)
+        try await store.upsert(progressiveJob(partName: "p.part"))
+        try Data([1]).write(to: store.partFileURL(for: "p.part"))
+        let removed = try await store.reconcileOrphanParts()
+        #expect(removed.isEmpty)
+    }
 }
