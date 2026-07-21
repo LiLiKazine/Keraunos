@@ -341,11 +341,25 @@ carries the same active-count badge**; the content area shows the wide inline pa
 (full-width cards capped at ~720 px, left-aligned) — the same flat active → queued →
 attention order and identical row states as iPhone, just wider. No grid, no detail pane.
 
+### "Saved to Library" toast
+
+Success-only, in-app (failures stay as persistent rows, never a toast).
+
+- **Trigger/content:** a completed job landing in Library shows `Saved to Library — "<title>"`.
+- **Coalescing:** if a toast is visible when more finish, it updates to a count —
+  `2 videos saved to Library`, `3 saved`, … — never a stack.
+- **Action:** a single **"Show"** (and tapping the body) switches to Library and highlights
+  the item; when coalesced, "Show" just opens Library.
+- **Placement:** iPhone — bottom, above the tab bar; iPad — bottom-**trailing** of the
+  content area (not full-width).
+- **Dismissal:** auto after ~4 s; swipe-down or tap to clear early.
+- **Out of scope (separate feature):** a *local notification* for completion while the app
+  is fully backgrounded — the toast covers the foreground/relaunched case only.
+
 ### Deferred UI details
 
-The exact "Saved to Library" toast treatment (duration, whether it appears on iPad) and any
-changes to the quality-picker flow are not yet designed — revisit before the Phase-6 UI
-build.
+Changes to the quality-picker flow (if any) are not yet designed — revisit before the
+Phase-6 UI build.
 
 ## Error handling
 
