@@ -333,10 +333,18 @@ frozen/broken.
   `bytesWritten`); for **single-shot**, cancel-with-`resumeData`. Cancelling mid-chunk
   wastes at most one chunk — bounded, not corruption.
 
+### iPad
+
+Reuses the design system's existing sidebar layout. The sidebar **"Download" nav item
+carries the same active-count badge**; the content area shows the wide inline paste hero
+(input + Download button on one row) above the queue rendered as a **single reading column**
+(full-width cards capped at ~720 px, left-aligned) — the same flat active → queued →
+attention order and identical row states as iPhone, just wider. No grid, no detail pane.
+
 ### Deferred UI details
 
-iPad split-view specifics beyond the badged sidebar item, the exact toast treatment, and
-any changes to the quality-picker flow are not yet designed — revisit before the Phase-6 UI
+The exact "Saved to Library" toast treatment (duration, whether it appears on iPad) and any
+changes to the quality-picker flow are not yet designed — revisit before the Phase-6 UI
 build.
 
 ## Error handling
