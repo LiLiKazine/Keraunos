@@ -264,7 +264,7 @@ assumed.
 
 `MediaAssembler` is absorbed into this state machine.
 
-## Progress & the downloads-list UI
+## Progress plumbing
 
 - **Progress store:** `actor TransferProgress` holds `[JobID: ProgressSnapshot]`
   (fraction, bytes, state, phase). Delegate byte callbacks and coordinator state changes
@@ -272,21 +272,72 @@ assumed.
   mirrors snapshots (fed by an `AsyncStream` from the store). Because progress is
   reconstructed from the persisted store + live `getAllTasks()` reassociation, the UI
   **reconnects after relaunch** — no reliance on a surviving closure.
-- **UI shape:** `HomeScreen` keeps the paste/extract entry point and format picker.
-  Starting a download now **enqueues a job** (no longer cancels the prior one) and pushes
-  to a **Downloads list** — one row per job: filename, per-item progress bar, state label,
-  per-row actions (pause/cancel, retry-failed, delete). Completed rows link to the saved
-  file / Photos. The current single inline progress view is replaced by this list.
-- **State labels the UI must surface** include `.needsRefresh` ("waiting to refresh
-  link"), a distinct indeterminate "starting…"/"waiting for system" hint while suspended
-  (since discretionary-off still doesn't guarantee immediacy), and `.failed(reason)` with
-  the concrete reason (network, insufficient space, refresh-failed).
-- **Pause semantics.** A background download task cannot truly pause mid-flight. "Pause"
-  therefore means: for **chunked**, stop enqueueing after the current chunk finishes
-  (resumes cleanly from `bytesWritten`); for **single-shot**, cancel-with-`resumeData`.
-  Cancelling mid-chunk wastes at most the current chunk's bytes — a bounded, documented
-  cost, not corruption.
 - `DownloadViewModel`'s single-shot `currentTask` model is retired in favor of the queue.
+
+## UI / UX
+
+Designed in the **"Refined Native"** design system (Keraunos Claude Design project,
+`117a4f30-…`); reuses its existing progress-card, list-row, `notice` (err/warn), empty-state,
+and tab-bar components — no new visual language, a new arrangement plus state variants.
+
+### Information architecture (a deliberate refactor)
+
+The queue's arrival is the moment to remove a pre-existing overlap: Home's "Recent"
+section was a slice of Library.
+
+- **Download tab = the live queue.** The paste/extract hero stays pinned at top; beneath
+  it, the transfer queue. The tab (and the iPad sidebar item) carries an **active-count
+  badge**. This keeps "start a download" and "watch it download" on one surface.
+- **Library tab = every completed video** — now the sole archive (the "Recent" section is
+  **removed**).
+- **Completed jobs auto-move to Library** with no manual step; at most a brief,
+  self-dismissing "Saved to Library" toast. They do **not** linger in the queue.
+- Only states needing a user decision persist in the queue: **failed**, **needs-sign-in**,
+  **no-space** — until resolved or dismissed.
+- The current single inline "Downloading" card is replaced by this queue.
+
+### Queue list
+
+One **flat list**, ordered **active → queued → attention** (no section headers). One row
+per job: thumbnail, title, source·quality/size, and a state-specific body + actions.
+
+### Row state catalog
+
+| State | Body | Actions |
+|-------|------|---------|
+| Downloading | progress bar · `62% · 3.1 MB/s` | pause, cancel |
+| Paused | frozen bar · `Paused · 48%` | resume, cancel |
+| Queued | `◷ Queued · 1080p` | cancel |
+| Waiting (background) | **indeterminate** bar · `Waiting to resume…` | cancel |
+| Merging | `Merging video + audio…` | — (auto) |
+| Refreshing (link expired) | `Refreshing link…` | — (auto-resumes) |
+| Needs sign-in | `warn` notice · `Sign in to continue` | Sign in to `<host>` |
+| Failed · network | `err` · `Couldn't finish — network` | Retry, dismiss |
+| Failed · no space | `err` · `Not enough storage · needs X` | Manage storage, dismiss |
+
+Maps 1:1 to the state machine: `.needsRefresh` renders as **Refreshing** (auto) or, when
+re-extraction needs credentials, **Needs sign-in** (reuses the existing sign-in notice);
+`.failed(reason)` splits into **network** vs **no-space**. **Waiting (background)** is shown
+explicitly — a suspended, iOS-deferred 4K download must read as "fine, will resume," not
+frozen/broken.
+
+### Interaction
+
+- Frequent controls — **pause/resume + cancel** — are inline icon buttons on the
+  active/paused card.
+- Terminal rows put their **primary recovery inline** (Retry / Sign in / Manage storage)
+  and offer **swipe-to-dismiss** (or a context-menu "Remove") for `✕`.
+- `Refreshing` and `Merging` are automatic and actionless — they resolve on their own.
+- **Pause semantics** (platform reality): a background task can't truly pause mid-flight.
+  "Pause" = for **chunked**, stop enqueueing after the current chunk (resumes cleanly from
+  `bytesWritten`); for **single-shot**, cancel-with-`resumeData`. Cancelling mid-chunk
+  wastes at most one chunk — bounded, not corruption.
+
+### Deferred UI details
+
+iPad split-view specifics beyond the badged sidebar item, the exact toast treatment, and
+any changes to the quality-picker flow are not yet designed — revisit before the Phase-6 UI
+build.
 
 ## Error handling
 
