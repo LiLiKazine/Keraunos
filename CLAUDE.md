@@ -59,6 +59,20 @@ scheme, set your development team under *Signing & Capabilities*, ▶ Run.
   UI `app/Keraunos/KeraunosUITests/`
 - Design specs: `docs/superpowers/specs/` · Implementation plans: `docs/superpowers/plans/`
 
+## Design system
+
+The Keraunos UI reference lives as a Claude Design project. When the user asks to
+implement, sync, or check "the designs," use the **`claude_design`** MCP to fetch
+layouts and tokens:
+
+- **Endpoint:** `https://api.anthropic.com/v1/design/mcp`
+- **Auth:** `/design-login` (first-time setup)
+- **Project:** <https://claude.ai/design/p/117a4f30-f615-43c1-b7ce-fc11c9327e62>
+
+Import the project through the MCP and implement designs from it against the SwiftUI
+UI layer under `app/Keraunos/Keraunos/Theme/` · `Components/` · `UI/` (the "Refined
+Native" palette).
+
 ## Testing
 
 - Use **Swift Testing** (`import Testing`, `@Test`, `#expect`) — not XCTest.
@@ -74,7 +88,7 @@ scheme, set your development team under *Signing & Capabilities*, ▶ Run.
   (app, Share Extension, tests) are `SWIFT_VERSION = 6.0`, and `KeraunosCore` builds
   in Swift 6 mode. App + extension use `SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor`;
   the package keeps `nonisolated` default isolation. Keep new targets on 6.0.
-- Deployment target is **iOS 26.5**.
+- Deployment target is **iOS 26.0**.
 - Embedded Python has **no `subprocess`/`fork`** → yt-dlp post-processors that shell
   out (ffmpeg) can't run. DASH video+audio merging therefore runs **natively**
   (`AVFoundationMerger`), and transfer is native `URLSession` — not Python. (An
