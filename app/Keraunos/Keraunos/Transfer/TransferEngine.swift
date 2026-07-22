@@ -37,6 +37,11 @@ final class TransferEngine {
     private var backgroundCompletion: (() -> Void)?
     /// Live assertion keeping the app awake across a finalize/merge pass.
     private var mergeAssertion: UIBackgroundTaskIdentifier = .invalid
+    /// Re-entrancy guard: only one finalize pass runs at a time. `startIfNeeded()`,
+    /// `handleForegroundActivation()`, and `retry(_:)` can all trigger a pass; without this,
+    /// two overlapping passes could both finalize the same `.readyToMerge` job, racing the
+    /// move/mux and clobbering `mergeAssertion`.
+    private var isFinalizing = false
 
     /// Titles of jobs that landed in Library since the UI last consumed them (drives the
     /// coalescing "Saved to Library" toast). The VM reads and clears this.
@@ -138,6 +143,10 @@ final class TransferEngine {
     /// the foreground rather than gamble on the background-launch window), then auto-saves any
     /// completed job flagged for Photos.
     private func runFinalizePass() async {
+        guard !isFinalizing else { return }   // a pass is already running; it will finalize all ready jobs
+        isFinalizing = true
+        defer { isFinalizing = false }
+
         mergeAssertion = UIApplication.shared.beginBackgroundTask(withName: "transfer-merge") { [weak self] in
             self?.endMergeAssertion()
         }
