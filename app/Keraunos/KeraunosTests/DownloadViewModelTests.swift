@@ -15,10 +15,9 @@ struct DownloadViewModelTests {
                       httpHeaders: [:], codec: "avc1", fileExtension: "mp4")),
                       title: "t", suggestedFilename: name)
     }
-    private func vm(extractor: any MediaExtracting, merger: MediaMerging, dir: URL) -> DownloadViewModel {
-        DownloadViewModel(extractor: extractor,
-                          assembler: MediaAssembler(downloader: SpyDownloader(), merger: merger),
-                          store: DownloadStore(directory: dir))
+    private func vm(extractor: any MediaExtracting, dir: URL,
+                    enqueuer: any JobEnqueuing = SpyEnqueuer()) -> DownloadViewModel {
+        DownloadViewModel(extractor: extractor, store: DownloadStore(directory: dir), enqueuer: enqueuer)
     }
     private func choices(_ options: [FormatOption]) -> MockExtractor {
         var m = MockExtractor(result: .success(progressive("picked.mp4")))
@@ -41,7 +40,6 @@ struct DownloadViewModelTests {
 
     private func saverVM(_ saver: any PhotoSaving) -> DownloadViewModel {
         DownloadViewModel(extractor: MockExtractor(),
-                          assembler: MediaAssembler(downloader: SpyDownloader(), merger: MockMerger()),
                           store: DownloadStore(directory: tempDir()),
                           photoSaver: saver)
     }
@@ -75,48 +73,44 @@ struct DownloadViewModelTests {
         #expect(model.saveMessage == nil)
     }
 
-    @Test func successfulProgressiveDownloadAddsFile() async {
+    @Test func successfulProgressiveResolveEnqueuesJob() async {
         let dir = tempDir()
+        let spy = SpyEnqueuer()
         let model = vm(extractor: MockExtractor(result: .success(progressive("clip.mp4"))),
-                       merger: MockMerger(), dir: dir)
+                       dir: dir, enqueuer: spy)
         model.urlText = "https://x.test/post/1"
         await model.startDownload()
         #expect(model.errorMessage == nil)
-        #expect(model.lastSavedName == "clip.mp4")
         #expect(model.isWorking == false)
+        #expect(spy.enqueued.count == 1)
+        #expect(spy.enqueued.first?.sourcePageURL == URL(string: "https://x.test/post/1"))
+        #expect(spy.enqueued.first?.suggestedFilename == "clip.mp4")
     }
 
-    @Test func mergeFailureShowsMessage() async {
-        let merger = MockMerger(); merger.shouldFail = true
-        let media = ResolvedMedia(kind: .adaptive(
-            video: MediaTrack(url: URL(string: "https://x.test/v.m4v")!, httpHeaders: [:], codec: "hvc1", fileExtension: "mp4"),
-            audio: MediaTrack(url: URL(string: "https://x.test/a.m4a")!, httpHeaders: [:], codec: "mp4a", fileExtension: "m4a")),
-            title: "t", suggestedFilename: "clip.mp4")
-        let model = vm(extractor: MockExtractor(result: .success(media)), merger: merger, dir: tempDir())
-        model.urlText = "https://x.test/post/1"
-        await model.startDownload()
-        #expect(model.errorMessage == KeraunosError.mergeFailed.errorDescription)
-        #expect(model.isWorking == false)
-    }
+    // Merge failures now surface from the engine/finalizer (Task B-series), not this view
+    // model — there is no longer a VM-level assertion to make about a merge outcome; the VM's
+    // job ends at enqueue.
 
     @Test func extractionErrorShowsMessage() async {
-        let model = vm(extractor: MockExtractor(result: .failure(.needsFfmpeg)), merger: MockMerger(), dir: tempDir())
+        let model = vm(extractor: MockExtractor(result: .failure(.needsFfmpeg)), dir: tempDir())
         model.urlText = "https://x.test/post/1"
         await model.startDownload()
         #expect(model.errorMessage == KeraunosError.needsFfmpeg.errorDescription)
     }
 
-    @Test func openIncomingDeepLinkFillsFieldAndDownloads() async {
+    @Test func openIncomingDeepLinkFillsFieldAndEnqueues() async {
+        let spy = SpyEnqueuer()
         let model = vm(extractor: MockExtractor(result: .success(progressive("clip.mp4"))),
-                       merger: MockMerger(), dir: tempDir())
+                       dir: tempDir(), enqueuer: spy)
         model.openIncoming(URL(string: "keraunos://download?url=https://x.test/v")!)
         await model.currentTask?.value
         #expect(model.urlText == "https://x.test/v")
-        #expect(model.lastSavedName == "clip.mp4")
+        #expect(spy.enqueued.count == 1)
+        #expect(spy.enqueued.first?.sourcePageURL == URL(string: "https://x.test/v"))
     }
 
     @Test func openIncomingIgnoresUnsupportedURL() async {
-        let model = vm(extractor: MockExtractor(), merger: MockMerger(), dir: tempDir())
+        let model = vm(extractor: MockExtractor(), dir: tempDir())
         model.openIncoming(URL(string: "ftp://x.test/v")!)
         #expect(model.urlText == "")          // untouched
         #expect(model.currentTask == nil)     // no download started
@@ -127,58 +121,60 @@ struct DownloadViewModelTests {
         // Transient transport faults — a YouTube cold-start surfacing as extract_network
         // or a watchdog timeout (the EJS-in-JSC solve is heavy on the first run), or a
         // mid-transfer download blip — clear on a warm retry, which succeeds.
+        let spy = SpyEnqueuer()
         let extractor = SequenceExtractor(results: [
             .failure(first),
             .success(progressive("clip.mp4")),
         ])
         let model = DownloadViewModel(
             extractor: extractor,
-            assembler: MediaAssembler(downloader: SpyDownloader(), merger: MockMerger()),
-            store: DownloadStore(directory: tempDir()))
+            store: DownloadStore(directory: tempDir()),
+            enqueuer: spy)
         model.urlText = "https://x.test/post/1"
         await model.startDownload()
-        #expect(model.lastSavedName == "clip.mp4")   // succeeded on the auto-retry
         #expect(model.errorMessage == nil)            // the transient blip was never surfaced
+        #expect(spy.enqueued.count == 1)              // exactly one job — succeeded on the auto-retry
     }
 
     @Test func doesNotAutoRetryTerminalErrors() async {
         // A second attempt won't help unsupported, so it must surface immediately.
+        let spy = SpyEnqueuer()
         let extractor = SequenceExtractor(results: [
             .failure(.unsupported),
             .success(progressive("clip.mp4")),   // would be consumed only if it wrongly retried
         ])
         let model = DownloadViewModel(
             extractor: extractor,
-            assembler: MediaAssembler(downloader: SpyDownloader(), merger: MockMerger()),
-            store: DownloadStore(directory: tempDir()))
+            store: DownloadStore(directory: tempDir()),
+            enqueuer: spy)
         model.urlText = "https://x.test/post/1"
         await model.startDownload()
         #expect(model.errorMessage == KeraunosError.unsupported.errorDescription)
-        #expect(model.lastSavedName == nil)
+        #expect(spy.enqueued.isEmpty)
     }
 
     @Test func doesNotAutoRetryRateLimited() async {
         // A rate-limit means "wait" — re-hammering immediately is exactly wrong, so it
         // must surface at once. The queued success is left UNCONSUMED, proving no auto-
         // retry fired; manual retry is still offered.
+        let spy = SpyEnqueuer()
         let extractor = SequenceExtractor(results: [
             .failure(.rateLimited),
             .success(progressive("clip.mp4")),
         ])
         let model = DownloadViewModel(
             extractor: extractor,
-            assembler: MediaAssembler(downloader: SpyDownloader(), merger: MockMerger()),
-            store: DownloadStore(directory: tempDir()))
+            store: DownloadStore(directory: tempDir()),
+            enqueuer: spy)
         model.urlText = "https://x.test/post/1"
         await model.startDownload()
         #expect(model.errorMessage == KeraunosError.rateLimited.errorDescription)
-        #expect(model.lastSavedName == nil)   // success not consumed → no auto-retry
+        #expect(spy.enqueued.isEmpty)   // success not consumed → no auto-retry
         #expect(model.canRetry == true)
     }
 
     @Test func transientFailureOffersRetryButNotSignIn() async {
-        let model = vm(extractor: MockExtractor(result: .failure(.downloadNetwork)),
-                       merger: MockMerger(), dir: tempDir())
+        let model = vm(extractor: MockExtractor(result: .failure(.downloadNetwork)), dir: tempDir())
         model.urlText = "https://x.test/post/1"
         await model.startDownload()
         #expect(model.canRetry == true)
@@ -186,23 +182,21 @@ struct DownloadViewModelTests {
     }
 
     @Test func terminalFailureDoesNotOfferRetry() async {
-        let model = vm(extractor: MockExtractor(result: .failure(.unsupported)),
-                       merger: MockMerger(), dir: tempDir())
+        let model = vm(extractor: MockExtractor(result: .failure(.unsupported)), dir: tempDir())
         model.urlText = "https://x.test/post/1"
         await model.startDownload()
         #expect(model.canRetry == false)
     }
 
     @Test func rejectsInvalidURL() async {
-        let model = vm(extractor: MockExtractor(), merger: MockMerger(), dir: tempDir())
+        let model = vm(extractor: MockExtractor(), dir: tempDir())
         model.urlText = "not a url"
         await model.startDownload()
         #expect(model.errorMessage != nil)
     }
 
     @Test func requiresAuthShowsSignInForHost() async {
-        let model = vm(extractor: MockExtractor(result: .failure(.requiresAuth)),
-                       merger: MockMerger(), dir: tempDir())
+        let model = vm(extractor: MockExtractor(result: .failure(.requiresAuth)), dir: tempDir())
         model.urlText = "https://www.instagram.com/reel/ABC/"
         await model.startDownload()
         #expect(model.requiresSignIn == true)
@@ -214,7 +208,8 @@ struct DownloadViewModelTests {
 
     @Test func cancelStopsInFlightDownloadWithoutSurfacingAnError() async {
         let extractor = HangingExtractor()
-        let model = vm(extractor: extractor, merger: MockMerger(), dir: tempDir())
+        let spy = SpyEnqueuer()
+        let model = vm(extractor: extractor, dir: tempDir(), enqueuer: spy)
         model.urlText = "https://x.test/post/1"
         model.start()
 
@@ -229,46 +224,50 @@ struct DownloadViewModelTests {
 
         #expect(model.isWorking == false)
         #expect(model.errorMessage == nil)   // a user-initiated cancel is not an error
-        #expect(model.lastSavedName == nil)
+        #expect(spy.enqueued.isEmpty)
     }
 
     @Test func multipleFormatsShowPickerAndDoNotDownloadYet() async {
         let dir = tempDir()
+        let spy = SpyEnqueuer()
         let model = vm(extractor: choices([sampleOption,
             FormatOption(height: 360, codecLabel: "H.264", approxBytes: nil,
                          formatID: "18", isAdaptive: false)]),
-                       merger: MockMerger(), dir: dir)
+                       dir: dir, enqueuer: spy)
         model.urlText = "https://x.test/v"
         await model.startDownload()
         #expect(model.pendingOptions?.count == 2)
-        #expect(model.lastSavedName == nil)                 // nothing downloaded yet
+        #expect(spy.enqueued.isEmpty)                 // nothing enqueued yet
         #expect(model.savedFiles.isEmpty)
     }
 
-    @Test func selectFormatResolvesAndSaves() async {
+    @Test func selectFormatResolvesAndEnqueues() async {
         let dir = tempDir()
-        let model = vm(extractor: choices([sampleOption]), merger: MockMerger(), dir: dir)
+        let spy = SpyEnqueuer()
+        let model = vm(extractor: choices([sampleOption]), dir: dir, enqueuer: spy)
         model.urlText = "https://x.test/v"
         await model.startDownload()
         model.selectFormat(sampleOption)
         await model.currentTask?.value
         #expect(model.pendingOptions == nil)
-        #expect(model.lastSavedName == "picked.mp4")
+        #expect(spy.enqueued.count == 1)
+        #expect(spy.enqueued.first?.formatSelection.formatID == sampleOption.formatID)
     }
 
     @Test func cancelSelectionClearsPickerWithoutDownloading() async {
-        let model = vm(extractor: choices([sampleOption]), merger: MockMerger(), dir: tempDir())
+        let spy = SpyEnqueuer()
+        let model = vm(extractor: choices([sampleOption]), dir: tempDir(), enqueuer: spy)
         model.urlText = "https://x.test/v"
         await model.startDownload()
         model.cancelSelection()
         #expect(model.pendingOptions == nil)
-        #expect(model.lastSavedName == nil)
+        #expect(spy.enqueued.isEmpty)
     }
 
     @Test func listFormatsErrorMapsLikeResolveError() async {
         var mock = MockExtractor()
         mock.listing = .failure(.requiresAuth)
-        let model = vm(extractor: mock, merger: MockMerger(), dir: tempDir())
+        let model = vm(extractor: mock, dir: tempDir())
         model.urlText = "https://x.test/v"
         await model.startDownload()
         #expect(model.requiresSignIn)                        // same routing as a resolve failure
@@ -293,54 +292,60 @@ struct DownloadViewModelTests {
         #expect(DownloadViewModel.bestOption(options)?.formatID == "b")
     }
 
-    @Test func highestQualityPreferenceSkipsPickerAndDownloadsBest() async {
+    @Test func highestQualityPreferenceSkipsPickerAndEnqueuesBest() async {
         let dir = tempDir()
+        let spy = SpyEnqueuer()
         let options = [
             FormatOption(height: 360, codecLabel: "H.264", approxBytes: nil, formatID: "18", isAdaptive: false),
             FormatOption(height: 1080, codecLabel: "H.264", approxBytes: nil, formatID: "137", isAdaptive: false),
         ]
         let model = DownloadViewModel(
             extractor: choices(options),
-            assembler: MediaAssembler(downloader: SpyDownloader(), merger: MockMerger()),
             store: DownloadStore(directory: dir),
-            preferences: prefs(quality: .highest))
+            preferences: prefs(quality: .highest),
+            enqueuer: spy)
         model.urlText = "https://x.test/v"
         await model.startDownload()
         #expect(model.pendingOptions == nil)              // picker skipped entirely
-        #expect(model.lastSavedName == "picked.mp4")      // resolved and saved without asking
+        #expect(spy.enqueued.count == 1)                  // resolved and enqueued without asking
+        #expect(spy.enqueued.first?.formatSelection.formatID == "137")   // the higher-height option
     }
 
-    @Test func autoSaveToPhotosSavesAfterCompatibleDownload() async {
+    @Test func autoSaveToPhotosPreferencePersistsOnEnqueuedJob() async {
+        // The VM no longer performs the Photos save itself (that moved to the engine's
+        // finalize pass) — it only needs to carry the preference onto the job.
         let saver = MockPhotoSaver(result: .saved)
+        let spy = SpyEnqueuer()
         let model = DownloadViewModel(
             extractor: MockExtractor(result: .success(progressive("clip.mp4"))),
-            assembler: MediaAssembler(downloader: SpyDownloader(), merger: MockMerger()),
             store: DownloadStore(directory: tempDir()),
             photoSaver: saver,
-            preferences: prefs(autoSave: true))
+            preferences: prefs(autoSave: true),
+            enqueuer: spy)
         model.urlText = "https://x.test/v"
         await model.startDownload()
-        #expect(model.lastSavedName == "clip.mp4")
-        #expect(saver.savedURLs.count == 1)               // auto-saved without a manual tap
-        #expect(model.saveMessage == "Saved to Photos.")
+        #expect(spy.enqueued.count == 1)
+        #expect(spy.enqueued.first?.autoSaveToPhotos == true)
+        #expect(saver.savedURLs.isEmpty)                  // not called from the VM anymore
     }
 
     @Test func retryAfterLoginSucceedsAndClearsSignIn() async {
         let dir = tempDir()
+        let spy = SpyEnqueuer()
         let extractor = SequenceExtractor(results: [
             .failure(.requiresAuth),
             .success(progressive("clip.mp4")),
         ])
         let model = DownloadViewModel(
             extractor: extractor,
-            assembler: MediaAssembler(downloader: SpyDownloader(), merger: MockMerger()),
-            store: DownloadStore(directory: dir))
+            store: DownloadStore(directory: dir),
+            enqueuer: spy)
         model.urlText = "https://www.instagram.com/reel/ABC/"
         await model.startDownload()
         #expect(model.requiresSignIn == true)
         await model.retry()
         #expect(model.requiresSignIn == false)
-        #expect(model.lastSavedName == "clip.mp4")
+        #expect(spy.enqueued.count == 1)
         #expect(model.errorMessage == nil)
     }
 }
@@ -378,10 +383,9 @@ final class HangingExtractor: MediaExtracting, @unchecked Sendable {
     }
 }
 
-/// Writes a marker to the destination so progressive assembly produces a file.
-struct SpyDownloader: FileDownloading {
-    func download(_ track: MediaTrack, to destination: URL,
-                  onProgress: @escaping @Sendable (Double) -> Void) async throws {
-        try Data("x".utf8).write(to: destination)
-    }
+/// Records jobs handed to `enqueue`, standing in for `TransferEngine` so tests can assert
+/// what would have been enqueued without touching the filesystem/URLSession-backed singleton.
+final class SpyEnqueuer: JobEnqueuing {
+    private(set) var enqueued: [TransferJob] = []
+    func enqueue(_ job: TransferJob) async { enqueued.append(job) }
 }
