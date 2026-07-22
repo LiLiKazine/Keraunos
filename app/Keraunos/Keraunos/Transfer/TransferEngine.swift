@@ -172,9 +172,19 @@ final class TransferEngine {
         catch { diagnostics.record(kind: "transfer_resume_failed", detail: "job \(id): \(error)") }
     }
 
-    /// Cancels a job: marks `.cancelled`, cancels any in-flight task, drops it from the store
-    /// (which deletes its part files). Terminal — the row disappears.
+    /// Cancels a job: stops any in-flight task and drops it from the store (which deletes its
+    /// part files). Terminal — the row disappears. Ignored while the job is finalizing
+    /// (`.readyToMerge`/`.merging`): the `TransferFinalizer` may be mid-move/mid-mux on the
+    /// part files on its own actor, so deleting them here would race that I/O and could leave
+    /// a partial output file behind. Letting the in-progress finalize run to completion is
+    /// safe, and the queue UI doesn't offer a cancel button on merging rows anyway.
     func cancel(_ id: UUID) async {
+        let state = await store.job(id: id)?.state
+        if state == .readyToMerge || state == .merging {
+            diagnostics.record(kind: "transfer_cancel_ignored_finalizing",
+                               detail: "job \(id): cancel ignored while finalizing")
+            return
+        }
         await coordinator.pause(jobID: id)          // stop the in-flight task first (bounded)
         await removeFromStoreAndBus(id: id)
     }
