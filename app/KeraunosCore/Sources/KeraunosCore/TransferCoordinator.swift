@@ -7,14 +7,17 @@ import Foundation
 public actor TransferCoordinator {
     private let store: TransferJobStore
     private let session: any TransferSession
+    private let now: @Sendable () -> Date
     /// Live task id → which job/track it is fetching. Rebuilt on relaunch by `reassociateAndResume`.
     private var owners: [Int: Owner] = [:]
 
     private struct Owner: Sendable { let jobID: UUID; let trackIndex: Int }
 
-    public init(store: TransferJobStore, session: any TransferSession) {
+    public init(store: TransferJobStore, session: any TransferSession,
+                now: @Sendable @escaping () -> Date = { Date() }) {
         self.store = store
         self.session = session
+        self.now = now
     }
 
     // MARK: - Control
@@ -49,6 +52,29 @@ public actor TransferCoordinator {
                 try? await beginTrack(jobID: job.id, trackIndex: index) // vanished — resume
             }
         }
+    }
+
+    /// Applies a foreground re-extraction result to the current incomplete track and resumes.
+    /// Equal `Content-Length` ⇒ keep `bytesWritten` (same itag ⇒ byte-identical); a different
+    /// length ⇒ restart that track from zero. Then re-begins the track (`.downloading`).
+    public func refresh(jobID: UUID, freshURL: URL, freshExpiresAt: Date?,
+                        freshContentLength: Int64?) async throws {
+        guard let job = await store.job(id: jobID),
+              let index = Self.firstIncompleteTrackIndex(job) else { return }
+        let track = job.tracks[index]
+        let canResume = freshContentLength != nil && freshContentLength == track.totalBytes
+        if !canResume {
+            try PartFile(url: store.partFileURL(for: track.partFileName)).truncate(to: 0)
+        }
+        try await store.update(id: jobID) {
+            Self.mutateTrack(&$0, at: index) {
+                $0.remoteURL = freshURL
+                $0.urlExpiresAt = freshExpiresAt
+                if !canResume { $0.bytesWritten = 0; $0.totalBytes = freshContentLength }
+            }
+            $0.state = .downloading
+        }
+        try await beginTrack(jobID: jobID, trackIndex: index)
     }
 
     // MARK: - Event ingress (called by the session delegate in the app target)
@@ -96,8 +122,12 @@ public actor TransferCoordinator {
                 } else {
                     try await beginTrack(jobID: owner.jobID, trackIndex: owner.trackIndex)
                 }
+            } else if statusCode == 403 || statusCode == 410 {
+                // Resolved-URL (or auth-cookie) expiry — recoverable via foreground
+                // re-extraction, not a hard failure. One path covers both.
+                try await store.update(id: owner.jobID) { $0.state = .needsRefresh }
             } else {
-                throw KeraunosError.downloadNetwork              // Phase 5 splits 403/410 → needsRefresh
+                throw KeraunosError.downloadNetwork
             }
         } catch {
             try? await store.update(id: owner.jobID) { $0.state = .failed(.network) }
@@ -121,6 +151,11 @@ public actor TransferCoordinator {
     private func beginTrack(jobID: UUID, trackIndex: Int) async throws {
         guard let job = await store.job(id: jobID) else { return }
         let track = job.tracks[trackIndex]
+        // Don't fire a doomed request against an already-expired URL — recover via refresh.
+        if let expiry = track.urlExpiresAt, expiry <= now() {
+            try await store.update(id: jobID) { $0.state = .needsRefresh }
+            return
+        }
         let chunked = (track.chunkSize ?? 0) > 0
         let taskID: Int
         if chunked {

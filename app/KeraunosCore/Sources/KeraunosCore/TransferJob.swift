@@ -39,7 +39,9 @@ public struct FormatSelection: Codable, Sendable, Equatable {
 /// store's parts directory at runtime — never a persisted absolute URL (the app container
 /// path drifts across installs). `bytesWritten` is the authoritative resume offset.
 public struct TrackJob: Codable, Sendable, Equatable {
-    public let remoteURL: URL
+    /// The resolved direct-media URL. Mutable because a `.needsRefresh` recovery replaces it
+    /// with a freshly re-extracted URL (the old one expired).
+    public var remoteURL: URL
     public var urlExpiresAt: Date?
     public let chunkSize: Int?
     public let partFileName: String
