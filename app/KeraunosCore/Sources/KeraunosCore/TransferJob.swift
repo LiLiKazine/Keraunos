@@ -49,9 +49,14 @@ public struct TrackJob: Codable, Sendable, Equatable {
     public var totalBytes: Int64?
     public var resumeData: Data?
     public var taskIdentifier: Int?
+    /// yt-dlp's per-format request headers (User-Agent, Referer, and — for authenticated
+    /// sources — Cookie), replayed on every request including post-relaunch resumes so CDNs
+    /// accept the transfer. Persisted with the job.
+    public var requestHeaders: [String: String]
 
     public init(remoteURL: URL, urlExpiresAt: Date?, chunkSize: Int?, partFileName: String,
-                bytesWritten: Int64, totalBytes: Int64?, resumeData: Data?, taskIdentifier: Int?) {
+                bytesWritten: Int64, totalBytes: Int64?, resumeData: Data?, taskIdentifier: Int?,
+                requestHeaders: [String: String] = [:]) {
         self.remoteURL = remoteURL
         self.urlExpiresAt = urlExpiresAt
         self.chunkSize = chunkSize
@@ -60,6 +65,7 @@ public struct TrackJob: Codable, Sendable, Equatable {
         self.totalBytes = totalBytes
         self.resumeData = resumeData
         self.taskIdentifier = taskIdentifier
+        self.requestHeaders = requestHeaders
     }
 }
 
