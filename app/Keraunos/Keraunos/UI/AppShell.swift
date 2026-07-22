@@ -12,6 +12,7 @@ struct AppShell: View {
     @State private var selection: AppSection = .download
     @State private var showSettings = false
     @State private var toasts = ToastCenter()
+    @State private var downloads = DownloadsViewModel()
 
     private var isRegular: Bool { hSize == .regular }
 
@@ -29,9 +30,10 @@ struct AppShell: View {
 
     private var tabLayout: some View {
         TabView(selection: $selection) {
-            HomeScreen(model: model, cookieStore: cookieStore, selection: $selection,
+            HomeScreen(model: model, downloads: downloads, cookieStore: cookieStore, selection: $selection,
                        onSettings: { showSettings = true })
                 .tabItem { Label(AppSection.download.title, systemImage: AppSection.download.symbol) }
+                .badge(downloads.activeCount == 0 ? 0 : downloads.activeCount)
                 .tag(AppSection.download)
             LibraryScreen(model: model, selection: $selection, onSettings: { showSettings = true })
                 .tabItem { Label(AppSection.library.title, systemImage: AppSection.library.symbol) }
@@ -52,7 +54,7 @@ struct AppShell: View {
 
     private var splitLayout: some View {
         NavigationSplitView {
-            SidebarView(selection: $selection)
+            SidebarView(selection: $selection, activeDownloadCount: downloads.activeCount)
                 .navigationSplitViewColumnWidth(min: 240, ideal: 260, max: 300)
         } detail: {
             NavigationStack {
@@ -72,7 +74,7 @@ struct AppShell: View {
     private var detail: some View {
         switch selection {
         case .download:
-            HomeScreen(model: model, cookieStore: cookieStore, selection: $selection, onSettings: nil)
+            HomeScreen(model: model, downloads: downloads, cookieStore: cookieStore, selection: $selection, onSettings: nil)
         case .library:
             LibraryScreen(model: model, selection: $selection, onSettings: nil)
         case .accounts:
@@ -87,6 +89,7 @@ struct AppShell: View {
 /// pinned to the footer.
 private struct SidebarView: View {
     @Binding var selection: AppSection
+    let activeDownloadCount: Int
 
     var body: some View {
         ZStack {
@@ -123,6 +126,9 @@ private struct SidebarView: View {
                 Image(systemName: section.symbol).font(.system(size: 18)).frame(width: 22)
                 Text(section.title).font(.system(size: 15, weight: .medium))
                 Spacer()
+                if section == .download, activeDownloadCount > 0 {
+                    activeCountPill
+                }
             }
             .foregroundStyle(selection == section ? Color.Theme.accent : Color.Theme.text2)
             .padding(.horizontal, 14)
@@ -134,5 +140,16 @@ private struct SidebarView: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+    }
+
+    /// Small active-transfer count pill overlaid on the Download nav item, mirroring the
+    /// compact tab bar's `.badge`.
+    private var activeCountPill: some View {
+        Text("\(activeDownloadCount)")
+            .font(.system(size: 12, weight: .semibold))
+            .foregroundStyle(Color.Theme.accent)
+            .padding(.horizontal, 7)
+            .padding(.vertical, 2)
+            .background(Color.Theme.surface2, in: Capsule())
     }
 }
