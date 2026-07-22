@@ -13,7 +13,6 @@ struct ContentView: View {
         _preferences = State(initialValue: preferences)
         _model = State(initialValue: DownloadViewModel(
             extractor: PythonExtractor(cookieProvider: cookieStore),
-            assembler: MediaAssembler(downloader: Downloader(), merger: AVFoundationMerger()),
             store: DownloadStore(),
             photoSaver: PhotoLibrarySaver(),
             preferences: preferences))
@@ -30,7 +29,6 @@ struct ContentView: View {
     return AppShell(
         model: DownloadViewModel(
             extractor: MockExtractor(),
-            assembler: MediaAssembler(downloader: Downloader(), merger: AVFoundationMerger()),
             store: DownloadStore(),
             preferences: preferences),
         cookieStore: cookieStore,

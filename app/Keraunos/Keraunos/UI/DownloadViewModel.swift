@@ -2,6 +2,13 @@ import Foundation
 import Observation
 import KeraunosCore
 
+/// Seam over `TransferEngine.enqueue(_:)` so `DownloadViewModel` can be driven by a spy in
+/// tests instead of touching the real engine's filesystem/URLSession-backed singleton.
+protocol JobEnqueuing {
+    func enqueue(_ job: TransferJob) async
+}
+extension TransferEngine: JobEnqueuing {}
+
 @Observable
 final class DownloadViewModel {   // main-actor by default (app target)
     var urlText: String = ""
@@ -12,10 +19,7 @@ final class DownloadViewModel {   // main-actor by default (app target)
     private(set) var signInURL: URL?
     /// True when the last failure was transient, so a plain "Try again" may succeed.
     private(set) var canRetry = false
-    private(set) var lastSavedName: String?
     private(set) var savedFiles: [URL] = []
-    /// 0...1 transfer progress while downloading; nil when not downloading or size unknown.
-    private(set) var downloadProgress: Double?
     /// Message from the last Save-to-Photos attempt; drives a one-off alert. nil when idle.
     private(set) var saveMessage: String?
 
@@ -24,25 +28,25 @@ final class DownloadViewModel {   // main-actor by default (app target)
     /// The URL the pending options were listed for; resolved in `selectFormat`.
     private var pendingURL: URL?
 
-    /// The in-flight download task, retained so the UI can cancel it. Readable in tests.
+    /// The in-flight resolve/pick task, retained so the UI can cancel it. Readable in tests.
     private(set) var currentTask: Task<Void, Never>?
 
     private let extractor: any MediaExtracting
-    private let assembler: MediaAssembler
     private let store: DownloadStore
     private let failureLog: FailureLog
     private let photoSaver: (any PhotoSaving)?
     private let preferences: Preferences
+    private let enqueuer: any JobEnqueuing
 
-    init(extractor: any MediaExtracting, assembler: MediaAssembler, store: DownloadStore,
+    init(extractor: any MediaExtracting, store: DownloadStore,
          failureLog: FailureLog? = nil, photoSaver: (any PhotoSaving)? = nil,
-         preferences: Preferences = Preferences()) {
+         preferences: Preferences = Preferences(), enqueuer: any JobEnqueuing = TransferEngine.shared) {
         self.extractor = extractor
-        self.assembler = assembler
         self.store = store
         self.failureLog = failureLog ?? FailureLog(directory: store.directory)
         self.photoSaver = photoSaver
         self.preferences = preferences
+        self.enqueuer = enqueuer
         self.savedFiles = store.savedFiles()
         self.failureLogURL = self.failureLog.hasEntries ? self.failureLog.fileURL : nil
     }
@@ -74,12 +78,17 @@ final class DownloadViewModel {   // main-actor by default (app target)
         do {
             switch try await extractor.listFormats(url) {
             case .ready(let media):
-                try await assembleAndRecord(media)
+                let isAdaptive: Bool
+                switch media.kind {
+                case .progressive: isAdaptive = false
+                case .adaptive: isAdaptive = true
+                }
+                await enqueue(media, from: url, selection: FormatSelection(formatID: "", height: nil, isAdaptive: isAdaptive))
             case .choices(let options):
                 // Honor the "highest available" preference by skipping the picker entirely.
                 if preferences.defaultQuality == .highest, let best = Self.bestOption(options) {
                     let media = try await extractor.resolve(url, option: best)
-                    try await assembleAndRecord(media)
+                    await enqueue(media, from: url, selection: selection(from: best))
                 } else {
                     pendingOptions = options
                     pendingURL = url
@@ -112,7 +121,7 @@ final class DownloadViewModel {   // main-actor by default (app target)
         defer { endWork() }
         do {
             let media = try await extractor.resolve(url, option: option)
-            try await assembleAndRecord(media)
+            await enqueue(media, from: url, selection: selection(from: option))
         } catch {
             await handleFailure(error, url: url, isAutoRetry: isAutoRetry) {
                 await self.resolveSelected(url: url, option: option, isAutoRetry: true)
@@ -126,29 +135,31 @@ final class DownloadViewModel {   // main-actor by default (app target)
         requiresSignIn = false
         signInURL = nil
         canRetry = false
-        downloadProgress = nil
         statusText = "Resolving…"
     }
 
     private func endWork() {
         isWorking = false
         statusText = nil
-        downloadProgress = nil
     }
 
-    private func assembleAndRecord(_ media: ResolvedMedia) async throws {
-        let saved = try await assembler.assemble(media, into: store, onPhase: { phase in
-            self.statusText = Self.label(for: phase)
-        }, onProgress: { fraction in
-            Task { @MainActor in self.downloadProgress = fraction }
-        })
-        lastSavedName = saved.lastPathComponent
-        savedFiles = store.savedFiles()
-        // Auto-save to Photos when enabled and the file is compatible; `saveToPhotos`
-        // reports the outcome via `saveMessage` (surfaced as a toast).
-        if preferences.autoSaveToPhotos {
-            await saveToPhotos(saved)
-        }
+    /// Maps a picked format to the durable `FormatSelection` persisted on the job, so a
+    /// `.needsRefresh` re-extraction re-picks the SAME format rather than showing the picker
+    /// again.
+    private func selection(from option: FormatOption) -> FormatSelection {
+        FormatSelection(formatID: option.formatID, height: option.height, isAdaptive: option.isAdaptive)
+    }
+
+    /// Enqueues a resolved media onto the background engine instead of downloading in the
+    /// foreground. Transfer, merge, Photos-save, and Library-landing are then owned by the
+    /// engine + queue, not this view model.
+    private func enqueue(_ media: ResolvedMedia, from url: URL, selection: FormatSelection) async {
+        let id = UUID()
+        let job = TransferJobFactory.make(
+            id: id, from: media, sourcePageURL: url, selection: selection,
+            autoSaveToPhotos: preferences.autoSaveToPhotos, credentialRef: nil,
+            createdAt: Date(), partPrefix: id.uuidString)
+        await enqueuer.enqueue(job)
     }
 
     /// Shared failure handling for both phases: transparent one-shot auto-retry for
@@ -256,13 +267,4 @@ final class DownloadViewModel {   // main-actor by default (app target)
 
     /// Clears the Save-to-Photos alert message.
     func dismissSaveMessage() { saveMessage = nil }
-
-    private static func label(for phase: MediaAssembler.Phase) -> String {
-        switch phase {
-        case .downloading:      return "Downloading…"
-        case .downloadingVideo: return "Downloading video…"
-        case .downloadingAudio: return "Downloading audio…"
-        case .merging:          return "Combining…"
-        }
-    }
 }
