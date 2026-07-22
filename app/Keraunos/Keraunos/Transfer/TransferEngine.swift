@@ -38,6 +38,16 @@ final class TransferEngine {
     /// Live assertion keeping the app awake across a finalize/merge pass.
     private var mergeAssertion: UIBackgroundTaskIdentifier = .invalid
 
+    /// Titles of jobs that landed in Library since the UI last consumed them (drives the
+    /// coalescing "Saved to Library" toast). The VM reads and clears this.
+    private(set) var recentlySavedTitles: [String] = []
+
+    func consumeRecentlySaved() -> [String] {
+        let titles = recentlySavedTitles
+        recentlySavedTitles = []
+        return titles
+    }
+
     private init() {
         // 1. Load the durable store synchronously (it is tiny) so the job map exists before
         //    any background event can arrive.
@@ -119,17 +129,22 @@ final class TransferEngine {
 
         let completed = await finalizer.finalizeReadyJobs()
         for id in completed {
-            guard let job = await store.job(id: id), job.autoSaveToPhotos,
-                  let name = job.savedFilename else { continue }
-            let fileURL = downloadStore.directory.appendingPathComponent(name)
-            guard PhotosCompatibility.canSave(fileURL) else { continue }
-            switch await photoSaver.save(fileURL) {
-            case .saved:
-                break
-            case .permissionDenied, .failed:
-                diagnostics.record(kind: "transfer_photos_save",
-                                   detail: "job \(id): could not save \(name)")
+            if let job = await store.job(id: id), job.autoSaveToPhotos, let name = job.savedFilename {
+                let fileURL = downloadStore.directory.appendingPathComponent(name)
+                if PhotosCompatibility.canSave(fileURL) {
+                    switch await photoSaver.save(fileURL) {
+                    case .saved:
+                        break
+                    case .permissionDenied, .failed:
+                        diagnostics.record(kind: "transfer_photos_save",
+                                           detail: "job \(id): could not save \(name)")
+                    }
+                }
             }
+            if let name = await store.job(id: id)?.savedFilename {
+                recentlySavedTitles.append((name as NSString).deletingPathExtension)
+            }
+            await removeFromStoreAndBus(id: id)
         }
     }
 
@@ -137,5 +152,49 @@ final class TransferEngine {
         guard mergeAssertion != .invalid else { return }
         UIApplication.shared.endBackgroundTask(mergeAssertion)
         mergeAssertion = .invalid
+    }
+
+    // MARK: - Queue actions (Phase 6)
+
+    /// Enqueues a freshly built job and starts its first track.
+    func enqueue(_ job: TransferJob) async {
+        do {
+            try await coordinator.start(job)
+        } catch {
+            diagnostics.record(kind: "transfer_enqueue_failed", detail: "job \(job.id): \(error)")
+        }
+    }
+
+    func pause(_ id: UUID) async { await coordinator.pause(jobID: id) }
+
+    func resume(_ id: UUID) async {
+        do { try await coordinator.resume(jobID: id) }
+        catch { diagnostics.record(kind: "transfer_resume_failed", detail: "job \(id): \(error)") }
+    }
+
+    /// Cancels a job: marks `.cancelled`, cancels any in-flight task, drops it from the store
+    /// (which deletes its part files). Terminal — the row disappears.
+    func cancel(_ id: UUID) async {
+        await coordinator.pause(jobID: id)          // stop the in-flight task first (bounded)
+        await removeFromStoreAndBus(id: id)
+    }
+
+    /// Retry a failed job: reset the failed track offset conservatively and re-drive.
+    func retry(_ id: UUID) async {
+        do {
+            try await store.update(id: id) { $0.state = .downloading }
+            await coordinator.reassociateAndResume()
+        } catch {
+            diagnostics.record(kind: "transfer_retry_failed", detail: "job \(id): \(error)")
+        }
+    }
+
+    /// Dismiss a terminal (failed/completed) row.
+    func remove(_ id: UUID) async { await removeFromStoreAndBus(id: id) }
+
+    private func removeFromStoreAndBus(id: UUID) async {
+        do { try await store.remove(id: id) }
+        catch { diagnostics.record(kind: "transfer_remove_failed", detail: "job \(id): \(error)") }
+        await progress.remove(id)
     }
 }
