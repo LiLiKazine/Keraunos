@@ -346,6 +346,52 @@ struct TransferCoordinatorTests {
         #expect(await session.lastRange() == "bytes=0-99")
         #expect(FileManager.default.fileSize(store.partFileURL(for: "c.part")) == 0)
     }
+
+    // MARK: progress publication
+
+    @Test func publishesDownloadingSnapshotOnStart() async throws {
+        let dir = tempDir()
+        let store = try TransferJobStore(directory: dir)
+        let session = ScriptedTransferSession()
+        let bus = TransferProgress()
+        let coord = TransferCoordinator(store: store, session: session, progress: bus)
+        let j = job(kind: .progressive(track(part: "p.part", chunkSize: nil)))
+        try await store.upsert(j)
+        try await coord.start(j)
+        let snap = await bus.snapshot(for: j.id)
+        #expect(snap?.state == .downloading)
+    }
+
+    @Test func liveByteDeltaUpdatesReceivedBytes() async throws {
+        let dir = tempDir()
+        let store = try TransferJobStore(directory: dir)
+        let session = ScriptedTransferSession()
+        let bus = TransferProgress()
+        let coord = TransferCoordinator(store: store, session: session, progress: bus)
+        // Chunked track: 4 MB total, 1 MB already written, 1 MB chunk size.
+        let j = job(kind: .progressive(track(part: "c.part", chunkSize: 1_048_576,
+                                              bytesWritten: 1_048_576, totalBytes: 4_194_304)),
+                    state: .downloading)
+        try await store.upsert(j)
+        try await coord.start(j)
+        let taskID = await session.started.last!.id
+        await coord.taskDidWriteData(taskIdentifier: taskID,
+                                     totalBytesWritten: 524_288, totalBytesExpectedToWrite: 1_048_576)
+        let snap = await bus.snapshot(for: j.id)
+        // persisted 1 MB + 0.5 MB live = 1.5 MB of 4 MB.
+        #expect(snap?.receivedBytes == 1_572_864)
+        #expect(snap?.totalBytes == 4_194_304)
+    }
+
+    @Test func unknownTaskDeltaIsIgnored() async throws {
+        let dir = tempDir()
+        let store = try TransferJobStore(directory: dir)
+        let session = ScriptedTransferSession()
+        let bus = TransferProgress()
+        let coord = TransferCoordinator(store: store, session: session, progress: bus)
+        await coord.taskDidWriteData(taskIdentifier: 999, totalBytesWritten: 1, totalBytesExpectedToWrite: 2)
+        #expect(await bus.current().isEmpty)
+    }
 }
 
 private extension URL { var pathExists: Bool { FileManager.default.fileExists(atPath: path) } }
