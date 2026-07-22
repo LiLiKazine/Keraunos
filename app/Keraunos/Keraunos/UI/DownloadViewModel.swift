@@ -241,6 +241,11 @@ final class DownloadViewModel {   // main-actor by default (app target)
             .formatted(.byteCount(style: .file))
     }
 
+    /// Re-reads the saved-files list from the store. Called when the engine lands a
+    /// background transfer in Library (so the toast's "Show" and the Library screen itself
+    /// aren't stale) and whenever Library appears.
+    func refreshSavedFiles() { savedFiles = store.savedFiles() }
+
     /// Removes a finished download from disk and refreshes the list. A failed delete is
     /// surfaced inline rather than thrown — it shouldn't tear down the screen.
     func deleteDownload(_ file: URL) {

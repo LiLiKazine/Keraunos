@@ -43,6 +43,7 @@ struct HomeScreen: View {
         .task { downloads.start() }
         .onChange(of: downloads.savedTitles) { _, titles in
             guard !titles.isEmpty else { return }
+            model.refreshSavedFiles()
             if titles.count == 1 {
                 toasts.show(ToastData(icon: "checkmark", title: "Saved to Library",
                                       subtitle: titles[0], actionTitle: "Show",

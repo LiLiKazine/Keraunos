@@ -13,6 +13,7 @@ struct QueueItem: Identifiable, Equatable {
     let fraction: Double?
     let receivedBytes: Int64
     let totalBytes: Int64?
+    let createdAt: Date
 }
 
 /// The Download tab's live queue. Reconstructs rows from the persisted `TransferJobStore`
@@ -72,11 +73,12 @@ final class DownloadsViewModel {
                 rowState: rowState,
                 fraction: snap?.fraction,
                 receivedBytes: snap?.receivedBytes ?? job.tracks.reduce(0) { $0 + $1.bytesWritten },
-                totalBytes: snap?.totalBytes)
+                totalBytes: snap?.totalBytes,
+                createdAt: job.createdAt)
         }
         items = rows.sorted {
             let (a, b) = (Self.rank($0.rowState), Self.rank($1.rowState))
-            return a != b ? a < b : $0.id.uuidString < $1.id.uuidString
+            return a != b ? a < b : $0.createdAt < $1.createdAt
         }
         savedTitles = engine.consumeRecentlySaved()   // consumed by the view's onChange
     }

@@ -93,21 +93,21 @@ struct TransferQueueRow: View {
     @ViewBuilder private var trailingControls: some View {
         switch item.rowState {
         case .downloading:
-            iconButton("pause.fill", action: onPause)
-            iconButton("xmark", action: onCancel)
+            iconButton("pause.fill", label: "Pause", action: onPause)
+            iconButton("xmark", label: "Cancel", action: onCancel)
         case .paused:
-            iconButton("play.fill", action: onResume)
-            iconButton("xmark", action: onCancel)
+            iconButton("play.fill", label: "Resume", action: onResume)
+            iconButton("xmark", label: "Cancel", action: onCancel)
         case .queued:
-            iconButton("xmark", action: onCancel)
+            iconButton("xmark", label: "Cancel", action: onCancel)
         case .waitingBackground:
-            iconButton("xmark", action: onCancel)
+            iconButton("xmark", label: "Cancel", action: onCancel)
         case .merging, .refreshing, .needsSignIn, .failed:
             EmptyView()   // automatic or handled by the notice card
         }
     }
 
-    private func iconButton(_ symbol: String, action: @escaping () -> Void) -> some View {
+    private func iconButton(_ symbol: String, label: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Image(systemName: symbol)
                 .font(.system(size: 15, weight: .semibold))
@@ -116,6 +116,7 @@ struct TransferQueueRow: View {
                 .background(Color.Theme.surface2, in: RoundedRectangle(cornerRadius: Radius.control, style: .continuous))
         }
         .buttonStyle(.plain)
+        .accessibilityLabel(label)
     }
 
     // MARK: Needs sign-in
