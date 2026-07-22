@@ -109,6 +109,17 @@ nonisolated final class BackgroundTransferService: NSObject, TransferSession, UR
         }
     }
 
+    func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask,
+                    didWriteData bytesWritten: Int64, totalBytesWritten: Int64,
+                    totalBytesExpectedToWrite: Int64) {
+        let id = downloadTask.taskIdentifier
+        Task { [coordinator] in
+            await coordinator?.taskDidWriteData(taskIdentifier: id,
+                                                totalBytesWritten: totalBytesWritten,
+                                                totalBytesExpectedToWrite: totalBytesExpectedToWrite)
+        }
+    }
+
     func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
         guard let error else { return }   // success is handled in didFinishDownloadingTo
         let resumeData = (error as NSError).userInfo[NSURLSessionDownloadTaskResumeData] as? Data

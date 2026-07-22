@@ -11,15 +11,18 @@ public actor TransferFinalizer {
     private let downloadStore: DownloadStore
     private let disk: any DiskSpaceProbing
     private let diagnostics: (any TransferDiagnostics)?
+    private let progress: TransferProgress?
 
     public init(store: TransferJobStore, merger: any MediaMerging,
                 downloadStore: DownloadStore, disk: any DiskSpaceProbing = VolumeDiskSpace(),
-                diagnostics: (any TransferDiagnostics)? = nil) {
+                diagnostics: (any TransferDiagnostics)? = nil,
+                progress: TransferProgress? = nil) {
         self.store = store
         self.merger = merger
         self.downloadStore = downloadStore
         self.disk = disk
         self.diagnostics = diagnostics
+        self.progress = progress
     }
 
     @discardableResult
@@ -93,7 +96,10 @@ public actor TransferFinalizer {
     private func persist(_ id: UUID, _ context: String,
                          _ mutate: @escaping @Sendable (inout TransferJob) -> Void) async {
         do {
-            _ = try await store.update(id: id, mutate)
+            let updated = try await store.update(id: id, mutate)
+            if let progress, let updated {
+                await progress.set(TransferCoordinator.snapshot(for: updated), for: id)
+            }
         } catch {
             diagnostics?.record(kind: "transfer_persist_failed", detail: "\(context) job \(id): \(error)")
         }

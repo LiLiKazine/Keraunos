@@ -25,6 +25,7 @@ final class TransferEngine {
     let service: BackgroundTransferService
     let coordinator: TransferCoordinator
     let finalizer: TransferFinalizer
+    let progress: TransferProgress
 
     private let downloadStore = DownloadStore()
     private let photoSaver: any PhotoSaving = PhotoLibrarySaver()
@@ -49,9 +50,12 @@ final class TransferEngine {
         service = BackgroundTransferService(
             stagingDirectory: base.appendingPathComponent("staging", isDirectory: true),
             diagnostics: diagnostics)
-        coordinator = TransferCoordinator(store: store, session: service, diagnostics: diagnostics)
+        progress = TransferProgress()
+        coordinator = TransferCoordinator(store: store, session: service,
+                                          diagnostics: diagnostics, progress: progress)
         finalizer = TransferFinalizer(store: store, merger: AVFoundationMerger(),
-                                      downloadStore: downloadStore, diagnostics: diagnostics)
+                                      downloadStore: downloadStore, diagnostics: diagnostics,
+                                      progress: progress)
     }
 
     private static func makeStore(directory: URL, diagnostics: any TransferDiagnostics) -> TransferJobStore {
