@@ -31,4 +31,22 @@ import Foundation
         await bus.remove(id)
         #expect(await bus.snapshot(for: id) == nil)
     }
+
+    @Test func updatesEmitsCurrentThenOnEachChange() async {
+        let bus = TransferProgress()
+        let id = UUID()
+        await bus.set(snap(10, 100), for: id)   // pre-existing entry
+
+        var iterator = (await bus.updates()).makeAsyncIterator()
+        let first = await iterator.next()        // immediate current snapshot
+        #expect(first?[id]?.receivedBytes == 10)
+
+        await bus.set(snap(60, 100), for: id)
+        let second = await iterator.next()
+        #expect(second?[id]?.receivedBytes == 60)
+
+        await bus.remove(id)
+        let third = await iterator.next()
+        #expect(third?[id] == nil)
+    }
 }
