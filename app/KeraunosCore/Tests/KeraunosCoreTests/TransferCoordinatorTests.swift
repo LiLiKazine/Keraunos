@@ -235,6 +235,84 @@ struct TransferCoordinatorTests {
                                               statusCode: 206, contentRangeTotal: 50)
         #expect(await store.job(id: j.id)!.state == .readyToMerge)
     }
+
+    // MARK: media-URL refresh
+
+    @Test func status403RoutesToNeedsRefresh() async throws {
+        let dir = tempDir()
+        let store = try TransferJobStore(directory: dir)
+        let session = ScriptedTransferSession()
+        let coord = TransferCoordinator(store: store, session: session)
+        let j = job(kind: .progressive(track(part: "c.part", chunkSize: 100)))
+        try await coord.start(j)
+        let id = await session.started[0].id
+        await coord.taskDidFinishDownloading(taskIdentifier: id, to: stage(Data()),
+                                             statusCode: 403, contentRangeTotal: nil)
+        #expect(await store.job(id: j.id)!.state == .needsRefresh)
+    }
+
+    @Test func expiredURLDoesNotStartAndNeedsRefresh() async throws {
+        let dir = tempDir()
+        let store = try TransferJobStore(directory: dir)
+        let session = ScriptedTransferSession()
+        let now = Date(timeIntervalSince1970: 2000)
+        let coord = TransferCoordinator(store: store, session: session, now: { now })
+        var t = track(part: "c.part", chunkSize: 100)
+        t.urlExpiresAt = Date(timeIntervalSince1970: 1000)      // already past `now`
+        try await coord.start(job(kind: .progressive(t)))
+        #expect(await session.started.isEmpty)                 // never issued a doomed request
+        #expect(await store.all().first!.state == .needsRefresh)
+    }
+
+    @Test func refreshWithMatchingLengthResumesFromOffset() async throws {
+        let dir = tempDir()
+        let store = try TransferJobStore(directory: dir)
+        let session = ScriptedTransferSession()
+        let coord = TransferCoordinator(store: store, session: session)
+        let j = job(kind: .progressive(track(part: "c.part", chunkSize: 100)))
+        try await coord.start(j)
+        let id = await session.started[0].id
+        await coord.taskDidFinishDownloading(taskIdentifier: id, to: stage(Data(repeating: 1, count: 100)),
+                                             statusCode: 206, contentRangeTotal: 250)
+        let id2 = await session.started[1].id
+        await coord.taskDidFinishDownloading(taskIdentifier: id2, to: stage(Data()),
+                                             statusCode: 403, contentRangeTotal: nil)
+        #expect(await store.job(id: j.id)!.state == .needsRefresh)
+
+        let fresh = URL(string: "https://r2.googlevideo.com/vp?expire=9999999999")!
+        try await coord.refresh(jobID: j.id, freshURL: fresh,
+                                freshExpiresAt: Date(timeIntervalSince1970: 9_999_999_999),
+                                freshContentLength: 250)          // matches persisted total
+        let after = await store.job(id: j.id)!
+        #expect(after.state == .downloading)
+        #expect(after.tracks[0].bytesWritten == 100)             // resumed, not reset
+        #expect(after.tracks[0].remoteURL == fresh)
+        #expect(await session.lastRange() == "bytes=100-199")
+    }
+
+    @Test func refreshWithDifferentLengthRestartsTrack() async throws {
+        let dir = tempDir()
+        let store = try TransferJobStore(directory: dir)
+        let session = ScriptedTransferSession()
+        let coord = TransferCoordinator(store: store, session: session)
+        let j = job(kind: .progressive(track(part: "c.part", chunkSize: 100)))
+        try await coord.start(j)
+        let id = await session.started[0].id
+        await coord.taskDidFinishDownloading(taskIdentifier: id, to: stage(Data(repeating: 1, count: 100)),
+                                             statusCode: 206, contentRangeTotal: 250)
+        let id2 = await session.started[1].id
+        await coord.taskDidFinishDownloading(taskIdentifier: id2, to: stage(Data()),
+                                             statusCode: 410, contentRangeTotal: nil)
+
+        let fresh = URL(string: "https://r3.googlevideo.com/vp")!
+        try await coord.refresh(jobID: j.id, freshURL: fresh, freshExpiresAt: nil,
+                                freshContentLength: 999)          // DIFFERENT length → restart
+        let after = await store.job(id: j.id)!
+        #expect(after.state == .downloading)
+        #expect(after.tracks[0].bytesWritten == 0)               // restarted
+        #expect(await session.lastRange() == "bytes=0-99")
+        #expect(FileManager.default.fileSize(store.partFileURL(for: "c.part")) == 0)
+    }
 }
 
 private extension URL { var pathExists: Bool { FileManager.default.fileExists(atPath: path) } }
