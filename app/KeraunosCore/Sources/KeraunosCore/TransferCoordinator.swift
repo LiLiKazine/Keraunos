@@ -96,6 +96,36 @@ public actor TransferCoordinator {
         await publish(jobID)
     }
 
+    /// Pauses a downloading job: cancels the in-flight task (chunked resumes cleanly from the
+    /// persisted `bytesWritten`; single-shot keeps the returned resume data) and marks it
+    /// `.paused` so `reassociateAndResume` won't auto-kick it. Bounded waste: at most one chunk.
+    public func pause(jobID: UUID) async {
+        guard let job = await store.job(id: jobID), job.state == .downloading,
+              let index = Self.firstIncompleteTrackIndex(job) else { return }
+        let track = job.tracks[index]
+        let resume: Data?
+        if let tid = track.taskIdentifier {
+            resume = await session.cancelTask(tid)
+            owners[tid] = nil
+        } else {
+            resume = nil
+        }
+        await persist(jobID, "pause") {
+            Self.mutateTrack(&$0, at: index) { $0.resumeData = resume; $0.taskIdentifier = nil }
+            $0.state = .paused
+        }
+        await publish(jobID)
+    }
+
+    /// Resumes a paused job from its persisted offset (chunked) or resume data (single-shot).
+    public func resume(jobID: UUID) async throws {
+        guard let job = await store.job(id: jobID), job.state == .paused,
+              let index = Self.firstIncompleteTrackIndex(job) else { return }
+        try await store.update(id: jobID) { $0.state = .downloading }
+        try await beginTrack(jobID: jobID, trackIndex: index)
+        await publish(jobID)
+    }
+
     // MARK: - Event ingress (called by the session delegate in the app target)
 
     /// A download task delivered a staged temp file (its bytes are already safe on disk).
