@@ -46,7 +46,10 @@ final class TransferEngine {
         service.createSession()                     // 3. create session — opens the floodgates
         Task {
             await coordinator.reassociateAndResume()   // rebind live tasks, resume vanished ones
-            _ = try? await store.reconcileOrphanParts()  // sweep parts with no owning job
+            // Orphan GC is deliberately best-effort: a failure here is harmless (orphaned
+            // parts waste only disk and are swept on the next launch), so it must not block
+            // the launch sequence — hence the discarded error rather than a propagated throw.
+            _ = try? await store.reconcileOrphanParts()
             await finalizer.finalizeReadyJobs()         // pick up any .readyToMerge from last run
         }
     }

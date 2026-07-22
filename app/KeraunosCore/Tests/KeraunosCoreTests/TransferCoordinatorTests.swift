@@ -249,6 +249,24 @@ struct TransferCoordinatorTests {
         #expect(req.value(forHTTPHeaderField: "Cookie") == "a=b")
     }
 
+    @Test func reassociateResumeFailureSurfacesAsFailedNotSilentStall() async throws {
+        let dir = tempDir()
+        let store = try TransferJobStore(directory: dir)
+        let session = ScriptedTransferSession()
+        // A downloading job whose task vanished while suspended.
+        var t = track(part: "c.part", chunkSize: 100, bytesWritten: 50, totalBytes: 250)
+        t.taskIdentifier = 42
+        try await store.upsert(job(kind: .progressive(t), state: .downloading))
+        await session.setStartError(URLError(.notConnectedToInternet))   // resume can't start
+        await session.setLive([])                                        // task 42 gone
+
+        let coord = TransferCoordinator(store: store, session: session)
+        await coord.reassociateAndResume()
+
+        // The failed resume is surfaced (retryable), not swallowed into a permanent stall.
+        #expect(await store.all().first!.state == .failed(.network))
+    }
+
     // MARK: media-URL refresh
 
     @Test func status403RoutesToNeedsRefresh() async throws {
