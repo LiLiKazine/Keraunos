@@ -236,6 +236,19 @@ struct TransferCoordinatorTests {
         #expect(await store.job(id: j.id)!.state == .readyToMerge)
     }
 
+    @Test func appliesPersistedRequestHeaders() async throws {
+        let dir = tempDir()
+        let store = try TransferJobStore(directory: dir)
+        let session = ScriptedTransferSession()
+        let coord = TransferCoordinator(store: store, session: session)
+        var t = track(part: "p.part", chunkSize: nil)
+        t.requestHeaders = ["User-Agent": "yt", "Cookie": "a=b"]
+        try await coord.start(job(kind: .progressive(t)))
+        let req = await session.started[0].request
+        #expect(req.value(forHTTPHeaderField: "User-Agent") == "yt")
+        #expect(req.value(forHTTPHeaderField: "Cookie") == "a=b")
+    }
+
     // MARK: media-URL refresh
 
     @Test func status403RoutesToNeedsRefresh() async throws {

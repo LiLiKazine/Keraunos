@@ -156,20 +156,26 @@ public actor TransferCoordinator {
             try await store.update(id: jobID) { $0.state = .needsRefresh }
             return
         }
+        // Replay the persisted per-format headers on every request so the CDN accepts it.
+        func decorate(_ url: URL) -> URLRequest {
+            var request = URLRequest(url: url)
+            for (field, value) in track.requestHeaders { request.setValue(value, forHTTPHeaderField: field) }
+            return request
+        }
         let chunked = (track.chunkSize ?? 0) > 0
         let taskID: Int
         if chunked {
             // Discard any un-recorded tail written before a crash, so the ranged request
             // that follows can't double-append. `bytesWritten` is authoritative.
             try PartFile(url: store.partFileURL(for: track.partFileName)).truncate(to: track.bytesWritten)
-            var request = URLRequest(url: track.remoteURL)
+            var request = decorate(track.remoteURL)
             let upper = track.bytesWritten + Int64(track.chunkSize!) - 1
             request.setValue("bytes=\(track.bytesWritten)-\(upper)", forHTTPHeaderField: "Range")
             taskID = try await session.startDownloadTask(for: request)
         } else if let resume = track.resumeData {
             taskID = try await session.startDownloadTask(withResumeData: resume)
         } else {
-            taskID = try await session.startDownloadTask(for: URLRequest(url: track.remoteURL))
+            taskID = try await session.startDownloadTask(for: decorate(track.remoteURL))
         }
         owners[taskID] = Owner(jobID: jobID, trackIndex: trackIndex)
         try await store.update(id: jobID) {
