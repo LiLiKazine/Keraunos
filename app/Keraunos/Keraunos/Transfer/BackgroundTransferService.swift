@@ -18,11 +18,19 @@ nonisolated final class BackgroundTransferService: NSObject, TransferSession, UR
     /// the engine can invoke the OS completion handler it holds on the main actor. Kept as a
     /// `@Sendable` signal so the non-Sendable OS handler never crosses into this class.
     private var onFinishEvents: (@Sendable () -> Void)?
+    private let diagnostics: (any TransferDiagnostics)?
 
-    init(stagingDirectory: URL) {
+    init(stagingDirectory: URL, diagnostics: (any TransferDiagnostics)? = nil) {
         self.stagingDirectory = stagingDirectory
+        self.diagnostics = diagnostics
         super.init()
-        try? FileManager.default.createDirectory(at: stagingDirectory, withIntermediateDirectories: true)
+        do {
+            try FileManager.default.createDirectory(at: stagingDirectory, withIntermediateDirectories: true)
+        } catch {
+            // Without a staging dir, stage-out can't persist bytes — record it so the cause is
+            // visible if transfers then fail to land.
+            diagnostics?.record(kind: "transfer_staging_dir", detail: "\(error)")
+        }
     }
 
     func attach(coordinator: TransferCoordinator, onFinishEvents: @escaping @Sendable () -> Void) {
@@ -81,7 +89,16 @@ nonisolated final class BackgroundTransferService: NSObject, TransferSession, UR
         // bytes to a stable staging path BEFORE any async hop. Routing (which job owns them)
         // happens asynchronously on the coordinator actor; if there's no owner it GC's the file.
         let staged = stagingDirectory.appendingPathComponent(UUID().uuidString)
-        try? FileManager.default.moveItem(at: location, to: staged)
+        do {
+            try FileManager.default.moveItem(at: location, to: staged)
+        } catch {
+            // The temp file is gone the moment this returns; if we can't stage it, the bytes
+            // are lost for this task. Record it and stop — the coordinator will resume the
+            // track from its persisted offset on the next launch rather than get a bad file.
+            diagnostics?.record(kind: "transfer_stageout_failed",
+                                detail: "task \(downloadTask.taskIdentifier): \(error)")
+            return
+        }
         let http = downloadTask.response as? HTTPURLResponse
         let status = http?.statusCode ?? 0
         let total = Self.contentRangeTotal(http)

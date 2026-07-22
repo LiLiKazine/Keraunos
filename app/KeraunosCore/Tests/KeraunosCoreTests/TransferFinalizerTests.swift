@@ -5,7 +5,7 @@ import KeraunosCore
 struct TransferFinalizerTests {
     private func tempDir() -> URL {
         let d = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
-        try? FileManager.default.createDirectory(at: d, withIntermediateDirectories: true)
+        try! FileManager.default.createDirectory(at: d, withIntermediateDirectories: true)
         return d
     }
     private func track(part: String, total: Int64) -> TrackJob {

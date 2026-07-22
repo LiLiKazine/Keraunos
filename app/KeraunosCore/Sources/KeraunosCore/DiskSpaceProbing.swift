@@ -11,7 +11,12 @@ public protocol DiskSpaceProbing: Sendable {
 public struct VolumeDiskSpace: DiskSpaceProbing {
     public init() {}
     public func availableCapacity(at url: URL) -> Int64? {
-        let values = try? url.resourceValues(forKeys: [.volumeAvailableCapacityForImportantUsageKey])
-        return values?.volumeAvailableCapacityForImportantUsage
+        // Unknown capacity (query failed) → nil, which the caller treats as "don't block".
+        do {
+            let values = try url.resourceValues(forKeys: [.volumeAvailableCapacityForImportantUsageKey])
+            return values.volumeAvailableCapacityForImportantUsage
+        } catch {
+            return nil
+        }
     }
 }

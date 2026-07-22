@@ -10,13 +10,16 @@ public actor TransferFinalizer {
     private let merger: any MediaMerging
     private let downloadStore: DownloadStore
     private let disk: any DiskSpaceProbing
+    private let diagnostics: (any TransferDiagnostics)?
 
     public init(store: TransferJobStore, merger: any MediaMerging,
-                downloadStore: DownloadStore, disk: any DiskSpaceProbing = VolumeDiskSpace()) {
+                downloadStore: DownloadStore, disk: any DiskSpaceProbing = VolumeDiskSpace(),
+                diagnostics: (any TransferDiagnostics)? = nil) {
         self.store = store
         self.merger = merger
         self.downloadStore = downloadStore
         self.disk = disk
+        self.diagnostics = diagnostics
     }
 
     @discardableResult
@@ -41,7 +44,9 @@ public actor TransferFinalizer {
         for track in job.tracks {
             let length = PartFile(url: store.partFileURL(for: track.partFileName)).length()
             guard let total = track.totalBytes, length == total else {
-                try? await store.update(id: job.id) { $0.state = .failed(.integrityCheckFailed) }
+                diagnostics?.record(kind: "transfer_integrity_failed",
+                                    detail: "job \(job.id) part \(track.partFileName): \(length) != \(track.totalBytes.map(String.init) ?? "nil")")
+                await persist(job.id, "integrity_failed") { $0.state = .failed(.integrityCheckFailed) }
                 return false
             }
         }
@@ -49,20 +54,19 @@ public actor TransferFinalizer {
         // 2. Disk guard: the finalized output needs ~sum(track totals) of new space.
         let required = job.tracks.reduce(Int64(0)) { $0 + ($1.totalBytes ?? 0) }
         if let available = disk.availableCapacity(at: downloadStore.directory), available < required {
-            try? await store.update(id: job.id) { $0.state = .failed(.insufficientSpace) }
+            await persist(job.id, "insufficient_space") { $0.state = .failed(.insufficientSpace) }
             return false
         }
 
-        try? await store.update(id: job.id) { $0.state = .merging }
+        await persist(job.id, "merging") { $0.state = .merging }
 
         do {
+            // `uniqueDestination` guarantees a non-colliding path, so no pre-delete is needed.
             let destination: URL
             switch job.kind {
             case .progressive(let track):
                 destination = downloadStore.uniqueDestination(for: job.suggestedFilename)
-                let part = store.partFileURL(for: track.partFileName)
-                try? FileManager.default.removeItem(at: destination)
-                try FileManager.default.moveItem(at: part, to: destination)
+                try FileManager.default.moveItem(at: store.partFileURL(for: track.partFileName), to: destination)
             case .adaptive(let video, let audio):
                 let base = (job.suggestedFilename as NSString).deletingPathExtension
                 destination = downloadStore.uniqueDestination(for: "\(base).mp4")
@@ -70,18 +74,40 @@ public actor TransferFinalizer {
                                        audio: store.partFileURL(for: audio.partFileName),
                                        into: destination)
             }
-            // Success: record the saved name, drop the parts, complete.
+            // Success: record the saved name, complete, then drop the now-consumed parts.
             let savedName = destination.lastPathComponent
-            try? await store.update(id: job.id) { $0.savedFilename = savedName; $0.state = .completed }
-            for track in job.tracks {
-                try? FileManager.default.removeItem(at: store.partFileURL(for: track.partFileName))
-            }
+            await persist(job.id, "completed") { $0.savedFilename = savedName; $0.state = .completed }
+            cleanupParts(of: job)
             return true
         } catch {
-            // Merge/move failed after the integrity check — a real mux error. Retain parts
-            // for retry; surface as integrityCheckFailed (the only durable "bad output" reason).
-            try? await store.update(id: job.id) { $0.state = .failed(.integrityCheckFailed) }
+            // Merge/move failed after the integrity check — a real mux error. Marking the job
+            // retryable (parts retained) IS the handling; record the cause for diagnosis.
+            diagnostics?.record(kind: "transfer_merge_failed", detail: "job \(job.id): \(error)")
+            await persist(job.id, "merge_failed") { $0.state = .failed(.integrityCheckFailed) }
             return false
+        }
+    }
+
+    /// Persists a state mutation; a failed write is recorded (self-heals on the next
+    /// `finalizeReadyJobs` since the job stays `.readyToMerge`).
+    private func persist(_ id: UUID, _ context: String,
+                         _ mutate: @escaping @Sendable (inout TransferJob) -> Void) async {
+        do {
+            _ = try await store.update(id: id, mutate)
+        } catch {
+            diagnostics?.record(kind: "transfer_persist_failed", detail: "\(context) job \(id): \(error)")
+        }
+    }
+
+    /// Deletes a completed job's consumed part files. Non-fatal on failure (orphan GC is the
+    /// backstop) but recorded so a persistent cleanup problem is diagnosable.
+    private func cleanupParts(of job: TransferJob) {
+        for track in job.tracks {
+            do {
+                try FileManager.default.removeItem(at: store.partFileURL(for: track.partFileName))
+            } catch {
+                diagnostics?.record(kind: "transfer_part_cleanup", detail: "\(track.partFileName): \(error)")
+            }
         }
     }
 }
