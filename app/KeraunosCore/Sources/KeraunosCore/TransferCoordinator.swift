@@ -8,16 +8,19 @@ public actor TransferCoordinator {
     private let store: TransferJobStore
     private let session: any TransferSession
     private let now: @Sendable () -> Date
+    private let diagnostics: (any TransferDiagnostics)?
     /// Live task id → which job/track it is fetching. Rebuilt on relaunch by `reassociateAndResume`.
     private var owners: [Int: Owner] = [:]
 
     private struct Owner: Sendable { let jobID: UUID; let trackIndex: Int }
 
     public init(store: TransferJobStore, session: any TransferSession,
-                now: @Sendable @escaping () -> Date = { Date() }) {
+                now: @Sendable @escaping () -> Date = { Date() },
+                diagnostics: (any TransferDiagnostics)? = nil) {
         self.store = store
         self.session = session
         self.now = now
+        self.diagnostics = diagnostics
     }
 
     // MARK: - Control
@@ -42,7 +45,7 @@ public actor TransferCoordinator {
         owners = owners.filter { live.contains($0.key) }
         for job in await store.all() where job.state == .downloading {
             guard let index = Self.firstIncompleteTrackIndex(job) else {
-                try? await store.update(id: job.id) { $0.state = .readyToMerge }
+                await persist(job.id, "reassociate_ready") { $0.state = .readyToMerge }
                 continue
             }
             let track = job.tracks[index]
@@ -50,13 +53,13 @@ public actor TransferCoordinator {
                 owners[tid] = Owner(jobID: job.id, trackIndex: index)   // still running — rebind
             } else {
                 // Task vanished — resume it. If the resume itself can't start, don't let the
-                // job silently stall with no in-flight task: surface it as a retryable failure.
+                // job silently stall with no in-flight task: surface it as a retryable failure
+                // (and record why the resume failed).
                 do {
                     try await beginTrack(jobID: job.id, trackIndex: index)
                 } catch {
-                    // Terminal best-effort: we're already handling a failure and there's
-                    // nothing left to fall back to. A lost write self-heals on next launch.
-                    try? await store.update(id: job.id) { $0.state = .failed(.network) }
+                    diagnostics?.record(kind: "transfer_resume_failed", detail: "job \(job.id): \(error)")
+                    await persist(job.id, "reassociate_failed") { $0.state = .failed(.network) }
                 }
             }
         }
@@ -92,11 +95,11 @@ public actor TransferCoordinator {
                                          statusCode: Int, contentRangeTotal: Int64?) async {
         guard let owner = owners.removeValue(forKey: taskIdentifier),
               let job = await store.job(id: owner.jobID), job.state == .downloading else {
-            try? FileManager.default.removeItem(at: stagedFile)   // launch race / stale — discard
+            discardStagedFile(stagedFile)   // launch race / stale — no owner
             return
         }
         let track = job.tracks[owner.trackIndex]
-        defer { try? FileManager.default.removeItem(at: stagedFile) }
+        defer { discardStagedFile(stagedFile) }
 
         do {
             if statusCode == 200 {
@@ -138,7 +141,10 @@ public actor TransferCoordinator {
                 throw KeraunosError.downloadNetwork
             }
         } catch {
-            try? await store.update(id: owner.jobID) { $0.state = .failed(.network) }
+            // The download itself failed (I/O, bad status). Mark the job retryable — that
+            // IS the handling; record the underlying cause for diagnosis.
+            diagnostics?.record(kind: "transfer_download_failed", detail: "job \(owner.jobID): \(error)")
+            await persist(owner.jobID, "download_failed") { $0.state = .failed(.network) }
         }
     }
 
@@ -147,7 +153,7 @@ public actor TransferCoordinator {
     /// is stashed on the track.
     public func taskDidFail(taskIdentifier: Int, resumeData: Data?, isCancelled: Bool) async {
         guard let owner = owners.removeValue(forKey: taskIdentifier) else { return }
-        try? await store.update(id: owner.jobID) {
+        await persist(owner.jobID, "task_failed") {
             Self.mutateTrack(&$0, at: owner.trackIndex) { $0.resumeData = resumeData; $0.taskIdentifier = nil }
         }
     }
@@ -203,6 +209,29 @@ public actor TransferCoordinator {
     }
 
     // MARK: - Helpers
+
+    /// Persists a state mutation from a non-throwing, delegate-driven path. Recovery for a
+    /// failed write is the crash-consistent design itself — the transition is re-derived on the
+    /// next `reassociateAndResume`/launch — so here we record the failure (making a persistent
+    /// write problem diagnosable) rather than discard it or crash a delegate callback.
+    private func persist(_ id: UUID, _ context: String,
+                         _ mutate: @escaping @Sendable (inout TransferJob) -> Void) async {
+        do {
+            _ = try await store.update(id: id, mutate)
+        } catch {
+            diagnostics?.record(kind: "transfer_persist_failed", detail: "\(context) job \(id): \(error)")
+        }
+    }
+
+    /// Deletes a staged temp file. A failure is non-fatal (orphan GC reclaims it on the next
+    /// launch), but it is recorded so a chronically-failing staging dir surfaces in diagnostics.
+    private func discardStagedFile(_ url: URL) {
+        do {
+            try FileManager.default.removeItem(at: url)
+        } catch {
+            diagnostics?.record(kind: "transfer_staging_cleanup", detail: "\(url.lastPathComponent): \(error)")
+        }
+    }
 
     /// Index of the first track that isn't fully downloaded, or nil if all are complete.
     /// A track is complete ⟺ `totalBytes != nil && bytesWritten >= totalBytes`.

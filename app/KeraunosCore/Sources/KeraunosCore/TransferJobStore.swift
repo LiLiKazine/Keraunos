@@ -7,6 +7,7 @@ public actor TransferJobStore {
     public let directory: URL
     public let partsDirectory: URL
     private let fileURL: URL
+    private let diagnostics: (any TransferDiagnostics)?
     private var jobs: [TransferJob]
 
     /// Default base directory: `<Application Support>/Transfers`.
@@ -15,14 +16,15 @@ public actor TransferJobStore {
             .appendingPathComponent("Transfers", isDirectory: true)
     }
 
-    public init(directory: URL? = nil) throws {
+    public init(directory: URL? = nil, diagnostics: (any TransferDiagnostics)? = nil) throws {
         let base = directory ?? Self.defaultDirectory
         self.directory = base
         self.partsDirectory = base.appendingPathComponent("parts", isDirectory: true)
         self.fileURL = base.appendingPathComponent("transfers.json")
+        self.diagnostics = diagnostics
         // Creating the parts dir with intermediates also creates `base`.
         try FileManager.default.createDirectory(at: partsDirectory, withIntermediateDirectories: true)
-        self.jobs = Self.load(fileURL)
+        self.jobs = Self.load(fileURL, diagnostics: diagnostics)
     }
 
     public func all() -> [TransferJob] { jobs }
@@ -52,7 +54,7 @@ public actor TransferJobStore {
     public func remove(id: UUID) throws {
         guard let i = jobs.firstIndex(where: { $0.id == id }) else { return }
         for name in jobs[i].trackPartFileNames {
-            try? FileManager.default.removeItem(at: partFileURL(for: name))
+            deletePartFileIfPresent(name)
         }
         jobs.remove(at: i)
         try persist()
@@ -64,13 +66,30 @@ public actor TransferJobStore {
     @discardableResult
     public func reconcileOrphanParts() throws -> [String] {
         let referenced = Set(jobs.flatMap(\.trackPartFileNames))
-        let contents = (try? FileManager.default.contentsOfDirectory(atPath: partsDirectory.path)) ?? []
+        let contents: [String]
+        do {
+            contents = try FileManager.default.contentsOfDirectory(atPath: partsDirectory.path)
+        } catch {
+            // Unreadable parts dir → skip this pass (retried next launch); record why.
+            diagnostics?.record(kind: "transfer_reconcile_skipped", detail: "\(error)")
+            return []
+        }
         var removed: [String] = []
         for name in contents where !referenced.contains(name) {
-            try? FileManager.default.removeItem(at: partFileURL(for: name))
+            deletePartFileIfPresent(name)
             removed.append(name)
         }
         return removed.sorted()
+    }
+
+    /// Deletes a part file; recovery for a failure is the next `reconcileOrphanParts` pass, so
+    /// the error is recorded (diagnosable) rather than dropped.
+    private func deletePartFileIfPresent(_ name: String) {
+        do {
+            try FileManager.default.removeItem(at: partFileURL(for: name))
+        } catch {
+            diagnostics?.record(kind: "transfer_part_delete", detail: "\(name): \(error)")
+        }
     }
 
     /// Resolves a part-file name to its absolute URL. `nonisolated` — it reads only the
@@ -84,8 +103,32 @@ public actor TransferJobStore {
         try data.write(to: fileURL, options: .atomic)
     }
 
-    private static func load(_ url: URL) -> [TransferJob] {
-        guard let data = try? Data(contentsOf: url) else { return [] }
-        return (try? JSONDecoder().decode([TransferJob].self, from: data)) ?? []
+    /// Rehydrates the persisted jobs. Missing file → empty (first launch). A corrupt/
+    /// incompatible file is *quarantined* (moved aside) so it's preserved for debugging and
+    /// can't crash-loop the store, and the event is recorded — not silently discarded.
+    private static func load(_ url: URL, diagnostics: (any TransferDiagnostics)?) -> [TransferJob] {
+        let data: Data
+        do {
+            data = try Data(contentsOf: url)
+        } catch {
+            return []   // first launch — no transfers.json yet (an expected, non-error state)
+        }
+        do {
+            return try JSONDecoder().decode([TransferJob].self, from: data)
+        } catch {
+            let quarantine = url.deletingPathExtension().appendingPathExtension("corrupt.json")
+            do {
+                if FileManager.default.fileExists(atPath: quarantine.path) {
+                    try FileManager.default.removeItem(at: quarantine)   // replace a prior quarantine
+                }
+                try FileManager.default.moveItem(at: url, to: quarantine)
+                diagnostics?.record(kind: "transfer_store_corrupt",
+                                    detail: "quarantined to \(quarantine.lastPathComponent): \(error)")
+            } catch let moveError {
+                diagnostics?.record(kind: "transfer_store_corrupt",
+                                    detail: "could not quarantine (\(moveError)); starting empty")
+            }
+            return []
+        }
     }
 }

@@ -11,8 +11,14 @@ public struct PartFile: Sendable {
 
     /// Current on-disk byte length (0 if the file is absent). Read fresh each call.
     public func length() -> Int64 {
-        let attrs = try? FileManager.default.attributesOfItem(atPath: url.path)
-        return (attrs?[.size] as? NSNumber)?.int64Value ?? 0
+        // An absent/unreadable file legitimately reads as length 0 (not yet created).
+        let attrs: [FileAttributeKey: Any]
+        do {
+            attrs = try FileManager.default.attributesOfItem(atPath: url.path)
+        } catch {
+            return 0
+        }
+        return (attrs[.size] as? NSNumber)?.int64Value ?? 0
     }
 
     /// Appends `data`, flushes it to stable storage, and returns the new length.
@@ -22,7 +28,7 @@ public struct PartFile: Sendable {
             FileManager.default.createFile(atPath: url.path, contents: nil)
         }
         let handle = try FileHandle(forWritingTo: url)
-        defer { try? handle.close() }
+        defer { closeQuietly(handle) }
         try handle.seekToEnd()
         try handle.write(contentsOf: data)
         try handle.synchronize()   // fsync — bytes are durable before we return the length
@@ -35,8 +41,14 @@ public struct PartFile: Sendable {
             FileManager.default.createFile(atPath: url.path, contents: nil)
         }
         let handle = try FileHandle(forWritingTo: url)
-        defer { try? handle.close() }
+        defer { closeQuietly(handle) }
         try handle.truncate(atOffset: UInt64(offset))
         try handle.synchronize()
+    }
+
+    /// Closes a handle whose bytes are already `synchronize()`d — a close failure at this
+    /// point cannot lose data, so it is deliberately ignored (in `defer`, can't propagate).
+    private func closeQuietly(_ handle: FileHandle) {
+        do { try handle.close() } catch { /* durable already; nothing to recover */ }
     }
 }

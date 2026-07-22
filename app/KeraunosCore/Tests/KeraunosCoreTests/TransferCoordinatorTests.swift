@@ -6,7 +6,7 @@ struct TransferCoordinatorTests {
     // MARK: fixtures
     private func tempDir() -> URL {
         let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
-        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        try! FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         return dir
     }
     private func stage(_ data: Data) -> URL {
@@ -260,11 +260,13 @@ struct TransferCoordinatorTests {
         await session.setStartError(URLError(.notConnectedToInternet))   // resume can't start
         await session.setLive([])                                        // task 42 gone
 
-        let coord = TransferCoordinator(store: store, session: session)
+        let spy = SpyDiagnostics()
+        let coord = TransferCoordinator(store: store, session: session, diagnostics: spy)
         await coord.reassociateAndResume()
 
-        // The failed resume is surfaced (retryable), not swallowed into a permanent stall.
+        // The failed resume is surfaced (retryable) AND recorded — not swallowed.
         #expect(await store.all().first!.state == .failed(.network))
+        #expect(spy.kinds.contains("transfer_resume_failed"))
     }
 
     // MARK: media-URL refresh
@@ -351,7 +353,8 @@ private extension FileManager {
     /// Fresh on-disk size via `attributesOfItem` — NOT `URL.resourceValues`, which caches
     /// the size on the URL and would return a stale length after a truncate.
     func fileSize(_ url: URL) -> Int64 {
-        let attrs = try? attributesOfItem(atPath: url.path)
-        return (attrs?[.size] as? NSNumber)?.int64Value ?? -1
+        let attrs: [FileAttributeKey: Any]
+        do { attrs = try attributesOfItem(atPath: url.path) } catch { return -1 }
+        return (attrs[.size] as? NSNumber)?.int64Value ?? -1
     }
 }
