@@ -49,7 +49,15 @@ public actor TransferCoordinator {
             if let tid = track.taskIdentifier, live.contains(tid) {
                 owners[tid] = Owner(jobID: job.id, trackIndex: index)   // still running — rebind
             } else {
-                try? await beginTrack(jobID: job.id, trackIndex: index) // vanished — resume
+                // Task vanished — resume it. If the resume itself can't start, don't let the
+                // job silently stall with no in-flight task: surface it as a retryable failure.
+                do {
+                    try await beginTrack(jobID: job.id, trackIndex: index)
+                } catch {
+                    // Terminal best-effort: we're already handling a failure and there's
+                    // nothing left to fall back to. A lost write self-heals on next launch.
+                    try? await store.update(id: job.id) { $0.state = .failed(.network) }
+                }
             }
         }
     }

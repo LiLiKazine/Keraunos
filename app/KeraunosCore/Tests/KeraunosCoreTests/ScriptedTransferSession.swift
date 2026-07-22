@@ -12,9 +12,15 @@ actor ScriptedTransferSession: TransferSession {
     private(set) var cancelled: [Int] = []
     var live: Set<Int> = []
     var resumeDataOnCancel: Data?
+    /// When set, the next `startDownloadTask(for:)` throws it (simulates a session that
+    /// can't start a task, e.g. on a launch with no connectivity).
+    var startError: Error?
     private var nextID = 0
 
+    func setStartError(_ error: Error?) { startError = error }
+
     func startDownloadTask(for request: URLRequest) async throws -> Int {
+        if let startError { self.startError = nil; throw startError }
         nextID += 1
         started.append((nextID, request))
         live.insert(nextID)
