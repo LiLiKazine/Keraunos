@@ -169,11 +169,80 @@ struct TransferCoordinatorTests {
                                              statusCode: 500, contentRangeTotal: nil)
         #expect(await store.job(id: j.id)!.state == .failed(.network))
     }
+
+    // MARK: resume & relaunch reassociation
+
+    @Test func singleShotFailureKeepsDownloadingAndStashesResumeData() async throws {
+        let dir = tempDir()
+        let store = try TransferJobStore(directory: dir)
+        let session = ScriptedTransferSession()
+        let coord = TransferCoordinator(store: store, session: session)
+        let j = job(kind: .progressive(track(part: "p.part", chunkSize: nil)))
+        try await coord.start(j)
+        let id = await session.started[0].id
+
+        await coord.taskDidFail(taskIdentifier: id, resumeData: Data([7, 7]), isCancelled: false)
+        let after = await store.job(id: j.id)!
+        #expect(after.state == .downloading)
+        #expect(after.tracks[0].resumeData == Data([7, 7]))
+
+        await session.setLive([])                               // task is gone
+        await coord.reassociateAndResume()
+        #expect(await session.startedResumeData.map(\.data) == [Data([7, 7])])
+    }
+
+    @Test func reassociateResumesChunkedFromOffsetAndTruncatesTail() async throws {
+        let dir = tempDir()
+        let store = try TransferJobStore(directory: dir)
+        let session = ScriptedTransferSession()
+        let coord = TransferCoordinator(store: store, session: session)
+        let j = job(kind: .progressive(track(part: "c.part", chunkSize: 100)))
+        try await coord.start(j)
+        let firstChunk = await session.started[0].id
+        await coord.taskDidFinishDownloading(taskIdentifier: firstChunk, to: stage(Data(repeating: 1, count: 100)),
+                                             statusCode: 206, contentRangeTotal: 250)
+        // The 2nd-chunk task (100-199) is now live. Simulate a crash that appended an
+        // un-recorded tail to the part file before dying (offset was never persisted).
+        let partURL = store.partFileURL(for: "c.part")
+        let handle = try FileHandle(forWritingTo: partURL)
+        try handle.seekToEnd()
+        try handle.write(contentsOf: Data(repeating: 9, count: 30))
+        try handle.close()
+        #expect(FileManager.default.fileSize(partURL) == 130)
+
+        // Fresh coordinator (in-memory owners lost), task 2 vanished from the OS.
+        let coord2 = TransferCoordinator(store: store, session: session)
+        await session.setLive([])
+        await coord2.reassociateAndResume()
+        #expect(FileManager.default.fileSize(partURL) == 100)   // tail truncated to persisted offset
+        #expect(await session.lastRange() == "bytes=100-199")
+    }
+
+    @Test func reassociateRebindsLiveTaskWithoutStartingNew() async throws {
+        let dir = tempDir()
+        let store = try TransferJobStore(directory: dir)
+        let session = ScriptedTransferSession()
+        let coord = TransferCoordinator(store: store, session: session)
+        let j = job(kind: .progressive(track(part: "c.part", chunkSize: 100)))
+        try await coord.start(j)
+        let id = await session.started[0].id                    // task 1 live, mid-first-chunk
+
+        let coord2 = TransferCoordinator(store: store, session: session)
+        await coord2.reassociateAndResume()                     // task 1 still live
+        #expect(await session.started.count == 1)               // NO new task started
+
+        await coord2.taskDidFinishDownloading(taskIdentifier: id, to: stage(Data(repeating: 1, count: 50)),
+                                              statusCode: 206, contentRangeTotal: 50)
+        #expect(await store.job(id: j.id)!.state == .readyToMerge)
+    }
 }
 
 private extension URL { var pathExists: Bool { FileManager.default.fileExists(atPath: path) } }
 private extension FileManager {
+    /// Fresh on-disk size via `attributesOfItem` — NOT `URL.resourceValues`, which caches
+    /// the size on the URL and would return a stale length after a truncate.
     func fileSize(_ url: URL) -> Int64 {
-        ((try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize).flatMap { Int64($0) }) ?? -1
+        let attrs = try? attributesOfItem(atPath: url.path)
+        return (attrs?[.size] as? NSNumber)?.int64Value ?? -1
     }
 }
