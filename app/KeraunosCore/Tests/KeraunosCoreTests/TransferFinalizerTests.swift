@@ -112,4 +112,17 @@ struct TransferFinalizerTests {
         #expect(await store.job(id: j.id)!.state == .failed(.integrityCheckFailed))
         #expect(FileManager.default.fileExists(atPath: store.partFileURL(for: "v.part").path))
     }
+
+    @Test func publishesCompletedSnapshot() async throws {
+        let base = tempDir()
+        let (store, downloads) = try makeStores(base)
+        let bus = TransferProgress()
+        let j = job(kind: .progressive(track(part: "p.part", total: 500)))
+        try await store.upsert(j)
+        try Data(repeating: 1, count: 500).write(to: store.partFileURL(for: "p.part"))
+        let fin = TransferFinalizer(store: store, merger: MockMerger(), downloadStore: downloads, progress: bus)
+        _ = await fin.finalizeReadyJobs()
+        #expect(await store.job(id: j.id)?.state == .completed)
+        #expect(await bus.snapshot(for: j.id)?.state == .completed)
+    }
 }
