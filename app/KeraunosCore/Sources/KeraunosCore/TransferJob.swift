@@ -13,6 +13,7 @@ public enum FailureReason: String, Codable, Sendable, Equatable {
 public enum JobState: Codable, Sendable, Equatable {
     case queued
     case downloading
+    case paused
     case needsRefresh
     case readyToMerge
     case merging

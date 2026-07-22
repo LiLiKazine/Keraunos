@@ -392,6 +392,52 @@ struct TransferCoordinatorTests {
         await coord.taskDidWriteData(taskIdentifier: 999, totalBytesWritten: 1, totalBytesExpectedToWrite: 2)
         #expect(await bus.current().isEmpty)
     }
+
+    // MARK: pause & resume
+
+    @Test func pauseCancelsInFlightAndMarksPaused() async throws {
+        let dir = tempDir()
+        let store = try TransferJobStore(directory: dir)
+        let session = ScriptedTransferSession()
+        let coord = TransferCoordinator(store: store, session: session)
+        let j = job(kind: .progressive(track(part: "p.part", chunkSize: 1_048_576,
+                                              bytesWritten: 0, totalBytes: 4_194_304)),
+                    state: .downloading)
+        try await store.upsert(j)
+        try await coord.start(j)
+        let taskID = await session.started.last!.id
+        await coord.pause(jobID: j.id)
+        #expect(await session.cancelled.contains(taskID))
+        #expect(await store.job(id: j.id)?.state == .paused)
+    }
+
+    @Test func resumeReturnsToDownloadingAndStartsTask() async throws {
+        let dir = tempDir()
+        let store = try TransferJobStore(directory: dir)
+        let session = ScriptedTransferSession()
+        let coord = TransferCoordinator(store: store, session: session)
+        let j = job(kind: .progressive(track(part: "p.part", chunkSize: 1_048_576,
+                                              bytesWritten: 1_048_576, totalBytes: 4_194_304)),
+                    state: .paused)
+        try await store.upsert(j)
+        try await coord.resume(jobID: j.id)
+        #expect(await store.job(id: j.id)?.state == .downloading)
+        #expect(await session.started.last?.request.value(forHTTPHeaderField: "Range") == "bytes=1048576-2097151")
+    }
+
+    @Test func reassociateDoesNotResumePausedJobs() async throws {
+        let dir = tempDir()
+        let store = try TransferJobStore(directory: dir)
+        let session = ScriptedTransferSession()
+        let coord = TransferCoordinator(store: store, session: session)
+        let j = job(kind: .progressive(track(part: "p.part", chunkSize: nil,
+                                              bytesWritten: 10, totalBytes: 100)),
+                    state: .paused)
+        try await store.upsert(j)
+        await coord.reassociateAndResume()
+        #expect(await session.started.isEmpty)
+        #expect(await store.job(id: j.id)?.state == .paused)
+    }
 }
 
 private extension URL { var pathExists: Bool { FileManager.default.fileExists(atPath: path) } }
