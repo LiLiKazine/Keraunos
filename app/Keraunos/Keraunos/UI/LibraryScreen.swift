@@ -38,6 +38,7 @@ struct LibraryScreen: View {
         .quickLookPreview($previewURL)
         .deleteConfirmation($pendingDelete, model: model, toasts: toasts)
         .saveMessageToast(model: model, toasts: toasts)
+        .task { model.refreshSavedFiles() }
         .onChange(of: model.savedFiles) { _, files in
             // Keep the iPad detail selection valid when its file is deleted elsewhere.
             if let selected, !files.contains(selected) { self.selected = files.first }

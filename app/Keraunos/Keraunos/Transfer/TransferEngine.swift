@@ -100,6 +100,22 @@ final class TransferEngine {
         backgroundCompletion = completion
     }
 
+    /// Called on every scene-phase activation (cold launch and every subsequent foreground).
+    /// First activation runs the full launch sequence via `startIfNeeded()`. Every later
+    /// activation re-kicks any tasks the OS silently dropped and finalizes jobs the
+    /// coordinator advanced to `.readyToMerge` while the app was backgrounded — otherwise
+    /// they'd sit on "Merging…" until a cold relaunch instead of landing in Library.
+    func handleForegroundActivation() {
+        guard didStart else {
+            startIfNeeded()
+            return
+        }
+        Task {
+            await coordinator.reassociateAndResume()
+            await runFinalizePass()
+        }
+    }
+
     /// Invokes and clears the stored OS completion handler once events have drained.
     func fireBackgroundCompletion() {
         let handler = backgroundCompletion
@@ -194,6 +210,7 @@ final class TransferEngine {
         do {
             try await store.update(id: id) { $0.state = .downloading }
             await coordinator.reassociateAndResume()
+            await runFinalizePass()
         } catch {
             diagnostics.record(kind: "transfer_retry_failed", detail: "job \(id): \(error)")
         }
