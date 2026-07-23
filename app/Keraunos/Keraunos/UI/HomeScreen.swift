@@ -1,12 +1,14 @@
 import SwiftUI
-import QuickLook
 import KeraunosCore
 
-/// The Download screen — paste a link, start a transfer, watch progress, reach recent
-/// downloads. Adapts between compact (own header, stacked hero, Recent list) and regular
-/// (nav-bar title, inline hero, Library preview grid). Wired to `DownloadViewModel`.
+/// The Download screen — paste a link, start a transfer, watch the live queue. A single
+/// themed `List` (hero + queue rows) so the unbounded, growing transfer queue renders
+/// lazily and terminal rows get native swipe-to-dismiss. Adapts between compact (own
+/// header) and regular (nav-bar title, 720pt single reading column). Wired to
+/// `DownloadViewModel` (start/quality/sign-in) and `DownloadsViewModel` (the live queue).
 struct HomeScreen: View {
     let model: DownloadViewModel
+    let downloads: DownloadsViewModel
     let cookieStore: CookieStore
     @Binding var selection: AppSection
     var onSettings: (() -> Void)?
@@ -15,46 +17,51 @@ struct HomeScreen: View {
     @Environment(ToastCenter.self) private var toasts
     @State private var showLogin = false
     @State private var loginStatus: LoginWebView.LoadStatus = .loading
-    @State private var previewURL: URL?
-    @State private var pendingDelete: URL?
 
     private var isRegular: Bool { hSize == .regular }
+    private var columnWidth: CGFloat { isRegular ? 720 : .infinity }
 
     var body: some View {
-        ZStack {
-            Color.Theme.bg.ignoresSafeArea()
-            ScrollView {
-                VStack(alignment: .leading, spacing: Space.xl) {
-                    if isRegular {
-                        PaneTitle(title: "Download")
-                    } else {
-                        CompactHeader(title: "Keraunos", brand: true, onSettings: onSettings)
-                    }
-                    heroCard
-                    if model.isWorking { downloadingSection }
-                    if let error = model.errorMessage { errorNotice(error) }
-                    contentSection
-                }
-                .padding(.horizontal, 20)
-                .padding(.top, isRegular ? Space.xs : Space.sm)
-                .padding(.bottom, Space.xxl)
-                .frame(maxWidth: 860, alignment: .leading)
-                .frame(maxWidth: .infinity)
+        List {
+            headerRow
+            heroCard.plainQueueRow(maxWidth: columnWidth)
+            if model.isWorking, let status = model.statusText {
+                resolvingRow(status).plainQueueRow(maxWidth: columnWidth)
             }
+            if let error = model.errorMessage {
+                errorNotice(error).plainQueueRow(maxWidth: columnWidth)
+            }
+            queueRows
         }
+        .listStyle(.plain)
+        .environment(\.defaultMinListRowHeight, 0)
+        .scrollContentBackground(.hidden)
+        .background(Color.Theme.bg.ignoresSafeArea())
         .onOpenURL { model.openIncoming($0) }
-        .quickLookPreview($previewURL)
         .qualityPicker(model: model)
         .loginSheet(model: model, cookieStore: cookieStore, showLogin: $showLogin, loginStatus: $loginStatus)
-        .deleteConfirmation($pendingDelete, model: model, toasts: toasts)
-        .saveMessageToast(model: model, toasts: toasts)
-        .onChange(of: model.lastSavedName) { _, name in
-            guard name != nil, let newest = model.savedFiles.first else { return }
-            toasts.show(ToastData(
-                icon: "checkmark", title: "Download complete",
-                subtitle: newest.deletingPathExtension().lastPathComponent,
-                actionTitle: "View", action: { previewURL = newest }))
+        .task { downloads.start() }
+        .onChange(of: downloads.savedTitles) { _, titles in
+            guard !titles.isEmpty else { return }
+            model.refreshSavedFiles()
+            if titles.count == 1 {
+                toasts.show(ToastData(icon: "checkmark", title: "Saved to Library",
+                                      subtitle: titles[0], actionTitle: "Show",
+                                      action: { selection = .library }))
+            } else {
+                toasts.show(ToastData(icon: "checkmark",
+                                      title: "\(titles.count) videos saved to Library",
+                                      actionTitle: "Show", action: { selection = .library }))
+            }
         }
+    }
+
+    @ViewBuilder private var headerRow: some View {
+        Group {
+            if isRegular { PaneTitle(title: "Download") }
+            else { CompactHeader(title: "Keraunos", brand: true, onSettings: onSettings) }
+        }
+        .plainQueueRow(maxWidth: columnWidth)
     }
 
     // MARK: - Hero
@@ -86,113 +93,106 @@ struct HomeScreen: View {
         .disabled(model.urlText.isEmpty || model.isWorking)
     }
 
-    // MARK: - Downloading
+    // MARK: - Resolving
 
-    private var downloadingSection: some View {
-        VStack(alignment: .leading, spacing: Space.md) {
-            SectionHeader("Downloading")
-            DownloadProgressCard(
-                status: model.statusText ?? "Working…",
-                host: URLNormalizer.normalize(model.urlText)?.host,
-                progress: model.downloadProgress,
-                onCancel: { model.cancel() }
-            )
+    private func resolvingRow(_ status: String) -> some View {
+        HStack(spacing: Space.sm) {
+            ProgressView().tint(Color.Theme.accent)
+            Text(status).font(.Theme.caption).foregroundStyle(Color.Theme.text3)
+            Spacer()
+            Button("Cancel") { model.cancel() }.buttonStyle(.ghost)
         }
+        .card(padding: 14)
     }
 
     // MARK: - Error / sign-in notice
 
+    /// The notice's primary action: sign-in beats a retry offer, computed as an if/else
+    /// chain rather than a nested ternary.
     private func errorNotice(_ error: String) -> some View {
         let host = model.signInURL?.host
         let signIn = model.requiresSignIn && host != nil
+
+        var primaryTitle: String?
+        var primaryAction: (() -> Void)?
+        if signIn, let host {
+            primaryTitle = "Sign in to \(host)"
+            primaryAction = { showLogin = true }
+        } else if model.canRetry {
+            primaryTitle = "Try again"
+            primaryAction = { model.start() }
+        }
+
+        var secondaryTitle: String?
+        var secondaryAction: (() -> Void)?
+        if !signIn, model.failureLogURL != nil {
+            secondaryTitle = "Open Settings for diagnostics"
+            secondaryAction = { onSettings?() ?? (selection = .settings) }
+        }
+
         return NoticeCard(
             tone: signIn ? .warning : .error,
             title: signIn ? "Sign in required" : "Couldn’t download",
             message: error,
-            primaryTitle: signIn ? "Sign in to \(host!)" : (model.canRetry ? "Try again" : nil),
-            primaryAction: signIn ? { showLogin = true } : (model.canRetry ? { model.start() } : nil),
-            secondaryTitle: (!signIn && model.failureLogURL != nil) ? "Open Settings for diagnostics" : nil,
-            secondaryAction: (!signIn && model.failureLogURL != nil) ? { onSettings?() ?? (selection = .settings) } : nil
+            primaryTitle: primaryTitle,
+            primaryAction: primaryAction,
+            secondaryTitle: secondaryTitle,
+            secondaryAction: secondaryAction
         )
     }
 
-    // MARK: - Recent (compact) / Library preview (regular) / first-run
+    // MARK: - Queue
 
-    @ViewBuilder
-    private var contentSection: some View {
-        if model.savedFiles.isEmpty {
-            if !model.isWorking && model.errorMessage == nil {
-                firstRunEmpty
-            }
-        } else if isRegular {
-            libraryPreviewGrid
+    @ViewBuilder private var queueRows: some View {
+        if downloads.items.isEmpty {
+            EmptyStateView(symbol: "arrow.down.to.line",
+                           title: "No active downloads",
+                           message: "Paste a link above to start. Finished videos move straight to your Library.")
+                .frame(maxWidth: .infinity)
+                .padding(.top, Space.xl)
+                .plainQueueRow(maxWidth: columnWidth)
         } else {
-            recentList
-        }
-    }
-
-    private var firstRunEmpty: some View {
-        EmptyStateView(
-            symbol: "arrow.down.to.line",
-            title: "Your first download",
-            message: "Copy a video link from any site, paste it above, and Keraunos pulls it straight to your device."
-        )
-        .frame(maxWidth: .infinity)
-        .padding(.top, Space.xl)
-    }
-
-    private var recentList: some View {
-        VStack(alignment: .leading, spacing: Space.sm) {
-            SectionHeader("Recent") {
-                Button("See all") { selection = .library }
-                    .buttonStyle(.ghost)
-            }
-            VStack(spacing: 0) {
-                ForEach(Array(recent.enumerated()), id: \.element) { index, file in
-                    if index > 0 {
-                        Rectangle().fill(Color.Theme.hairline).frame(height: Stroke.hairline)
+            SectionHeader("Transfers").plainQueueRow(maxWidth: columnWidth)
+            ForEach(downloads.items) { item in
+                TransferQueueRow(
+                    item: item,
+                    onPause:  { downloads.pause(item.id) },
+                    onResume: { downloads.resume(item.id) },
+                    onCancel: { downloads.cancel(item.id) },
+                    onRetry:  { downloads.retry(item.id) },
+                    onSignIn: { showLogin = true },
+                    onManageStorage: { onSettings?() ?? (selection = .settings) },
+                    onDismiss: { downloads.dismiss(item.id) })
+                .plainQueueRow(maxWidth: columnWidth)
+                .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                    if isTerminal(item.rowState) {
+                        Button(role: .destructive) { downloads.dismiss(item.id) } label: {
+                            Label("Remove", systemImage: "xmark")
+                        }
                     }
-                    recentRow(file)
                 }
             }
         }
     }
 
-    private var libraryPreviewGrid: some View {
-        VStack(alignment: .leading, spacing: Space.lg) {
-            SectionHeader("Library") {
-                Button("See all") { selection = .library }
-                    .buttonStyle(.ghost)
-            }
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: 200), spacing: Space.lg)], spacing: Space.lg) {
-                ForEach(recent, id: \.self) { file in
-                    Button { previewURL = file } label: {
-                        DownloadTile(title: file.deletingPathExtension().lastPathComponent,
-                                     subtitle: model.librarySubtitle(file), progress: nil)
-                    }
-                    .buttonStyle(.plain)
-                    .downloadContextMenu(file: file, model: model,
-                                         onPlay: { previewURL = file },
-                                         onDelete: { pendingDelete = file })
-                }
-            }
-        }
+    private func isTerminal(_ s: TransferRowState) -> Bool {
+        if case .failed = s { return true }
+        return s == .needsSignIn
     }
+}
 
-    /// The most recent handful for the Home preview; the full set lives in Library.
-    private var recent: [URL] { Array(model.savedFiles.prefix(6)) }
+// MARK: - Row chrome
 
-    private func recentRow(_ file: URL) -> some View {
-        Button {
-            previewURL = file
-        } label: {
-            DownloadRow(title: file.deletingPathExtension().lastPathComponent,
-                        subtitle: model.librarySubtitle(file))
-        }
-        .buttonStyle(.plain)
-        .accessibilityHint("Plays this download")
-        .downloadContextMenu(file: file, model: model,
-                             onPlay: { previewURL = file },
-                             onDelete: { pendingDelete = file })
+private extension View {
+    /// Chrome-free list row on the theme background with the screen's horizontal inset,
+    /// capped at `maxWidth` and left-aligned (iPad's ~720pt single reading column) — makes
+    /// a `List` render like a stack of cards while keeping lazy row recycling.
+    func plainQueueRow(maxWidth: CGFloat = .infinity) -> some View {
+        self
+            .frame(maxWidth: maxWidth, alignment: .leading)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .listRowInsets(EdgeInsets(top: Space.xs, leading: 20, bottom: Space.xs, trailing: 20))
+            .listRowSeparator(.hidden)
+            .listRowBackground(Color.clear)
     }
 }
