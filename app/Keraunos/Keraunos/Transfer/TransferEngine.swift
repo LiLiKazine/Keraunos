@@ -42,6 +42,15 @@ final class TransferEngine {
     /// two overlapping passes could both finalize the same `.readyToMerge` job, racing the
     /// move/mux and clobbering `mergeAssertion`.
     private var isFinalizing = false
+    /// Set when a finalize is requested while one is already running; the in-flight pass loops
+    /// once more so a job that reached `.readyToMerge` mid-pass isn't dropped by the guard.
+    private var pendingFinalize = false
+    /// Long-lived observation of the progress bus. The coordinator publishes `.readyToMerge`
+    /// whenever a download finishes — including one that completes while the app is in the
+    /// foreground, which no scene-phase transition catches. This is the general "job ready →
+    /// finalize" trigger; `startIfNeeded`/`handleForegroundActivation`/`retry` only cover
+    /// launch/relaunch/retry. Without it a foreground-completed job sits on "Merging…" forever.
+    private var finalizeObservation: Task<Void, Never>?
 
     /// Titles of jobs that landed in Library since the UI last consumed them (drives the
     /// coalescing "Saved to Library" toast). The VM reads and clears this.
@@ -68,7 +77,7 @@ final class TransferEngine {
         progress = TransferProgress()
         coordinator = TransferCoordinator(store: store, session: service,
                                           diagnostics: diagnostics, progress: progress)
-        finalizer = TransferFinalizer(store: store, merger: AVFoundationMerger(),
+        finalizer = TransferFinalizer(store: store, merger: AVFoundationMerger(diagnostics: diagnostics),
                                       downloadStore: downloadStore, diagnostics: diagnostics,
                                       progress: progress)
     }
@@ -95,6 +104,16 @@ final class TransferEngine {
             await coordinator.reassociateAndResume()   // rebind live tasks, resume vanished ones
             await reconcileOrphans()                    // sweep parts with no owning job
             await runFinalizePass()                     // pick up any .readyToMerge from last run
+        }
+        // Watch the progress bus for the life of the process: any job the coordinator advances
+        // to `.readyToMerge` (notably a foreground-completed download) triggers a finalize pass.
+        let progress = self.progress
+        finalizeObservation = Task { [weak self] in
+            for await snapshots in await progress.updates() {
+                if snapshots.values.contains(where: { $0.state == .readyToMerge }) {
+                    await self?.runFinalizePass()
+                }
+            }
         }
     }
 
@@ -143,7 +162,9 @@ final class TransferEngine {
     /// the foreground rather than gamble on the background-launch window), then auto-saves any
     /// completed job flagged for Photos.
     private func runFinalizePass() async {
-        guard !isFinalizing else { return }   // a pass is already running; it will finalize all ready jobs
+        // A pass is already running; flag it to loop once more so a job that reached
+        // `.readyToMerge` mid-pass is still finalized rather than dropped by this guard.
+        guard !isFinalizing else { pendingFinalize = true; return }
         isFinalizing = true
         defer { isFinalizing = false }
 
@@ -152,25 +173,28 @@ final class TransferEngine {
         }
         defer { endMergeAssertion() }
 
-        let completed = await finalizer.finalizeReadyJobs()
-        for id in completed {
-            if let job = await store.job(id: id), job.autoSaveToPhotos, let name = job.savedFilename {
-                let fileURL = downloadStore.directory.appendingPathComponent(name)
-                if PhotosCompatibility.canSave(fileURL) {
-                    switch await photoSaver.save(fileURL) {
-                    case .saved:
-                        break
-                    case .permissionDenied, .failed:
-                        diagnostics.record(kind: "transfer_photos_save",
-                                           detail: "job \(id): could not save \(name)")
+        repeat {
+            pendingFinalize = false
+            let completed = await finalizer.finalizeReadyJobs()
+            for id in completed {
+                if let job = await store.job(id: id), job.autoSaveToPhotos, let name = job.savedFilename {
+                    let fileURL = downloadStore.directory.appendingPathComponent(name)
+                    if PhotosCompatibility.canSave(fileURL) {
+                        switch await photoSaver.save(fileURL) {
+                        case .saved:
+                            break
+                        case .permissionDenied, .failed:
+                            diagnostics.record(kind: "transfer_photos_save",
+                                               detail: "job \(id): could not save \(name)")
+                        }
                     }
                 }
+                if let name = await store.job(id: id)?.savedFilename {
+                    recentlySavedTitles.append((name as NSString).deletingPathExtension)
+                }
+                await removeFromStoreAndBus(id: id)
             }
-            if let name = await store.job(id: id)?.savedFilename {
-                recentlySavedTitles.append((name as NSString).deletingPathExtension)
-            }
-            await removeFromStoreAndBus(id: id)
-        }
+        } while pendingFinalize
     }
 
     private func endMergeAssertion() {
