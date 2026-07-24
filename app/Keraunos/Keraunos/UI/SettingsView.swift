@@ -30,6 +30,9 @@ struct SettingsView: View {
         }
         .navigationTitle("Settings")
         .navigationBarTitleDisplayMode(.inline)
+        // Rebuild the combined export on appear so it includes transfer failures (merge/
+        // integrity) the background engine recorded since this screen last showed.
+        .onAppear { model.prepareDiagnosticsExport() }
         .toolbar {
             if showsDoneButton {
                 ToolbarItem(placement: .confirmationAction) {

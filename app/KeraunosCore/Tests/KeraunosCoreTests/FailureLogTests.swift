@@ -86,6 +86,31 @@ struct FailureLogTests {
         #expect(!contents.contains("LEAK"))
     }
 
+    @Test func mergedInterleavesLogsChronologically() {
+        // The extraction log and the transfer log live in separate files; a combined export
+        // must read as one chronologically-ordered log so a failure and its downstream
+        // transfer diagnostic sit next to each other.
+        let extraction = FailureLog(directory: tempDir())
+        let transfer = FailureLog(directory: tempDir())
+        extraction.record(url: "https://a.test/1", errorKind: "extract_network",
+                          date: Date(timeIntervalSince1970: 10))
+        transfer.record(url: "", errorKind: "transfer_merge_failed", detail: "job X",
+                        date: Date(timeIntervalSince1970: 20))
+        extraction.record(url: "https://a.test/3", errorKind: "timeout",
+                          date: Date(timeIntervalSince1970: 30))
+
+        let lines = FailureLog.merged([extraction, transfer]).split(separator: "\n").map(String.init)
+        #expect(lines.count == 3)
+        #expect(lines[0].contains("extract_network"))       // t=10, extraction log
+        #expect(lines[1].contains("transfer_merge_failed"))  // t=20, transfer log
+        #expect(lines[2].contains("timeout"))                // t=30, extraction log
+    }
+
+    @Test func mergedOfEmptyLogsIsEmpty() {
+        #expect(FailureLog.merged([FailureLog(directory: tempDir()),
+                                   FailureLog(directory: tempDir())]).isEmpty)
+    }
+
     @Test func appendsEntriesAndStartsEmpty() {
         let log = FailureLog(directory: tempDir())
         #expect(log.hasEntries == false)

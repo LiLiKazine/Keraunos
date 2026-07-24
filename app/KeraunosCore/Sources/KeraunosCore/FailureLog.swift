@@ -36,6 +36,22 @@ public struct FailureLog: Sendable {
         try? FileManager.default.removeItem(at: fileURL)
     }
 
+    /// Merges the entries of several logs into one chronologically-ordered TSV string
+    /// (oldest first), for a single combined diagnostics export. Each source line is already
+    /// redacted at write time, so this only orders them: the leading field is a fixed-width
+    /// ISO-8601 UTC timestamp, which sorts lexicographically == chronologically. Empty when
+    /// no log has any entries.
+    public static func merged(_ logs: [FailureLog]) -> String {
+        let lines = logs.flatMap {
+            $0.contents().split(separator: "\n", omittingEmptySubsequences: true).map(String.init)
+        }
+        guard !lines.isEmpty else { return "" }
+        let ordered = lines.sorted { lhs, rhs in
+            lhs.prefix { $0 != "\t" } < rhs.prefix { $0 != "\t" }
+        }
+        return ordered.joined(separator: "\n") + "\n"
+    }
+
     static func line(date: Date, kind: String, url: String, detail: String) -> String {
         // Tabs separate fields, so flatten any newlines/tabs in free-text detail.
         let flatDetail = detail.replacingOccurrences(of: "\n", with: " ")

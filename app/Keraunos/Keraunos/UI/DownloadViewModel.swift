@@ -33,22 +33,29 @@ final class DownloadViewModel {   // main-actor by default (app target)
 
     private let extractor: any MediaExtracting
     private let store: DownloadStore
+    /// Extraction/foreground-download failures recorded by this view model.
     private let failureLog: FailureLog
+    /// The background transfer engine's own failure log (finalize/merge/integrity), written
+    /// out-of-band by `TransferEngine`. Folded into the shared diagnostics export so a
+    /// "File check failed" (transfer_merge_failed / transfer_integrity_failed) is reachable.
+    private let transferLog: FailureLog
     private let photoSaver: (any PhotoSaving)?
     private let preferences: Preferences
     private let enqueuer: any JobEnqueuing
 
     init(extractor: any MediaExtracting, store: DownloadStore,
-         failureLog: FailureLog? = nil, photoSaver: (any PhotoSaving)? = nil,
+         failureLog: FailureLog? = nil, transferLog: FailureLog? = nil,
+         photoSaver: (any PhotoSaving)? = nil,
          preferences: Preferences = Preferences(), enqueuer: any JobEnqueuing = TransferEngine.shared) {
         self.extractor = extractor
         self.store = store
         self.failureLog = failureLog ?? FailureLog(directory: store.directory)
+        self.transferLog = transferLog ?? FailureLog(directory: TransferJobStore.defaultDirectory)
         self.photoSaver = photoSaver
         self.preferences = preferences
         self.enqueuer = enqueuer
         self.savedFiles = store.savedFiles()
-        self.failureLogURL = self.failureLog.hasEntries ? self.failureLog.fileURL : nil
+        prepareDiagnosticsExport()
     }
 
     /// The stream to download when the user hasn't chosen: the highest muxed (non-adaptive)
@@ -58,14 +65,42 @@ final class DownloadViewModel {   // main-actor by default (app target)
         return (muxed.isEmpty ? options : muxed).max { $0.height < $1.height }
     }
 
-    /// Local failure log file, if any failures have been recorded (for diagnostics export).
-    /// A stored property (not computed off the filesystem) so SwiftUI observes changes.
+    /// The combined diagnostics export to share, if any failures have been recorded. A stored
+    /// property (not computed off the filesystem) so SwiftUI observes changes.
     private(set) var failureLogURL: URL?
 
-    /// Clears the local failure log and hides the diagnostics affordance.
+    /// Stable path for the single merged diagnostics file. In Caches because it is a derived
+    /// export (rebuilt on demand from the two source logs) the OS may reclaim freely.
+    private var diagnosticsExportURL: URL {
+        FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("keraunos-diagnostics.log")
+    }
+
+    /// (Re)builds the single combined diagnostics file — the extraction and transfer logs
+    /// merged chronologically — and points `failureLogURL` at it, or nil when nothing has been
+    /// logged. Call at init, after recording a failure, and when the diagnostics UI appears, so
+    /// the export reflects transfer failures the background engine recorded out-of-band.
+    func prepareDiagnosticsExport() {
+        let merged = FailureLog.merged([failureLog, transferLog])
+        guard !merged.isEmpty else { failureLogURL = nil; return }
+        do {
+            try Data(merged.utf8).write(to: diagnosticsExportURL, options: .atomic)
+            failureLogURL = diagnosticsExportURL
+        } catch {
+            // Couldn't stage the combined file — fall back to whichever raw log has entries so
+            // sharing still degrades gracefully instead of the affordance vanishing.
+            failureLogURL = failureLog.hasEntries ? failureLog.fileURL
+                          : (transferLog.hasEntries ? transferLog.fileURL : nil)
+        }
+    }
+
+    /// Clears both source logs, then rebuilds the export (now empty ⇒ hides the affordance).
+    /// The stale cached export file is left for the OS to reclaim/overwrite — harmless and
+    /// avoids a delete that could fail.
     func clearFailureLog() {
         failureLog.clear()
-        failureLogURL = nil
+        transferLog.clear()
+        prepareDiagnosticsExport()
     }
 
     func startDownload(isAutoRetry: Bool = false) async {
@@ -181,7 +216,7 @@ final class DownloadViewModel {   // main-actor by default (app target)
             canRetry = error.isRetryable
             let detail = { if case .runtime(let d) = error { return d } else { return "" } }()
             failureLog.record(url: url.absoluteString, errorKind: error.kind, detail: detail, date: Date())
-            failureLogURL = failureLog.fileURL
+            prepareDiagnosticsExport()
             if error == .requiresAuth || error == .restrictedOrEmpty {
                 requiresSignIn = true
                 signInURL = URLNormalizer.origin(of: url) ?? url
@@ -191,7 +226,7 @@ final class DownloadViewModel {   // main-actor by default (app target)
             canRetry = true
             failureLog.record(url: url.absoluteString, errorKind: "runtime",
                               detail: error.localizedDescription, date: Date())
-            failureLogURL = failureLog.fileURL
+            prepareDiagnosticsExport()
         }
     }
 
