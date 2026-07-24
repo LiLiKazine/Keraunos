@@ -19,7 +19,7 @@ issues against.
 | API scope for first release | **Ship as-is, tag `v0.1.0`.** No curation, no `public`→`internal` changes, no 1.0/semver commitment. |
 | Public repo name | `KeraunosCore` |
 | First tag | `v0.1.0` |
-| Copyright holder | `LiLiKazine` |
+| Copyright holder | `Leo` |
 
 ## Distribution model
 
@@ -66,7 +66,7 @@ All paths are inside the monorepo.
 
 ### 1. `app/KeraunosCore/LICENSE`
 - Standard MIT license text.
-- `Copyright (c) 2026 LiLiKazine`.
+- `Copyright (c) 2026 Leo`.
 
 ### 2. `app/KeraunosCore/README.md`
 Contents:
