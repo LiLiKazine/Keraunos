@@ -143,6 +143,10 @@ struct TransferQueueRow: View {
                 return ("Couldn’t refresh link", "The download link for \(item.title) expired and couldn’t be renewed.", "Retry", onRetry)
             case .integrityCheckFailed:
                 return ("File check failed", "The downloaded data for \(item.title) was incomplete.", "Retry", onRetry)
+            case .mergeFailed:
+                return ("Couldn’t combine tracks",
+                        "\(item.title) downloaded, but its video and audio couldn’t be combined — this format isn’t supported. Try a different quality.",
+                        "Retry", onRetry)
             }
         }()
         return NoticeCard(tone: .error, title: title, message: message,

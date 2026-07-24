@@ -109,7 +109,10 @@ struct TransferFinalizerTests {
         let fin = TransferFinalizer(store: store, merger: merger,
                                     downloadStore: downloads, disk: FixedDisk(cap: 1_000_000))
         _ = await fin.finalizeReadyJobs()
-        #expect(await store.job(id: j.id)!.state == .failed(.integrityCheckFailed))
+        // A mux failure is a MERGE failure, not an integrity/incomplete-data failure — the
+        // parts passed the length check above. Reporting it as `.integrityCheckFailed` would
+        // mislead the user ("File check failed / data was incomplete").
+        #expect(await store.job(id: j.id)!.state == .failed(.mergeFailed))
         #expect(FileManager.default.fileExists(atPath: store.partFileURL(for: "v.part").path))
     }
 

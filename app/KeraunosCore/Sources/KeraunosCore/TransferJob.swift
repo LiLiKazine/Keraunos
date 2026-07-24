@@ -6,6 +6,10 @@ public enum FailureReason: String, Codable, Sendable, Equatable {
     case insufficientSpace
     case refreshFailed
     case integrityCheckFailed
+    /// The parts downloaded intact (integrity passed) but muxing them into one file failed —
+    /// typically a codec AVFoundation can't passthrough-remux (the "needs ffmpeg" case).
+    /// Distinct from `integrityCheckFailed` so the UI doesn't blame the data as "incomplete".
+    case mergeFailed
 }
 
 /// The durable state of a transfer job. `failed` carries the reason so the UI can offer

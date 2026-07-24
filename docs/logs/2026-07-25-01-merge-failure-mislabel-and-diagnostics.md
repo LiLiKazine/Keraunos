@@ -1,0 +1,88 @@
+# 2026-07-25-01: Merge failures mislabeled as "File check failed" + self-sufficient merge diagnostics
+
+**Status:** Implemented
+
+## Context
+
+A TestFlight tester (build 1.0(38), commit `598403e`) reported "file check failed"
+when downloading a bilibili video, with a shared `keraunos-diagnostics.log`.
+
+Two problems surfaced during investigation:
+
+1. **Mislabeling.** `TransferFinalizer.finalize(_:)` set the job state to
+   `.failed(.integrityCheckFailed)` in *two* places: the genuine integrity check
+   (a part's byte length ≠ its recorded total) **and** the catch-all when the merge
+   threw. `FailureReason` had no `mergeFailed` case, so a mux failure borrowed the
+   integrity reason and rendered as *"File check failed — the downloaded data was
+   incomplete."* The bytes were complete; the **merge** failed. Misleading.
+
+2. **Un-diagnosable cause.** The log carried only `transfer_merge_failed … : mergeFailed`.
+   `AVFoundationMerger` swallowed the underlying `NSError` and rethrew a bare
+   `KeraunosError.mergeFailed`, and the finalizer line held only the job UUID — no
+   codec, no source URL, no format. An unsupported-codec failure (needs ffmpeg) and a
+   non-media body (an auth wall that passed the byte-length check) produced *identical*
+   logs, so root-causing from the shared export was impossible.
+
+(Investigation aside: the local clone was ~40 commits behind `origin/main`; the whole
+`Transfer*` background-job subsystem that build 38 runs landed after the stale HEAD.
+Always `git fetch` before debugging a shipped build.)
+
+## Options
+
+### Fixing the label
+
+| Approach | Pros | Cons |
+|----------|------|------|
+| Keep `.integrityCheckFailed`, change only the copy | one-line | still conflates two distinct causes; retry semantics stay wrong |
+| **New `FailureReason.mergeFailed` (chosen)** | honest state, distinct UI + recovery, Codable-safe (additive raw value) | touches the enum + exhaustive UI switch + a test |
+
+### Capturing the "why"
+
+| Approach | Pros | Cons |
+|----------|------|------|
+| Persist HTTP `Content-Type` into `TrackJob`, thread to finalizer | server's declared type | invasive: durable-schema change, delegate + factory + all init call sites; failure is discovered in Core, which has no HTTP response |
+| **Sniff the file's leading bytes at merge-failure time (chosen)** | zero plumbing, ground truth, runs only on failure, also catches `webm`/`ogg` the codec probe can't classify | doesn't report the server's declared MIME type (bytes are more useful anyway) |
+
+## Decision
+
+Add `FailureReason.mergeFailed` and use it for mux failures; enrich the merge/integrity
+diagnostics with source-page URL + format ID (redacted at write time) and, when a track
+has no readable codec, a leading-byte body signature (`html`/`json`/`mp4`/`webm`/`ogg`/…).
+
+## Rationale
+
+The two failure classes need *different* fixes (codec handling vs auth/cookies), so they
+must be distinguishable both to the user and in the log. The byte-sniff wins over HTTP
+`Content-Type` because the failure is detected in Core at merge time (no response object
+there), the on-disk bytes are ground truth, and it needs no durable-schema change. Logging
+the **page** URL (never the signed media URL) plus format ID closes the "which video?" gap
+without a new leak — `FailureLog`'s redactor scrubs secret query params on write.
+
+## What Changed
+
+- `KeraunosCore/TransferJob.swift` — new `FailureReason.mergeFailed`.
+- `KeraunosCore/TransferFinalizer.swift` — merge failure → `.mergeFailed` (was
+  `.integrityCheckFailed`); `sourceTag(_:)` adds `src=…page fmt=…` to the integrity and
+  merge diagnostic lines.
+- `KeraunosCore/AVFoundationMerger.swift` — `recordMergeFailure(phase:underlying:…)`
+  records `merge_unsupported` with each track's codec FourCC + the real `NSError` at all
+  three failure sites; `bodySignature(of:)` classifies a non-media body from its head.
+- `Keraunos/Components/TransferQueueRow.swift` — honest `.mergeFailed` card ("Couldn't
+  combine tracks … this format isn't supported. Try a different quality.").
+- Tests — `TransferFinalizerTests` flipped to expect `.mergeFailed`; new
+  `AVFoundationMergerTests.recordsBodySignatureWhenTrackIsNotMedia` asserts `video-body=html`.
+
+## What Was Discovered
+
+- The buggy behavior was pinned by an existing test asserting `.integrityCheckFailed` for
+  a merge failure — flipping that assertion was the natural failing test.
+- The team harness bans `try?`; the codec/body-sniff helpers use `do/catch` returning a
+  marker (`unreadable`) instead — a diagnostic read must never become a failure.
+- The no-decodable-track `guard` now falls into the same catch as other compose errors, so
+  even "no track" gets a `merge_unsupported` line — and its `video=none` + `body=html`
+  fingerprint is exactly the auth-wall signature.
+- Remaining gap (follow-up): the `video=none`/`body=html` case names *what* but not *why*
+  the body was an auth page — and codec-aware format selection (reject non-passthrough
+  renditions before downloading) is the real step-2 fix, pending a fresh repro log.
+- Doc drift: `CLAUDE.md` still describes `MediaAssembler`/`AVFoundationMerger` as the DASH
+  path; the shipping app uses the `Transfer*` background-job subsystem. Needs refreshing.

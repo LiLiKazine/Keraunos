@@ -48,7 +48,7 @@ public actor TransferFinalizer {
             let length = PartFile(url: store.partFileURL(for: track.partFileName)).length()
             guard let total = track.totalBytes, length == total else {
                 diagnostics?.record(kind: "transfer_integrity_failed",
-                                    detail: "job \(job.id) part \(track.partFileName): \(length) != \(track.totalBytes.map(String.init) ?? "nil")")
+                                    detail: "job \(job.id) \(sourceTag(job)) part \(track.partFileName): \(length) != \(track.totalBytes.map(String.init) ?? "nil")")
                 await persist(job.id, "integrity_failed") { $0.state = .failed(.integrityCheckFailed) }
                 return false
             }
@@ -85,10 +85,17 @@ public actor TransferFinalizer {
         } catch {
             // Merge/move failed after the integrity check — a real mux error. Marking the job
             // retryable (parts retained) IS the handling; record the cause for diagnosis.
-            diagnostics?.record(kind: "transfer_merge_failed", detail: "job \(job.id): \(error)")
-            await persist(job.id, "merge_failed") { $0.state = .failed(.integrityCheckFailed) }
+            diagnostics?.record(kind: "transfer_merge_failed", detail: "job \(job.id) \(sourceTag(job)): \(error)")
+            await persist(job.id, "merge_failed") { $0.state = .failed(.mergeFailed) }
             return false
         }
+    }
+
+    /// Source page + chosen format for a failing job, so a finalize failure in the log maps
+    /// straight back to the video and rendition without timestamp correlation. The URL is
+    /// redacted for embedded secrets by the diagnostics sink at write time.
+    private func sourceTag(_ job: TransferJob) -> String {
+        "src=\(job.sourcePageURL.absoluteString) fmt=\(job.formatSelection.formatID)"
     }
 
     /// Persists a state mutation; a failed write is recorded (self-heals on the next

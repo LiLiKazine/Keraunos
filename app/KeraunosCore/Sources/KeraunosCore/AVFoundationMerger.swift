@@ -26,10 +26,10 @@ public struct AVFoundationMerger: MediaMerging {
         try FileManager.default.createSymbolicLink(at: videoLink, withDestinationURL: videoURL)
         try FileManager.default.createSymbolicLink(at: audioLink, withDestinationURL: audioURL)
 
+        let videoAsset = AVURLAsset(url: videoLink)
+        let audioAsset = AVURLAsset(url: audioLink)
         let composition = AVMutableComposition()
         do {
-            let videoAsset = AVURLAsset(url: videoLink)
-            let audioAsset = AVURLAsset(url: audioLink)
             guard let srcVideo = try await videoAsset.loadTracks(withMediaType: .video).first,
                   let srcAudio = try await audioAsset.loadTracks(withMediaType: .audio).first,
                   let dstVideo = composition.addMutableTrack(withMediaType: .video,
@@ -43,13 +43,16 @@ public struct AVFoundationMerger: MediaMerging {
             try dstVideo.insertTimeRange(CMTimeRange(start: .zero, duration: videoDuration), of: srcVideo, at: .zero)
             try dstAudio.insertTimeRange(CMTimeRange(start: .zero, duration: audioDuration), of: srcAudio, at: .zero)
             dstVideo.preferredTransform = try await srcVideo.load(.preferredTransform)
-        } catch let error as KeraunosError {
-            throw error
         } catch {
+            // Normalize to `.mergeFailed`, but first capture the real cause + codecs — otherwise
+            // "mergeFailed" alone can't distinguish an unsupported codec (needs ffmpeg) from a
+            // non-media body (e.g. an auth wall that passed the byte-length check).
+            await recordMergeFailure(phase: "compose", underlying: error, video: videoAsset, audio: audioAsset)
             throw KeraunosError.mergeFailed
         }
 
         guard let export = AVAssetExportSession(asset: composition, presetName: AVAssetExportPresetPassthrough) else {
+            await recordMergeFailure(phase: "no-passthrough-session", underlying: nil, video: videoAsset, audio: audioAsset)
             throw KeraunosError.mergeFailed
         }
         // `uniqueDestination` gives a fresh path, but clear a stale collision defensively. A
@@ -66,7 +69,69 @@ public struct AVFoundationMerger: MediaMerging {
         do {
             try await export.export(to: output, as: .mp4)
         } catch {
+            await recordMergeFailure(phase: "export", underlying: error, video: videoAsset, audio: audioAsset)
             throw KeraunosError.mergeFailed
+        }
+    }
+
+    /// Records the real reason a mux failed, with each track's codec, before the caller
+    /// normalizes to `.mergeFailed`. Best-effort and never throws — a diagnostic must not
+    /// mask the merge error it's describing.
+    private func recordMergeFailure(phase: String, underlying: Error?,
+                                    video: AVURLAsset, audio: AVURLAsset) async {
+        guard let diagnostics else { return }
+        let videoCodec = await codec(of: video, mediaType: .video)
+        let audioCodec = await codec(of: audio, mediaType: .audio)
+        let cause = underlying.map { "\(($0 as NSError).domain)#\(($0 as NSError).code) \($0.localizedDescription)" }
+            ?? "no passthrough-compatible export session"
+        // When a track had no readable codec, the file may not be media at all (an auth/error
+        // page that passed the byte-length check). Sniff its leading bytes so the log says
+        // WHY — `html`/`json` means non-media body, `webm`/`ogg` means a codec AVFoundation
+        // won't classify (needs ffmpeg), not a bad download.
+        var bodyHints = ""
+        for (name, codec, asset) in [("video", videoCodec, video), ("audio", audioCodec, audio)]
+        where codec == "none" || codec == "unknown" || codec == "unreadable" {
+            bodyHints += " \(name)-body=\(bodySignature(of: asset.url))"
+        }
+        diagnostics.record(kind: "merge_unsupported",
+                           detail: "\(phase): video=\(videoCodec) audio=\(audioCodec)\(bodyHints): \(cause)")
+    }
+
+    /// Classifies a file by its first bytes so a non-media body is named in the log. Reads at
+    /// most 64 bytes and never throws — the handle closes on scope exit.
+    private func bodySignature(of url: URL) -> String {
+        let head: Data
+        do {
+            let handle = try FileHandle(forReadingFrom: url)
+            head = try handle.read(upToCount: 64) ?? Data()
+        } catch {
+            return "unreadable"
+        }
+        if head.isEmpty { return "empty" }
+        // MP4/MOV: an `ftyp` box at offset 4. Matroska/WebM: EBML magic. Ogg: `OggS`.
+        if head.count >= 8, Array(head[4..<8]) == Array("ftyp".utf8) { return "mp4" }
+        if head.starts(with: [0x1A, 0x45, 0xDF, 0xA3]) { return "webm" }
+        if head.starts(with: Array("OggS".utf8)) { return "ogg" }
+        let text = String(decoding: head, as: UTF8.self).trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        if text.hasPrefix("<!doctype") || text.hasPrefix("<html") || text.hasPrefix("<") { return "html" }
+        if text.hasPrefix("{") || text.hasPrefix("[") { return "json" }
+        return "binary"
+    }
+
+    /// The four-character codec tag of a track (e.g. `avc1`, `hvc1`, `mp4a`, `Opus`, `vp09`),
+    /// or a marker when no track/format is readable. Never throws — reading a codec for a
+    /// diagnostic must not itself become a failure.
+    private func codec(of asset: AVURLAsset, mediaType: AVMediaType) async -> String {
+        do {
+            guard let track = try await asset.loadTracks(withMediaType: mediaType).first else { return "none" }
+            guard let desc = try await track.load(.formatDescriptions).first else { return "unknown" }
+            let subtype = CMFormatDescriptionGetMediaSubType(desc)
+            let bytes = [UInt8((subtype >> 24) & 0xFF), UInt8((subtype >> 16) & 0xFF),
+                         UInt8((subtype >> 8) & 0xFF), UInt8(subtype & 0xFF)]
+            let trimmed = String(decoding: bytes, as: UTF8.self).trimmingCharacters(in: .whitespaces)
+            return trimmed.isEmpty ? String(subtype) : trimmed
+        } catch {
+            return "unreadable"
         }
     }
 
