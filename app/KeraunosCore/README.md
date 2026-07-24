@@ -41,7 +41,7 @@ let media: ResolvedMedia = try await myExtractor.resolve(pageURL, option: nil)
 
 // 2. KeraunosCore downloads it — muxing automatically if it's adaptive DASH.
 let assembler = MediaAssembler(downloader: Downloader(), merger: AVFoundationMerger())
-let store = DownloadStore()   // defaults to a per-user Downloads directory
+let store = DownloadStore()   // defaults to the app's Documents directory
 
 let fileURL = try await assembler.assemble(media, into: store) { progress in
     print("progress: \(Int(progress * 100))%")
