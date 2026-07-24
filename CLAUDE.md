@@ -5,19 +5,29 @@ GPLv3.
 
 ## Architecture
 
-**Python extracts; Swift downloads** — embedded CPython + yt-dlp resolves a URL to a
-direct media URL; native `URLSession` does the transfer. For DASH (separate video/audio
-tracks), `AVFoundationMerger` muxes them into one file natively.
+**Python extracts; Swift downloads** — embedded CPython + yt-dlp resolves a URL to
+direct media URL(s); a native, durable **background-transfer queue** does the rest. Each
+download is a persisted `TransferJob` fed to a background `URLSession`; on completion the
+`TransferFinalizer` verifies each part against its expected byte length, guards free disk,
+then finalizes — progressive jobs move their single part into place, DASH jobs (separate
+video/audio) are muxed natively by `AVFoundationMerger`. The queue is crash-consistent and
+resumes across backgrounding and relaunch.
 
 **Two layers:**
 - **`app/KeraunosCore/`** — a Swift 6 SPM package holding the platform-agnostic core:
-  URL normalization, format selection, `Downloader` (incl. ranged/chunked transfer),
-  `MediaMerging`/`MediaAssembler`, stores, cookies, and the `KeraunosError` model.
-  Protocol-seamed (`MediaExtracting`, `MediaMerging`, `PhotoSaving`) so it's testable
-  without a simulator.
+  URL normalization, format selection, `Downloader` (incl. ranged/chunked transfer), the
+  durable background-transfer state machine (`TransferJob`/`TransferJobStore`/
+  `TransferCoordinator`/`TransferSession`/`TransferFinalizer`/`TransferProgress`),
+  `MediaMerging`/`AVFoundationMerger`, stores, cookies, and the `KeraunosError` model.
+  Protocol-seamed (`MediaExtracting`, `MediaMerging`, `PhotoSaving`, `TransferSession`,
+  `TransferDiagnostics`) so it's testable without a simulator. (`MediaAssembler` is the
+  legacy single-shot assembler, superseded by the transfer queue and no longer on the live
+  path.)
 - **`app/Keraunos/Keraunos/`** — the app target: the CPython/yt-dlp bridge
-  (`PythonRuntime/`), the "Refined Native" SwiftUI UI (`Theme/`, `Components/`, `UI/`),
-  and authenticated-extraction plumbing (`Auth/`).
+  (`PythonRuntime/`), the background-transfer stack (`Transfer/` — the `TransferEngine`
+  composition root, `BackgroundTransferService`, and `AppDelegate` relaunch glue), the
+  "Refined Native" SwiftUI UI (`Theme/`, `Components/`, `UI/`), and
+  authenticated-extraction plumbing (`Auth/`).
 
 The detailed design (components, boundaries, error model) lives in
 `docs/superpowers/specs/` and is **still evolving** — treat the spec as the source of
@@ -54,6 +64,7 @@ scheme, set your development team under *Signing & Capabilities*, ▶ Run.
 
 - Core package (testable logic): `app/KeraunosCore/Sources/KeraunosCore/`
 - App target: `app/Keraunos/Keraunos/` — `PythonRuntime/` (CPython bridge),
+  `Transfer/` (background `URLSession` engine + relaunch glue),
   `Theme/` · `Components/` · `UI/` (Refined Native SwiftUI), `Auth/` (cookies/login)
 - Tests: core `app/KeraunosCore/Tests/` · app `app/Keraunos/KeraunosTests/` ·
   UI `app/Keraunos/KeraunosUITests/`
@@ -93,6 +104,19 @@ Native" palette).
   out (ffmpeg) can't run. DASH video+audio merging therefore runs **natively**
   (`AVFoundationMerger`), and transfer is native `URLSession` — not Python. (An
   ffmpeg-backed `MediaMerging` could drop in later behind the same protocol.)
+- **Downloads run through the durable background queue, not `MediaAssembler`.** The UI
+  (`DownloadViewModel`) resolves a URL then enqueues a `TransferJob` into
+  `TransferEngine.shared`; a background `URLSession` transfers each track and
+  `TransferFinalizer` verifies + merges. Jobs and their `.part` files persist under
+  `<Application Support>/Transfers/` (crash-consistent, reconciled on launch), so a
+  download survives suspension/relaunch. Build new download features on this path —
+  `MediaAssembler` is legacy and unwired.
+- **A merge/mux failure is `FailureReason.mergeFailed`, distinct from
+  `.integrityCheckFailed`.** Integrity = a part's bytes ≠ its expected length; merge =
+  bytes were fine but AVFoundation couldn't combine them (usually a codec it can't
+  passthrough — the ffmpeg case). `AVFoundationMerger` records a `merge_unsupported`
+  diagnostic (per-track codec + underlying `NSError` + non-media body signature); don't
+  fold the two back together.
 - Embedded Python has **no system CA store** — bundle `certifi` and point the SSL
   context at it, or all HTTPS extraction fails.
 - **Multi-threaded embedded Python needs `PyEval_SaveThread()` after init.**
