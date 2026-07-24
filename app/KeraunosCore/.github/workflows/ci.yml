@@ -10,7 +10,7 @@ jobs:
     name: swift test (macOS)
     runs-on: macos-15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Available Xcode versions
         run: ls /Applications | grep -i xcode || true
       - name: Select latest-stable Xcode
