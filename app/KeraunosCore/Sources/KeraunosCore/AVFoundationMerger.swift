@@ -14,8 +14,17 @@ public struct AVFoundationMerger: MediaMerging {
     public func merge(video videoURL: URL, audio audioURL: URL, into output: URL) async throws {
         // `AVURLAsset` classifies a file by its extension and refuses one it can't ("Cannot
         // Open") — our part files are named `…-video.part`, so it rejects them even though the
-        // bytes are a valid MP4. Hand it symlinks with a media extension; AVFoundation follows
-        // the link and reads the real bytes. (WebM/Opus still can't passthrough — that surfaces
+        // bytes are a valid MP4. Give it inputs with a media extension.
+        //
+        // These MUST be HARD links, not symlinks. On a real device `loadTracks`/export parse
+        // media out-of-process (the media-services daemon), which is handed a sandbox extension
+        // for the path we pass. A symlink resolves to the real `.part` under Application Support,
+        // a path the daemon has no extension for → `NSFileReadNoPermissionError` (257) and a
+        // spurious `.mergeFailed`. (This passes on the simulator, which doesn't enforce the
+        // extension boundary — the gap that let the symlink version ship.) A hard link is another
+        // directory entry for the same inode, so the daemon opens the real bytes directly through
+        // the path it was granted. `tmp/` and Application Support share the app container's one
+        // filesystem, so `linkItem` is valid. (WebM/Opus still can't passthrough — that surfaces
         // as `.mergeFailed`, the ffmpeg-needed case.)
         let scratch = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString, isDirectory: true)
@@ -23,8 +32,8 @@ public struct AVFoundationMerger: MediaMerging {
         defer { removeScratch(scratch) }
         let videoLink = scratch.appendingPathComponent("video.mp4")
         let audioLink = scratch.appendingPathComponent("audio.mp4")
-        try FileManager.default.createSymbolicLink(at: videoLink, withDestinationURL: videoURL)
-        try FileManager.default.createSymbolicLink(at: audioLink, withDestinationURL: audioURL)
+        try FileManager.default.linkItem(at: videoURL, to: videoLink)
+        try FileManager.default.linkItem(at: audioURL, to: audioLink)
 
         let videoAsset = AVURLAsset(url: videoLink)
         let audioAsset = AVURLAsset(url: audioLink)

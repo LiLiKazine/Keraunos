@@ -67,6 +67,8 @@ without a new leak — `FailureLog`'s redactor scrubs secret query params on wri
 - `KeraunosCore/AVFoundationMerger.swift` — `recordMergeFailure(phase:underlying:…)`
   records `merge_unsupported` with each track's codec FourCC + the real `NSError` at all
   three failure sites; `bodySignature(of:)` classifies a non-media body from its head.
+- `KeraunosCore/AVFoundationMerger.swift` (follow-up, same day) — the input `.mp4` scratch
+  entries are now **hard links** (`linkItem`), not symlinks; see the new discovery below.
 - `Keraunos/Components/TransferQueueRow.swift` — honest `.mergeFailed` card ("Couldn't
   combine tracks … this format isn't supported. Try a different quality.").
 - Tests — `TransferFinalizerTests` flipped to expect `.mergeFailed`; new
@@ -86,3 +88,30 @@ without a new leak — `FailureLog`'s redactor scrubs secret query params on wri
   renditions before downloading) is the real step-2 fix, pending a fresh repro log.
 - Doc drift: `CLAUDE.md` still describes `MediaAssembler`/`AVFoundationMerger` as the DASH
   path; the shipping app uses the `Transfer*` background-job subsystem. Needs refreshing.
+
+### Follow-up (same day): the diagnostics immediately paid off — third failure class found
+
+The very first device log carrying the new fields exposed a failure class we hadn't
+anticipated, and one the enriched line was *essential* to spot:
+
+```
+merge_unsupported  compose: video=unreadable audio=unreadable video-body=mp4 audio-body=mp4:
+  NSCocoaErrorDomain#257 The file "video.mp4" couldn't be opened because you don't have permission to view it.
+```
+
+- `body=mp4` (from the in-process `FileHandle` sniff) proved the bytes were **valid MP4** —
+  so this was neither the codec case (`body=webm`) nor the auth-wall case (`body=html`).
+  Only `AVURLAsset` failed, with `#257` = `NSFileReadNoPermissionError`. Without the
+  body-signature field this was indistinguishable from an unsupported codec.
+- Root cause: `AVFoundationMerger` handed `AVURLAsset` a **symlink** to the `.part` file.
+  On a **real device** `loadTracks`/export parse media out-of-process (media-services
+  daemon), which gets a sandbox extension only for the path passed in; the symlink resolves
+  to the real file under Application Support, a path the daemon has no extension for →
+  permission-denied. A **hard link** is another dir entry for the same inode, so the daemon
+  opens the real bytes directly through the granted path. `tmp/` and Application Support
+  share the container's one filesystem, so `linkItem` is valid.
+- **The verification gap that let the symlink version ship:** it passed on the simulator,
+  which doesn't enforce the sandbox-extension boundary, and `swift test` runs on
+  macOS/simulator — so the whole suite is structurally blind to this. Fix was verified by
+  a real bilibili adaptive download completing on a physical iPhone. Lesson:
+  AVFoundation/merge changes are not verified until run on-device.
