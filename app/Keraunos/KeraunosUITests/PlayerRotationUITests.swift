@@ -11,20 +11,26 @@ import XCTest
 /// is regular width); on a non-Max iPhone the size class never flips and the test would
 /// pass even against the broken shell.
 ///
-/// Requires at least one file in the Library.
+/// The Library must hold at least one file, which a factory-fresh CI simulator never does —
+/// so the app is launched with `-KeraunosSeedLibrary` and plants a short playable clip
+/// itself. See `UITestSupport` in the app target.
 final class PlayerRotationUITests: XCTestCase {
 
     override func setUpWithError() throws {
         continueAfterFailure = true
     }
 
-    override func tearDownWithError() throws {
-        XCUIDevice.shared.orientation = .portrait
+    override func tearDown() async throws {
+        // `orientation` is main-actor isolated; hop explicitly rather than isolating the
+        // override, which would diverge from XCTestCase's own isolation.
+        await MainActor.run { XCUIDevice.shared.orientation = .portrait }
     }
 
     @MainActor
     func testPlayerSurvivesRotationToLandscape() throws {
         let app = XCUIApplication()
+        // Guarantees the library row this test taps; a fresh simulator has an empty Library.
+        app.launchArguments += ["-KeraunosSeedLibrary"]
         XCUIDevice.shared.orientation = .portrait
         app.launch()
 
