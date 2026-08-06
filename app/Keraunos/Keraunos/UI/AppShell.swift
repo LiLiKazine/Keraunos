@@ -1,8 +1,13 @@
 import SwiftUI
 
-/// The adaptive shell. Compact width → a bottom `TabView` (Settings behind each screen's
-/// gear). Regular width → a `NavigationSplitView` with a custom sidebar (Settings in the
-/// footer). Same screens, same tokens — only the container changes with the size class.
+/// The adaptive shell: one `TabView` for every size class. `.sidebarAdaptable` renders it
+/// as a bottom tab bar when compact and as a sidebar when regular — a *style* change inside
+/// a single container, so nothing is torn down when the size class flips.
+///
+/// This must stay a single container. An earlier shell branched on the horizontal size class
+/// (`if isRegular { NavigationSplitView } else { TabView }`), and on iPhones whose landscape
+/// is `.regular` (Pro Max / Plus) rotating swapped the branch, changed view identity, and
+/// destroyed the screen subtree — taking any presented player and its `@State` with it.
 struct AppShell: View {
     let model: DownloadViewModel
     let cookieStore: CookieStore
@@ -17,8 +22,29 @@ struct AppShell: View {
     private var isRegular: Bool { hSize == .regular }
 
     var body: some View {
-        Group {
-            if isRegular { splitLayout } else { tabLayout }
+        TabView(selection: $selection) {
+            Tab(AppSection.download.title, systemImage: AppSection.download.symbol, value: AppSection.download) {
+                HomeScreen(model: model, downloads: downloads, cookieStore: cookieStore, selection: $selection,
+                           onSettings: { showSettings = true })
+            }
+            .badge(downloads.activeCount == 0 ? 0 : downloads.activeCount)
+
+            Tab(AppSection.library.title, systemImage: AppSection.library.symbol, value: AppSection.library) {
+                LibraryScreen(model: model, selection: $selection, onSettings: { showSettings = true })
+            }
+
+            Tab(AppSection.accounts.title, systemImage: AppSection.accounts.symbol, value: AppSection.accounts) {
+                AccountsScreen(cookieStore: cookieStore, onSettings: { showSettings = true })
+            }
+        }
+        .tabViewStyle(.sidebarAdaptable)
+        .tabViewSidebarHeader { brandLockup }
+        .tabViewSidebarFooter { settingsEntry }
+        .sheet(isPresented: $showSettings) {
+            NavigationStack {
+                SettingsView(model: model, preferences: preferences, showsDoneButton: true)
+            }
+            .preferredColorScheme(.dark)
         }
         .tint(Color.Theme.accent)
         .preferredColorScheme(.dark)
@@ -26,130 +52,39 @@ struct AppShell: View {
         .toastOverlay(toasts, bottomInset: isRegular ? 20 : 96)
     }
 
-    // MARK: - Compact: tab bar
+    // MARK: - Sidebar chrome (regular width only)
 
-    private var tabLayout: some View {
-        TabView(selection: $selection) {
-            HomeScreen(model: model, downloads: downloads, cookieStore: cookieStore, selection: $selection,
-                       onSettings: { showSettings = true })
-                .tabItem { Label(AppSection.download.title, systemImage: AppSection.download.symbol) }
-                .badge(downloads.activeCount == 0 ? 0 : downloads.activeCount)
-                .tag(AppSection.download)
-            LibraryScreen(model: model, selection: $selection, onSettings: { showSettings = true })
-                .tabItem { Label(AppSection.library.title, systemImage: AppSection.library.symbol) }
-                .tag(AppSection.library)
-            AccountsScreen(cookieStore: cookieStore, onSettings: { showSettings = true })
-                .tabItem { Label(AppSection.accounts.title, systemImage: AppSection.accounts.symbol) }
-                .tag(AppSection.accounts)
+    /// The brand lockup that used to head the hand-built sidebar.
+    private var brandLockup: some View {
+        HStack(spacing: 12) {
+            Image(systemName: "bolt.fill")
+                .font(.system(size: 24))
+                .foregroundStyle(Color.Theme.accent)
+                .frame(width: 40, height: 40)
+                .background(Color.Theme.surface2, in: RoundedRectangle(cornerRadius: 11, style: .continuous))
+                .overlay(RoundedRectangle(cornerRadius: 11, style: .continuous)
+                    .strokeBorder(Color.Theme.hairline, lineWidth: Stroke.hairline))
+            Text("Keraunos")
+                .font(.system(size: 20, weight: .bold))
+                .foregroundStyle(Color.Theme.text1)
+            Spacer()
         }
-        .sheet(isPresented: $showSettings) {
-            NavigationStack {
-                SettingsView(model: model, preferences: preferences, showsDoneButton: true)
-            }
-            .preferredColorScheme(.dark)
-        }
+        .padding(.bottom, Space.sm)
     }
 
-    // MARK: - Regular: sidebar split
-
-    private var splitLayout: some View {
-        NavigationSplitView {
-            SidebarView(selection: $selection, activeDownloadCount: downloads.activeCount)
-                .navigationSplitViewColumnWidth(min: 240, ideal: 260, max: 300)
-        } detail: {
-            NavigationStack {
-                detail
-                    // Titles are rendered in-content (PaneTitle) beside the split-view
-                    // toggle, per the design; keep the bar itself empty but present.
-                    .navigationTitle("")
-                    .navigationBarTitleDisplayMode(.inline)
-                    .toolbarBackground(Color.Theme.bg, for: .navigationBar)
-                    .toolbarBackground(.visible, for: .navigationBar)
-            }
-        }
-        .navigationSplitViewStyle(.balanced)
-    }
-
-    @ViewBuilder
-    private var detail: some View {
-        switch selection {
-        case .download:
-            HomeScreen(model: model, downloads: downloads, cookieStore: cookieStore, selection: $selection, onSettings: nil)
-        case .library:
-            LibraryScreen(model: model, selection: $selection, onSettings: nil)
-        case .accounts:
-            AccountsScreen(cookieStore: cookieStore, onSettings: nil)
-        case .settings:
-            SettingsView(model: model, preferences: preferences, showsDoneButton: false)
-        }
-    }
-}
-
-/// The iPad sidebar: brand lockup, the primary destinations as accent pills, and Settings
-/// pinned to the footer.
-private struct SidebarView: View {
-    @Binding var selection: AppSection
-    let activeDownloadCount: Int
-
-    var body: some View {
-        ZStack {
-            Color.Theme.bg.ignoresSafeArea()
-            VStack(alignment: .leading, spacing: 6) {
-                HStack(spacing: 12) {
-                    Image(systemName: "bolt.fill")
-                        .font(.system(size: 24))
-                        .foregroundStyle(Color.Theme.accent)
-                        .frame(width: 40, height: 40)
-                        .background(Color.Theme.surface2, in: RoundedRectangle(cornerRadius: 11, style: .continuous))
-                        .overlay(RoundedRectangle(cornerRadius: 11, style: .continuous)
-                            .strokeBorder(Color.Theme.hairline, lineWidth: Stroke.hairline))
-                    Text("Keraunos")
-                        .font(.system(size: 20, weight: .bold))
-                        .foregroundStyle(Color.Theme.text1)
-                }
-                .padding(.horizontal, 12)
-                .padding(.bottom, Space.lg)
-
-                ForEach(AppSection.primary) { section in
-                    navItem(section)
-                }
-                Spacer()
-                navItem(.settings)
-            }
-            .padding(16)
-        }
-    }
-
-    private func navItem(_ section: AppSection) -> some View {
-        Button { selection = section } label: {
+    /// Settings, pinned to the sidebar footer. Opens the same sheet as each screen's gear so
+    /// there is one Settings presentation in every size class.
+    private var settingsEntry: some View {
+        Button { showSettings = true } label: {
             HStack(spacing: 13) {
-                Image(systemName: section.symbol).font(.system(size: 18)).frame(width: 22)
-                Text(section.title).font(.system(size: 15, weight: .medium))
+                Image(systemName: AppSection.settings.symbol).font(.system(size: 18)).frame(width: 22)
+                Text(AppSection.settings.title).font(.system(size: 15, weight: .medium))
                 Spacer()
-                if section == .download, activeDownloadCount > 0 {
-                    activeCountPill
-                }
             }
-            .foregroundStyle(selection == section ? Color.Theme.accent : Color.Theme.text2)
-            .padding(.horizontal, 14)
+            .foregroundStyle(Color.Theme.text2)
             .padding(.vertical, 12)
-            .background(
-                selection == section ? Color.Theme.accentSoft : Color.clear,
-                in: RoundedRectangle(cornerRadius: 10, style: .continuous)
-            )
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-    }
-
-    /// Small active-transfer count pill overlaid on the Download nav item, mirroring the
-    /// compact tab bar's `.badge`.
-    private var activeCountPill: some View {
-        Text("\(activeDownloadCount)")
-            .font(.system(size: 12, weight: .semibold))
-            .foregroundStyle(Color.Theme.accent)
-            .padding(.horizontal, 7)
-            .padding(.vertical, 2)
-            .background(Color.Theme.surface2, in: Capsule())
     }
 }
