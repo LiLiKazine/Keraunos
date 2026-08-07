@@ -199,6 +199,11 @@ public actor TransferCoordinator {
         await persist(owner.jobID, "task_failed") {
             Self.mutateTrack(&$0, at: owner.trackIndex) { $0.resumeData = resumeData; $0.taskIdentifier = nil }
         }
+        // The state is still `.downloading`, but clearing `taskIdentifier` flips the row to
+        // "Waiting (background)". The UI only rebuilds when the bus emits, so without this the
+        // row keeps rendering a live download — and a stale bar — until some unrelated job
+        // publishes.
+        await publish(owner.jobID)
     }
 
     /// A live byte-progress callback from the session delegate. Republishes the owning job's

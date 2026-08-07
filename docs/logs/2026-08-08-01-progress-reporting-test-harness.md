@@ -6,7 +6,8 @@
 
 | Commit | Scope |
 |--------|-------|
-| (this) | Aggregation math (`snapshot(for:)`) + the queue-row mapping seam |
+| `ded0dcf` | Aggregation math (`snapshot(for:)`) + the queue-row mapping seam |
+| (this) | Publication invariant across all coordinator transitions — found and fixed a missing `publish` in `taskDidFail` |
 
 ## Context
 
@@ -101,3 +102,54 @@ for the reason it always was: one background `URLSession` per identifier.
 - SourceKit reported "No such module 'Testing'" / "'KeraunosCore'" for the newly created
   files. Stale index noise only — `swift test` (183/183) and `xcodebuild test` (11/11) both
   compile them.
+
+---
+
+## Follow-up: gap 2 — the publication invariant, and the bug it found
+
+### Context
+
+The coordinator calls `publish` from 18 places; only 4 were asserted. Every transition *was*
+tested, but only for its effect on the store — and the store is always right, because that's
+what the transition writes. Nothing checked the bus, which is what the UI actually watches.
+
+### Decision
+
+A `TransferProgressPublicationTests` suite that drives each transition through the public
+ingress with a bus attached, and asserts a single invariant via a shared helper: **the bus
+snapshot's state equals the persisted job's state, and its bytes equal the summed track
+offsets.** 15 tests, one per transition (start-on-complete, pause, resume, refresh keeping vs
+resetting the offset, unexpected status, corruption at a non-zero offset, 403, expired URL,
+mid-sequence chunk, final chunk, task failure, and the three `reassociateAndResume` branches).
+
+Considered and rejected: adding a bus to the existing state-persistence tests (would have
+churned ~20 tests and conflated two concerns), and one table-driven parameterized test (each
+transition needs different setup, so `@Test(arguments:)` would have carried a payload of
+setup closures — less readable than 15 short tests).
+
+### What Changed
+
+- `KeraunosCore/TransferCoordinator.swift` — **`taskDidFail` now publishes.** One-line fix.
+- `KeraunosCoreTests/TransferProgressPublicationTests.swift` (new, 15 tests).
+
+### What Was Discovered
+
+- **A real bug, found by the second test written: `taskDidFail` never published.** On a network
+  drop the coordinator clears the track's `taskIdentifier` and persists — which flips the row
+  from "Downloading" to "Waiting (background)" — but emitted nothing. Since
+  `DownloadsViewModel.start()` rebuilds *only* on a bus emission, the row kept rendering a live
+  download with a frozen progress bar until some unrelated job happened to publish. On a
+  single-download queue (the common case) that means until the next launch or foreground
+  activation. This is precisely the failure class the audit predicted for the unasserted
+  publish sites.
+- **The state-equality invariant alone could not have caught it.** `taskDidFail` leaves the
+  state at `.downloading`; only the *row variant* changes. The test seeds the bus with a
+  snapshot the coordinator could never derive (999999 of 1000000 bytes) and asserts it gets
+  overwritten — a positive probe for "an emission happened" that needs no stream timing or
+  timeout. Worth reusing for any transition that publishes without changing state.
+- `taskDidFail`'s `isCancelled` parameter is dead: a user-initiated pause clears
+  `owners[tid]` before cancelling, so the cancellation callback hits the no-owner guard and
+  returns. Left alone — it documents the delegate contract — but it is not a live input.
+- The other 14 transitions all published correctly. As with the aggregation math, the value
+  here is the guard, not the repair — except for the one that wasn't.
+
