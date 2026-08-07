@@ -7,7 +7,8 @@
 | Commit | Scope |
 |--------|-------|
 | `ded0dcf` | Aggregation math (`snapshot(for:)`) + the queue-row mapping seam |
-| (this) | Publication invariant across all coordinator transitions — found and fixed a missing `publish` in `taskDidFail` |
+| `3e64d2a` | Publication invariant across all coordinator transitions — found and fixed a missing `publish` in `taskDidFail` |
+| (this) | Single-shot tracks learn their total from the delegate, so the bar is determinate before completion |
 
 ## Context
 
@@ -153,3 +154,67 @@ setup closures — less readable than 15 short tests).
 - The other 14 transitions all published correctly. As with the aggregation math, the value
   here is the guard, not the repair — except for the one that wasn't.
 
+
+---
+
+## Follow-up: the reported progress was *accurate* but almost never determinate
+
+### Context
+
+With the plumbing verified, the obvious next question — "is the download list showing correct
+progress now?" — turned up a bigger gap than any missing `publish`. Nothing displayed a wrong
+number, but a **percentage almost never appeared at all**:
+
+- `TransferJobFactory.trackJob` seeds `totalBytes: nil`, so a track only learns its size from a
+  response.
+- **Chunked (206)** learns it from `Content-Range` on the first chunk.
+- **Single-shot (200)** recorded it only at *completion* — so for the entire download the bus
+  published `totalBytes: nil`, `fraction` was nil, and `TransferQueueRow` fell through to
+  `IndeterminateBar()` + "Downloading…" instead of a percentage. That is **every site except
+  YouTube's chunk-hinted formats**.
+- Meanwhile `taskDidWriteData` was handed `totalBytesExpectedToWrite` — the real
+  `Content-Length` — on every callback and discarded it.
+
+### Options
+
+| Approach | Pros | Cons |
+|----------|------|------|
+| Seed `totalBytes` at enqueue from yt-dlp's size (`FormatOption.approxBytes` exists but never reaches `MediaTrack`) | determinate from byte zero; the only fix that helps the adaptive video phase | `approx_bytes` can be a bitrate estimate → a bar that overshoots and visibly corrects; needs a `MediaTrack`/`TrackJob` field |
+| Publish the delegate's expected size without persisting | no store writes | lost on relaunch, and `snapshot(for:)` derives the total from the persisted job, so it wouldn't feed the bar at all |
+| **Persist the delegate's expected size for non-chunked tracks (chosen)** | exact (it *is* the `Content-Length`), no schema change, determinate from the first callback, survives relaunch | doesn't fix adaptive (see below); one store write per track |
+
+### Decision
+
+`taskDidWriteData` adopts `totalBytesExpectedToWrite` as the track's `totalBytes` when the
+track is **single-shot** (`chunkSize == nil`), the value is `> 0`, and it differs from what's
+already recorded.
+
+### What Changed
+
+- `KeraunosCore/TransferCoordinator.swift` — new `learnTotalIfSingleShot(_:expected:)`, called
+  from `taskDidWriteData` before `publish`.
+- `KeraunosCoreTests/TransferProgressPublicationTests.swift` — 6 tests (TDD: the two
+  behavioral ones were red first); `Rig` now carries its directory for the persistence check.
+
+### What Was Discovered
+
+- **Two values must never be adopted, and both are easy to hit.** On a *ranged* request
+  `totalBytesExpectedToWrite` is the CHUNK's length — adopting it would peg a multi-GB YouTube
+  track's total at one chunk and show a bar that fills and resets every chunk. And a response
+  with no `Content-Length` reports `NSURLSessionTransferSizeUnknown` (**-1**), which as a total
+  would poison `fraction`. Both are guarded and tested.
+- **Completion stays authoritative**, which is what keeps the finalizer safe: the 200 path
+  still overwrites `totalBytes` with the bytes actually written, so a server that lies in
+  `Content-Length` can't leave a bogus expected length for the integrity check to compare
+  against. Asserted by `completionOverwritesALearnedTotalWithTheActualLength`.
+- The write is guarded on a change because the delegate fires far too often to persist per
+  callback — in practice one store write per track.
+- **Adaptive jobs are still indeterminate through the video phase.** `snapshot(for:)` requires
+  *every* track's total, and the audio track's isn't known until audio starts, which is after
+  video finishes. So a DASH download shows a real percentage only during the short audio tail.
+  Fixing that needs the rejected option above (carry yt-dlp's per-format size onto
+  `MediaTrack`/`TrackJob`) — deliberately deferred, since it trades exactness for an estimate
+  that can visibly correct itself.
+- No effect on completeness logic: single-shot keeps `bytesWritten == 0` until completion, so a
+  learned total leaves the track incomplete (`0 < total`) and `firstIncompleteTrackIndex` /
+  `rowState` behave exactly as before.

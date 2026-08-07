@@ -36,18 +36,20 @@ import KeraunosCore
     }
 
     private struct Rig {
+        let directory: URL
         let store: TransferJobStore
         let session: ScriptedTransferSession
         let bus: TransferProgress
         let coord: TransferCoordinator
     }
     private func rig(now: Date? = nil) throws -> Rig {
-        let store = try TransferJobStore(directory: tempDir())
+        let directory = tempDir()
+        let store = try TransferJobStore(directory: directory)
         let session = ScriptedTransferSession()
         let bus = TransferProgress()
         let coord = TransferCoordinator(store: store, session: session,
                                         now: { now ?? Date() }, progress: bus)
-        return Rig(store: store, session: session, bus: bus, coord: coord)
+        return Rig(directory: directory, store: store, session: session, bus: bus, coord: coord)
     }
 
     /// The invariant: after any transition the bus carries a snapshot whose state matches the
@@ -203,6 +205,116 @@ import KeraunosCore
 
         #expect(await r.store.job(id: j.id)?.rowState == .waitingBackground)
         #expect(await r.bus.snapshot(for: j.id)?.receivedBytes == 0)   // republished from the store
+        await expectBusMatchesStore(r, j.id)
+    }
+
+    // MARK: learning a single-shot track's total from the delegate
+
+    /// A single-shot (non-chunked) track's total was previously only recorded at *completion*,
+    /// so the whole download published `totalBytes: nil` and the row showed an indeterminate
+    /// bar with "Downloading…" instead of a percentage — on every site except YouTube's
+    /// chunk-hinted formats. `URLSession` hands us the real `Content-Length` on every progress
+    /// callback; use it.
+    @Test func singleShotLearnsItsTotalFromTheFirstProgressCallback() async throws {
+        let r = try rig()
+        let j = job(kind: .progressive(track(part: "p.part", chunkSize: nil)), state: .downloading)
+        try await r.store.upsert(j)
+        try await r.coord.start(j)
+        let taskID = await r.session.started[0].id
+
+        await r.coord.taskDidWriteData(taskIdentifier: taskID, totalBytesWritten: 500,
+                                       totalBytesExpectedToWrite: 4000)
+
+        let snap = await r.bus.snapshot(for: j.id)
+        #expect(snap?.receivedBytes == 500)
+        #expect(snap?.totalBytes == 4000)
+        #expect(snap?.fraction == 0.125)      // determinate from the first callback
+    }
+
+    /// Persisted, not just published — a relaunch rebuilds the bus from the store, so a
+    /// determinate bar must survive it rather than reverting to indeterminate.
+    @Test func theLearnedTotalIsPersisted() async throws {
+        let r = try rig()
+        let j = job(kind: .progressive(track(part: "p.part", chunkSize: nil)), state: .downloading)
+        try await r.store.upsert(j)
+        try await r.coord.start(j)
+        let taskID = await r.session.started[0].id
+        await r.coord.taskDidWriteData(taskIdentifier: taskID, totalBytesWritten: 500,
+                                       totalBytesExpectedToWrite: 4000)
+
+        let reloaded = try TransferJobStore(directory: r.directory)
+        #expect(await reloaded.job(id: j.id)?.tracks[0].totalBytes == 4000)
+    }
+
+    /// The critical guard: on a **ranged** request `totalBytesExpectedToWrite` is the CHUNK's
+    /// length, not the file's. Adopting it would peg a multi-gigabyte YouTube track's total at
+    /// one chunk and show a bar that fills and resets on every chunk.
+    @Test func chunkedTrackNeverAdoptsTheChunkLengthAsItsTotal() async throws {
+        let r = try rig()
+        let j = job(kind: .progressive(track(part: "c.part", chunkSize: 100)), state: .downloading)
+        try await r.store.upsert(j)
+        try await r.coord.start(j)
+        let taskID = await r.session.started[0].id
+
+        await r.coord.taskDidWriteData(taskIdentifier: taskID, totalBytesWritten: 40,
+                                       totalBytesExpectedToWrite: 100)
+
+        #expect(await r.bus.snapshot(for: j.id)?.totalBytes == nil)   // stays indeterminate
+        #expect(await r.store.job(id: j.id)?.tracks[0].totalBytes == nil)
+    }
+
+    @Test func chunkedTrackWithAKnownTotalIsNotOverwritten() async throws {
+        let r = try rig()
+        let j = job(kind: .progressive(track(part: "c.part", chunkSize: 100, totalBytes: 4000)),
+                    state: .downloading)
+        try await r.store.upsert(j)
+        try await r.coord.start(j)
+        let taskID = await r.session.started[0].id
+
+        await r.coord.taskDidWriteData(taskIdentifier: taskID, totalBytesWritten: 40,
+                                       totalBytesExpectedToWrite: 100)
+
+        #expect(await r.bus.snapshot(for: j.id)?.totalBytes == 4000)
+    }
+
+    /// A server that sends no `Content-Length` yields `NSURLSessionTransferSizeUnknown` (-1).
+    /// It must not become a total (a negative or zero total would poison `fraction`).
+    @Test func anUnknownExpectedSizeIsIgnoredButBytesStillPublish() async throws {
+        let r = try rig()
+        let j = job(kind: .progressive(track(part: "p.part", chunkSize: nil)), state: .downloading)
+        try await r.store.upsert(j)
+        try await r.coord.start(j)
+        let taskID = await r.session.started[0].id
+
+        await r.coord.taskDidWriteData(taskIdentifier: taskID, totalBytesWritten: 500,
+                                       totalBytesExpectedToWrite: -1)
+
+        let snap = await r.bus.snapshot(for: j.id)
+        #expect(snap?.totalBytes == nil)
+        #expect(snap?.fraction == nil)
+        #expect(snap?.receivedBytes == 500)      // still counts up
+        #expect(await r.store.job(id: j.id)?.tracks[0].totalBytes == nil)
+    }
+
+    /// Completion remains authoritative: the 200 path records the bytes actually written, so a
+    /// server that lied in `Content-Length` can't leave a wrong total behind for the finalizer's
+    /// integrity check to compare against.
+    @Test func completionOverwritesALearnedTotalWithTheActualLength() async throws {
+        let r = try rig()
+        let j = job(kind: .progressive(track(part: "p.part", chunkSize: nil)), state: .downloading)
+        try await r.store.upsert(j)
+        try await r.coord.start(j)
+        let taskID = await r.session.started[0].id
+        await r.coord.taskDidWriteData(taskIdentifier: taskID, totalBytesWritten: 300,
+                                       totalBytesExpectedToWrite: 4000)   // server over-reported
+
+        await r.coord.taskDidFinishDownloading(taskIdentifier: taskID,
+                                               to: stage(Data(repeating: 1, count: 300)),
+                                               statusCode: 200, contentRangeTotal: nil)
+
+        let done = await r.store.job(id: j.id)!
+        #expect(done.tracks[0].totalBytes == 300)
+        #expect(done.state == .readyToMerge)
         await expectBusMatchesStore(r, j.id)
     }
 

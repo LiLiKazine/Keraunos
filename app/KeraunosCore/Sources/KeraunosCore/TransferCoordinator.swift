@@ -212,7 +212,26 @@ public actor TransferCoordinator {
     public func taskDidWriteData(taskIdentifier: Int, totalBytesWritten: Int64,
                                  totalBytesExpectedToWrite: Int64) async {
         guard let owner = owners[taskIdentifier] else { return }
+        await learnTotalIfSingleShot(owner, expected: totalBytesExpectedToWrite)
         await publish(owner.jobID, liveReceived: totalBytesWritten)
+    }
+
+    /// Adopts the delegate's `totalBytesExpectedToWrite` as a **single-shot** track's total.
+    /// Without this a non-chunked transfer only learns its size at completion, so the whole
+    /// download publishes an unknown total and the row shows an indeterminate bar instead of a
+    /// percentage — which is every site except the chunk-hinted ones.
+    ///
+    /// Two values must never be adopted: on a *ranged* request this is the CHUNK's length (it
+    /// would peg a multi-GB track's total at one chunk), and a response with no
+    /// `Content-Length` reports `NSURLSessionTransferSizeUnknown` (-1). Writes only on a change
+    /// — the delegate fires far too often to persist on every callback.
+    private func learnTotalIfSingleShot(_ owner: Owner, expected: Int64) async {
+        guard expected > 0, let job = await store.job(id: owner.jobID) else { return }
+        let track = job.tracks[owner.trackIndex]
+        guard track.chunkSize == nil, track.totalBytes != expected else { return }
+        await persist(owner.jobID, "learn_total") {
+            Self.mutateTrack(&$0, at: owner.trackIndex) { $0.totalBytes = expected }
+        }
     }
 
     // MARK: - Track driving
