@@ -28,3 +28,4 @@ __pycache__/
 
 # asc CLI repo-local profile pin (references a keychain profile by name; no secret)
 .asc/
+.codegraph/
