@@ -61,7 +61,14 @@ final class DownloadsViewModel {
     /// snapshot map (fraction/bytes). Also fires the "Saved to Library" toast for jobs the
     /// engine has just moved to Library.
     func rebuild(snapshots: [UUID: ProgressSnapshot]) async {
-        let jobs = await engine.store.all()
+        items = Self.rows(jobs: await engine.store.all(), snapshots: snapshots)
+        savedTitles = engine.consumeRecentlySaved()   // consumed by the view's onChange
+    }
+
+    /// The pure half of `rebuild`: persisted jobs + the live snapshot map → sorted rows.
+    /// Split out from the engine plumbing so the mapping, the no-snapshot fallback, and the
+    /// ordering are unit-testable without standing up a `TransferEngine`.
+    static func rows(jobs: [TransferJob], snapshots: [UUID: ProgressSnapshot]) -> [QueueItem] {
         let rows: [QueueItem] = jobs.compactMap { job in
             guard let rowState = job.rowState else { return nil }
             let snap = snapshots[job.id]
@@ -76,11 +83,10 @@ final class DownloadsViewModel {
                 totalBytes: snap?.totalBytes,
                 createdAt: job.createdAt)
         }
-        items = rows.sorted {
-            let (a, b) = (Self.rank($0.rowState), Self.rank($1.rowState))
+        return rows.sorted {
+            let (a, b) = (rank($0.rowState), rank($1.rowState))
             return a != b ? a < b : $0.createdAt < $1.createdAt
         }
-        savedTitles = engine.consumeRecentlySaved()   // consumed by the view's onChange
     }
 
     /// Set to the newly-saved titles on each rebuild; the screen coalesces these into a toast.

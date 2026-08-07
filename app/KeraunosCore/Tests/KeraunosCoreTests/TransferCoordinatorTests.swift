@@ -383,6 +383,38 @@ struct TransferCoordinatorTests {
         #expect(snap?.totalBytes == 4_194_304)
     }
 
+    /// The adaptive handoff over the real publish path: once video finishes, the bus must
+    /// report video's bytes against an indeterminate total (audio's total isn't known until
+    /// its response arrives) — never a completed bar that then restarts.
+    @Test func adaptiveHandoffPublishesSummedBytesNotAFullBar() async throws {
+        let dir = tempDir()
+        let store = try TransferJobStore(directory: dir)
+        let session = ScriptedTransferSession()
+        let bus = TransferProgress()
+        let coord = TransferCoordinator(store: store, session: session, progress: bus)
+        let j = job(kind: .adaptive(video: track(part: "v.part", chunkSize: nil),
+                                    audio: track(part: "a.part", chunkSize: nil)))
+        try await coord.start(j)
+
+        let vid = await session.started[0].id
+        await coord.taskDidFinishDownloading(taskIdentifier: vid, to: stage(Data(repeating: 2, count: 300)),
+                                             statusCode: 200, contentRangeTotal: nil)
+        let midway = await bus.snapshot(for: j.id)
+        #expect(midway?.state == .downloading)
+        #expect(midway?.receivedBytes == 300)      // video only, audio not started
+        #expect(midway?.totalBytes == nil)         // audio total unknown → indeterminate
+        #expect(midway?.fraction == nil)
+
+        let aud = await session.started[1].id
+        await coord.taskDidFinishDownloading(taskIdentifier: aud, to: stage(Data(repeating: 3, count: 100)),
+                                             statusCode: 200, contentRangeTotal: nil)
+        let done = await bus.snapshot(for: j.id)
+        #expect(done?.state == .readyToMerge)
+        #expect(done?.receivedBytes == 400)        // both tracks summed
+        #expect(done?.totalBytes == 400)
+        #expect(done?.fraction == 1.0)
+    }
+
     @Test func unknownTaskDeltaIsIgnored() async throws {
         let dir = tempDir()
         let store = try TransferJobStore(directory: dir)

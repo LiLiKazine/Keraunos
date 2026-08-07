@@ -1,0 +1,123 @@
+import Testing
+import Foundation
+import KeraunosCore
+@testable import Keraunos
+
+/// The queue-row mapping: persisted jobs + the live progress bus → sorted `QueueItem`s.
+/// Exercises `DownloadsViewModel.rows` directly (pure), so no `TransferEngine` is involved.
+@MainActor
+struct DownloadsViewModelTests {
+    private func track(_ part: String, bytesWritten: Int64 = 0, totalBytes: Int64? = nil,
+                       taskIdentifier: Int? = nil) -> TrackJob {
+        TrackJob(remoteURL: URL(string: "https://cdn.example/\(part)")!,
+                 urlExpiresAt: nil, chunkSize: nil, partFileName: part,
+                 bytesWritten: bytesWritten, totalBytes: totalBytes,
+                 resumeData: nil, taskIdentifier: taskIdentifier)
+    }
+    private func job(id: UUID = UUID(), state: JobState, createdAt: TimeInterval = 1,
+                     kind: TransferJob.Kind? = nil, filename: String = "clip.mp4",
+                     page: String = "https://vimeo.com/1234",
+                     height: Int? = 720, isAdaptive: Bool = false,
+                     credentialRef: String? = nil) -> TransferJob {
+        TransferJob(id: id, sourcePageURL: URL(string: page)!,
+                    formatSelection: FormatSelection(formatID: "x", height: height, isAdaptive: isAdaptive),
+                    credentialRef: credentialRef, createdAt: Date(timeIntervalSince1970: createdAt),
+                    state: state, kind: kind ?? .progressive(track("p.part")),
+                    suggestedFilename: filename, savedFilename: nil, autoSaveToPhotos: false)
+    }
+    private func snap(_ state: JobState, _ received: Int64, _ total: Int64?) -> ProgressSnapshot {
+        ProgressSnapshot(state: state, receivedBytes: received, totalBytes: total)
+    }
+
+    // MARK: identity & labels
+
+    @Test func stripsExtensionAndCarriesHostAndQuality() {
+        let j = job(state: .queued, filename: "My Clip.mp4", page: "https://vimeo.com/1234", height: 1080)
+        let row = DownloadsViewModel.rows(jobs: [j], snapshots: [:])[0]
+        #expect(row.title == "My Clip")
+        #expect(row.sourceHost == "vimeo.com")
+        #expect(row.qualityLabel == "1080p")
+    }
+
+    @Test func adaptiveWithoutHeightLabelsAsAdaptive() {
+        let j = job(state: .queued, height: nil, isAdaptive: true)
+        #expect(DownloadsViewModel.rows(jobs: [j], snapshots: [:])[0].qualityLabel == "Adaptive")
+    }
+
+    // MARK: which jobs appear
+
+    @Test func terminalJobsAreNotRows() {
+        let jobs = [job(state: .completed), job(state: .cancelled)]
+        #expect(DownloadsViewModel.rows(jobs: jobs, snapshots: [:]).isEmpty)
+    }
+
+    @Test func failedJobCarriesItsReason() {
+        let j = job(state: .failed(.mergeFailed))
+        #expect(DownloadsViewModel.rows(jobs: [j], snapshots: [:])[0].rowState == .failed(.mergeFailed))
+    }
+
+    // MARK: progress merge
+
+    @Test func snapshotSuppliesFractionAndBytes() {
+        let j = job(state: .downloading, kind: .progressive(track("p.part", bytesWritten: 10, taskIdentifier: 7)))
+        let rows = DownloadsViewModel.rows(jobs: [j], snapshots: [j.id: snap(.downloading, 500, 2000)])
+        #expect(rows[0].fraction == 0.25)
+        #expect(rows[0].receivedBytes == 500)       // bus wins over the persisted offset
+        #expect(rows[0].totalBytes == 2000)
+    }
+
+    /// A job the bus hasn't published yet (fresh launch, before reassociation) still shows the
+    /// bytes already on disk — summed across tracks — rather than zero, with an indeterminate bar.
+    @Test func withoutASnapshotFallsBackToSummedPersistedOffsets() {
+        let j = job(state: .paused, kind: .adaptive(video: track("v.part", bytesWritten: 900, totalBytes: 1000),
+                                                    audio: track("a.part", bytesWritten: 100, totalBytes: 200)))
+        let row = DownloadsViewModel.rows(jobs: [j], snapshots: [:])[0]
+        #expect(row.receivedBytes == 1000)
+        #expect(row.fraction == nil)
+        #expect(row.totalBytes == nil)
+    }
+
+    @Test func indeterminateSnapshotYieldsNoFraction() {
+        let j = job(state: .downloading, kind: .progressive(track("p.part", taskIdentifier: 3)))
+        let rows = DownloadsViewModel.rows(jobs: [j], snapshots: [j.id: snap(.downloading, 700, nil)])
+        #expect(rows[0].fraction == nil)
+        #expect(rows[0].receivedBytes == 700)
+    }
+
+    /// The row variant comes from the persisted job, not the snapshot's state — a `.downloading`
+    /// job with no live task is "Waiting (background)".
+    @Test func rowVariantComesFromTheJobNotTheSnapshot() {
+        let j = job(state: .downloading, kind: .progressive(track("p.part", taskIdentifier: nil)))
+        let rows = DownloadsViewModel.rows(jobs: [j], snapshots: [j.id: snap(.downloading, 1, 2)])
+        #expect(rows[0].rowState == .waitingBackground)
+    }
+
+    // MARK: ordering
+
+    @Test func ordersActiveThenWaitingThenAttention() {
+        let failed = job(state: .failed(.network), createdAt: 1)
+        let queued = job(state: .queued, createdAt: 2)
+        let active = job(state: .downloading, createdAt: 3,
+                         kind: .progressive(track("p.part", taskIdentifier: 5)))
+        let needsSignIn = job(state: .needsRefresh, createdAt: 4, credentialRef: "acct")
+        let rows = DownloadsViewModel.rows(jobs: [failed, queued, active, needsSignIn], snapshots: [:])
+        #expect(rows.map(\.rowState) == [.downloading, .queued, .failed(.network), .needsSignIn])
+    }
+
+    @Test func tiesBreakOnCreatedAtOldestFirst() {
+        let newer = job(state: .queued, createdAt: 200)
+        let older = job(state: .queued, createdAt: 100)
+        let rows = DownloadsViewModel.rows(jobs: [newer, older], snapshots: [:])
+        #expect(rows.map(\.id) == [older.id, newer.id])
+    }
+
+    /// Merging and refreshing rank as active alongside downloading (they're automatic work),
+    /// so they never sink below a queued row.
+    @Test func mergingAndRefreshingRankAsActive() {
+        let queued = job(state: .queued, createdAt: 1)
+        let merging = job(state: .readyToMerge, createdAt: 2)
+        let refreshing = job(state: .needsRefresh, createdAt: 3)
+        let rows = DownloadsViewModel.rows(jobs: [queued, merging, refreshing], snapshots: [:])
+        #expect(rows.map(\.rowState) == [.merging, .refreshing, .queued])
+    }
+}
