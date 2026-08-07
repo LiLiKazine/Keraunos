@@ -8,14 +8,21 @@ public struct ProgressSnapshot: Sendable, Equatable {
     public let state: JobState
     public let receivedBytes: Int64
     public let totalBytes: Int64?
+    /// True when `totalBytes` leans on any track's extraction-time estimate rather than a size
+    /// the server reported. The bar is still determinate, but the number can drift and even
+    /// exceed 100% — the UI should hedge it (and clamp) rather than present it as exact.
+    public let isEstimated: Bool
 
-    public init(state: JobState, receivedBytes: Int64, totalBytes: Int64?) {
+    public init(state: JobState, receivedBytes: Int64, totalBytes: Int64?, isEstimated: Bool = false) {
         self.state = state
         self.receivedBytes = receivedBytes
         self.totalBytes = totalBytes
+        self.isEstimated = isEstimated
     }
 
-    /// 0...1 whole-file fraction, or nil when the total isn't known yet (or is zero).
+    /// 0...1 whole-file fraction, or nil when the total isn't known yet (or is zero). Not
+    /// clamped: when `isEstimated`, a low estimate legitimately overshoots 1.0 and callers
+    /// should see that rather than a silently capped value.
     public var fraction: Double? {
         guard let totalBytes, totalBytes > 0 else { return nil }
         return Double(receivedBytes) / Double(totalBytes)

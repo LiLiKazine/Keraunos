@@ -58,10 +58,24 @@ struct TransferQueueRow: View {
         if let fraction = item.fraction, item.rowState == .downloading || item.rowState == .paused {
             ProgressBar(value: fraction)
                 .accessibilityLabel("Download progress")
-                .accessibilityValue("\(Int(fraction * 100)) percent")
+                .accessibilityValue("\(Self.percent(fraction: fraction, isEstimated: item.isEstimatedTotal)) percent")
         } else {
             IndeterminateBar()   // waiting/merging/refreshing, or size not yet known
         }
+    }
+
+    /// The clamped whole percentage to show. An estimated total comes from yt-dlp's
+    /// `filesize_approx` (bitrate-derived), so it can be low and the fraction can overshoot —
+    /// cap it at 99% while the job is still transferring, because both "137%" and a premature
+    /// "100%" read as bugs.
+    static func percent(fraction: Double, isEstimated: Bool) -> Int {
+        let whole = Int((fraction * 100).rounded(.down))
+        return min(max(whole, 0), isEstimated ? 99 : 100)
+    }
+
+    /// The percentage as shown, hedged with a leading `~` when the total is an estimate.
+    static func percentText(fraction: Double, isEstimated: Bool) -> String {
+        "\(isEstimated ? "~" : "")\(percent(fraction: fraction, isEstimated: isEstimated))%"
     }
 
     @ViewBuilder private var statusLine: some View {
@@ -74,10 +88,14 @@ struct TransferQueueRow: View {
     private var statusText: String {
         switch item.rowState {
         case .downloading:
-            if let f = item.fraction { return "\(Int(f * 100))%" }
+            if let f = item.fraction {
+                return Self.percentText(fraction: f, isEstimated: item.isEstimatedTotal)
+            }
             return "Downloading…"
         case .paused:
-            return item.fraction.map { "Paused · \(Int($0 * 100))%" } ?? "Paused"
+            return item.fraction.map {
+                "Paused · \(Self.percentText(fraction: $0, isEstimated: item.isEstimatedTotal))"
+            } ?? "Paused"
         case .queued:             return "◷ Queued · \(item.qualityLabel)"
         case .waitingBackground:  return "Waiting to resume…"
         case .merging:            return "Merging video + audio…"

@@ -58,10 +58,18 @@ public struct TrackJob: Codable, Sendable, Equatable {
     /// sources — Cookie), replayed on every request including post-relaunch resumes so CDNs
     /// accept the transfer. Persisted with the job.
     public var requestHeaders: [String: String]
+    /// The extraction-time size estimate (yt-dlp `filesize`/`filesize_approx`), carried so the
+    /// queue can show a determinate bar before the first response — adaptive tracks download
+    /// sequentially, so the second track's real total isn't known until it starts.
+    ///
+    /// **Display only, never control flow.** `totalBytes` gates chunk termination
+    /// (`length >= total`), `firstIncompleteTrackIndex`, and the finalizer's integrity check;
+    /// an estimate low by even a byte would truncate the download there.
+    public var approxBytes: Int64?
 
     public init(remoteURL: URL, urlExpiresAt: Date?, chunkSize: Int?, partFileName: String,
                 bytesWritten: Int64, totalBytes: Int64?, resumeData: Data?, taskIdentifier: Int?,
-                requestHeaders: [String: String] = [:]) {
+                requestHeaders: [String: String] = [:], approxBytes: Int64? = nil) {
         self.remoteURL = remoteURL
         self.urlExpiresAt = urlExpiresAt
         self.chunkSize = chunkSize
@@ -71,6 +79,7 @@ public struct TrackJob: Codable, Sendable, Equatable {
         self.resumeData = resumeData
         self.taskIdentifier = taskIdentifier
         self.requestHeaders = requestHeaders
+        self.approxBytes = approxBytes
     }
 }
 

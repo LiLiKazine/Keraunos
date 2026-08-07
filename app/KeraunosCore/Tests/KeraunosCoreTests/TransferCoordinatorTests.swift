@@ -15,11 +15,12 @@ struct TransferCoordinatorTests {
         return url
     }
     private func track(part: String, chunkSize: Int?, bytesWritten: Int64 = 0,
-                       totalBytes: Int64? = nil, resumeData: Data? = nil) -> TrackJob {
+                       totalBytes: Int64? = nil, resumeData: Data? = nil,
+                       approxBytes: Int64? = nil) -> TrackJob {
         TrackJob(remoteURL: URL(string: "https://cdn.example/\(part)")!,
                  urlExpiresAt: nil, chunkSize: chunkSize, partFileName: part,
                  bytesWritten: bytesWritten, totalBytes: totalBytes,
-                 resumeData: resumeData, taskIdentifier: nil)
+                 resumeData: resumeData, taskIdentifier: nil, approxBytes: approxBytes)
     }
     private func job(id: UUID = UUID(), kind: TransferJob.Kind, state: JobState = .queued) -> TransferJob {
         TransferJob(id: id, sourcePageURL: URL(string: "https://ex.com")!,
@@ -345,6 +346,57 @@ struct TransferCoordinatorTests {
         #expect(after.tracks[0].bytesWritten == 0)               // restarted
         #expect(await session.lastRange() == "bytes=0-99")
         #expect(FileManager.default.fileSize(store.partFileURL(for: "c.part")) == 0)
+    }
+
+    // MARK: the size estimate must never gate download control flow
+
+    /// `approxBytes` is a display-only estimate (yt-dlp's `filesize_approx` is derived from
+    /// bitrate and can be well under the truth). If it ever reached the chunk-termination test
+    /// (`length >= total`) a low estimate would end the transfer mid-file and the job would
+    /// finalize a truncated video. Real file 400, estimate 150.
+    @Test func aLowEstimateDoesNotTerminateAChunkedDownloadEarly() async throws {
+        let dir = tempDir()
+        let store = try TransferJobStore(directory: dir)
+        let session = ScriptedTransferSession()
+        let coord = TransferCoordinator(store: store, session: session)
+        let j = job(kind: .progressive(track(part: "c.part", chunkSize: 100, approxBytes: 150)),
+                    state: .downloading)
+        try await store.upsert(j)
+        try await coord.start(j)
+
+        // Two chunks — 200 bytes written, well past the 150-byte estimate.
+        for _ in 0..<2 {
+            let id = await session.started.last!.id
+            await coord.taskDidFinishDownloading(taskIdentifier: id, to: stage(Data(repeating: 1, count: 100)),
+                                                 statusCode: 206, contentRangeTotal: 400)
+        }
+        #expect(await store.job(id: j.id)!.state == .downloading)   // NOT ended by the estimate
+        #expect(await store.job(id: j.id)!.tracks[0].bytesWritten == 200)
+        #expect(await session.started.count == 3)                  // still fetching
+
+        for _ in 0..<2 {
+            let id = await session.started.last!.id
+            await coord.taskDidFinishDownloading(taskIdentifier: id, to: stage(Data(repeating: 1, count: 100)),
+                                                 statusCode: 206, contentRangeTotal: 400)
+        }
+        let done = await store.job(id: j.id)!
+        #expect(done.state == .readyToMerge)                        // ended by the REAL total
+        #expect(done.tracks[0].bytesWritten == 400)
+    }
+
+    /// Nor may it make a track look complete: `firstIncompleteTrackIndex` compares against
+    /// `totalBytes` only, so a job past its estimate must still download rather than skip
+    /// straight to merging.
+    @Test func aTrackPastItsEstimateIsStillIncomplete() async throws {
+        let dir = tempDir()
+        let store = try TransferJobStore(directory: dir)
+        let session = ScriptedTransferSession()
+        let coord = TransferCoordinator(store: store, session: session)
+        let j = job(kind: .progressive(track(part: "c.part", chunkSize: 100,
+                                             bytesWritten: 200, approxBytes: 150)))
+        try await coord.start(j)
+        #expect(await store.job(id: j.id)!.state == .downloading)
+        #expect(await session.started.count == 1)
     }
 
     // MARK: progress publication

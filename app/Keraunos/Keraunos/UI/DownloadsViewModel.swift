@@ -13,6 +13,9 @@ struct QueueItem: Identifiable, Equatable {
     let fraction: Double?
     let receivedBytes: Int64
     let totalBytes: Int64?
+    /// `totalBytes` leans on an extraction-time estimate, so `fraction` can drift past 1.0 —
+    /// the row hedges the number (see `TransferQueueRow.percentText`).
+    let isEstimatedTotal: Bool
     let createdAt: Date
 }
 
@@ -81,6 +84,7 @@ final class DownloadsViewModel {
                 fraction: snap?.fraction,
                 receivedBytes: snap?.receivedBytes ?? job.tracks.reduce(0) { $0 + $1.bytesWritten },
                 totalBytes: snap?.totalBytes,
+                isEstimatedTotal: snap?.isEstimated ?? false,
                 createdAt: job.createdAt)
         }
         return rows.sorted {

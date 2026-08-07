@@ -7,11 +7,12 @@ import Foundation
 /// case: two tracks download *sequentially*, so a naive per-track fraction would run to
 /// 100% at the video handoff and then restart.
 @Suite struct ProgressAggregationTests {
-    private func track(_ part: String, bytesWritten: Int64, totalBytes: Int64?) -> TrackJob {
+    private func track(_ part: String, bytesWritten: Int64, totalBytes: Int64?,
+                       approxBytes: Int64? = nil) -> TrackJob {
         TrackJob(remoteURL: URL(string: "https://cdn.example/\(part)")!,
                  urlExpiresAt: nil, chunkSize: nil, partFileName: part,
                  bytesWritten: bytesWritten, totalBytes: totalBytes,
-                 resumeData: nil, taskIdentifier: nil)
+                 resumeData: nil, taskIdentifier: nil, approxBytes: approxBytes)
     }
     private func job(_ kind: TransferJob.Kind, state: JobState = .downloading) -> TransferJob {
         TransferJob(id: UUID(), sourcePageURL: URL(string: "https://ex.com")!,
@@ -71,6 +72,57 @@ import Foundation
             audio: track("a", bytesWritten: 0, totalBytes: 200))), liveReceived: 50)
         #expect(snap.receivedBytes == 1050)
         #expect(snap.totalBytes == 1200)
+    }
+
+    // MARK: falling back to the extraction-time estimate
+
+    /// Adaptive tracks download sequentially, so the second track's real total is unknown until
+    /// it starts — which left the whole video phase indeterminate. yt-dlp's per-format size
+    /// fills that hole, flagged `isEstimated` so the UI can hedge the number.
+    @Test func bothTracksEstimatedYieldsAnEstimatedTotal() {
+        let snap = TransferCoordinator.snapshot(for: job(.adaptive(
+            video: track("v", bytesWritten: 300, totalBytes: nil, approxBytes: 9000),
+            audio: track("a", bytesWritten: 0, totalBytes: nil, approxBytes: 1000))))
+        #expect(snap.totalBytes == 10_000)
+        #expect(snap.isEstimated)
+        #expect(snap.fraction == 0.03)
+    }
+
+    /// Per-track preference: a real total always beats that track's estimate, but any track
+    /// falling back marks the whole snapshot estimated.
+    @Test func aRealTotalIsPreferredOverThatTracksEstimate() {
+        let snap = TransferCoordinator.snapshot(for: job(.adaptive(
+            video: track("v", bytesWritten: 1000, totalBytes: 1000, approxBytes: 9999),
+            audio: track("a", bytesWritten: 0, totalBytes: nil, approxBytes: 200))))
+        #expect(snap.totalBytes == 1200)      // real 1000 + estimated 200
+        #expect(snap.isEstimated)
+    }
+
+    @Test func allRealTotalsAreNotEstimated() {
+        let snap = TransferCoordinator.snapshot(for: job(.adaptive(
+            video: track("v", bytesWritten: 300, totalBytes: 1000, approxBytes: 9999),
+            audio: track("a", bytesWritten: 100, totalBytes: 200, approxBytes: 9999))))
+        #expect(snap.totalBytes == 1200)
+        #expect(!snap.isEstimated)
+    }
+
+    /// One track with neither a total nor an estimate still means indeterminate — a partial sum
+    /// would understate the job and the bar would overshoot.
+    @Test func aTrackWithNeitherTotalNorEstimateStaysIndeterminate() {
+        let snap = TransferCoordinator.snapshot(for: job(.adaptive(
+            video: track("v", bytesWritten: 300, totalBytes: nil, approxBytes: 9000),
+            audio: track("a", bytesWritten: 0, totalBytes: nil, approxBytes: nil))))
+        #expect(snap.totalBytes == nil)
+        #expect(snap.fraction == nil)
+    }
+
+    /// An estimate can be low — `filesize_approx` is derived from bitrate. The model reports the
+    /// overshoot honestly (fraction > 1); clamping is the display layer's job.
+    @Test func aLowEstimateOvershootsRatherThanLying() {
+        let snap = TransferCoordinator.snapshot(for: job(.progressive(
+            track("p", bytesWritten: 1500, totalBytes: nil, approxBytes: 1000))))
+        #expect(snap.fraction == 1.5)
+        #expect(snap.isEstimated)
     }
 
     @Test func stateMirrorsTheJob() {

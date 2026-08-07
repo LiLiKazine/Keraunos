@@ -204,6 +204,51 @@ def test_progressive_payload_shape():
     assert out["media"]["ext"] == "mp4"
 
 
+def test_track_payload_carries_exact_filesize_as_approx_bytes():
+    """The Swift queue needs a size before the first response to show a determinate bar."""
+    info = {
+        "title": "Clip", "ext": "mp4", "url": "https://x.test/v.mp4",
+        "vcodec": "avc1.4d401e", "acodec": "mp4a.40.2", "filesize": 12_345,
+    }
+    out = json.loads(keraunos_extract._payload_for_info(info, lambda i: "Clip.mp4"))
+    assert out["media"]["approx_bytes"] == 12_345
+
+
+def test_track_payload_falls_back_to_filesize_approx():
+    info = {
+        "title": "Clip", "ext": "mp4", "url": "https://x.test/v.mp4",
+        "vcodec": "avc1.4d401e", "acodec": "mp4a.40.2", "filesize_approx": 999,
+    }
+    out = json.loads(keraunos_extract._payload_for_info(info, lambda i: "Clip.mp4"))
+    assert out["media"]["approx_bytes"] == 999
+
+
+def test_track_payload_approx_bytes_is_null_when_the_size_is_unknown():
+    info = {
+        "title": "Clip", "ext": "mp4", "url": "https://x.test/v.mp4",
+        "vcodec": "avc1.4d401e", "acodec": "mp4a.40.2",
+    }
+    out = json.loads(keraunos_extract._payload_for_info(info, lambda i: "Clip.mp4"))
+    assert out["media"]["approx_bytes"] is None
+
+
+def test_adaptive_payload_carries_a_size_per_track():
+    """Sizes stay per-track (not summed) — the Swift side sums them, and needs both to know
+    whether the whole-job total is complete."""
+    info = {
+        "title": "Clip", "ext": "mp4",
+        "requested_formats": [
+            {"url": "https://x.test/v.m4v", "vcodec": "hvc1", "acodec": "none",
+             "ext": "mp4", "filesize": 9_000},
+            {"url": "https://x.test/a.m4a", "vcodec": "none", "acodec": "mp4a.40.2",
+             "ext": "m4a", "filesize_approx": 1_000},
+        ],
+    }
+    out = json.loads(keraunos_extract._payload_for_info(info, lambda i: "Clip.mp4"))
+    assert out["video"]["approx_bytes"] == 9_000
+    assert out["audio"]["approx_bytes"] == 1_000
+
+
 def test_adaptive_payload_shape():
     info = {
         "title": "Clip", "ext": "mp4",

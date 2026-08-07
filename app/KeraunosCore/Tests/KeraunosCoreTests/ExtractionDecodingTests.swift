@@ -73,4 +73,28 @@ struct ExtractionDecodingTests {
         guard case let .progressive(track) = media.kind else { Issue.record("expected progressive"); return }
         #expect(track.chunkSize == nil)
     }
+
+    /// yt-dlp's `filesize`/`filesize_approx` for the chosen format, so the queue can show a
+    /// determinate bar before any byte arrives.
+    @Test func decodesApproxBytesForBothAdaptiveTracks() throws {
+        let json = #"""
+        {"ok":true,"kind":"adaptive","title":"T","filename":"c.mp4",
+         "video":{"url":"https://x.test/v.m4s","headers":{},"vcodec":"avc1","ext":"m4s","approx_bytes":9000},
+         "audio":{"url":"https://x.test/a.m4s","headers":{},"acodec":"mp4a","ext":"m4a","approx_bytes":1000}}
+        """#
+        let media = try ExtractionDecoder.decode(Data(json.utf8))
+        guard case let .adaptive(video, audio) = media.kind else { Issue.record("expected adaptive"); return }
+        #expect(video.approxBytes == 9000)
+        #expect(audio.approxBytes == 1000)
+    }
+
+    @Test func approxBytesNilWhenAbsentOrNull() throws {
+        let json = #"""
+        {"ok":true,"kind":"progressive","title":"T","filename":"c.mp4",
+         "media":{"url":"https://x.test/v.mp4","headers":{},"vcodec":"avc1","ext":"mp4","approx_bytes":null}}
+        """#
+        let media = try ExtractionDecoder.decode(Data(json.utf8))
+        guard case let .progressive(track) = media.kind else { Issue.record("expected progressive"); return }
+        #expect(track.approxBytes == nil)
+    }
 }

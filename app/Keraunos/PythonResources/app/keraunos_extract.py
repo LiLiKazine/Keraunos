@@ -109,6 +109,10 @@ def _track(fmt):
         # Downloader honors it with ranged requests to avoid googlevideo throttling
         # single-shot GETs. None for hosts that download fine unranged.
         "chunk_size": (fmt.get("downloader_options") or {}).get("http_chunk_size"),
+        # Display-only size estimate so the queue can show a determinate bar before the
+        # first response. filesize is exact; filesize_approx is derived from bitrate and
+        # can be well under the truth, so the Swift side never uses it for control flow.
+        "approx_bytes": _fmt_size(fmt),
     }
 
 

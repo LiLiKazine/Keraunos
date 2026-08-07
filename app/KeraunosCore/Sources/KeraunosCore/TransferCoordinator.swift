@@ -297,15 +297,22 @@ public actor TransferCoordinator {
         await progress.set(Self.snapshot(for: job, liveReceived: liveReceived), for: jobID)
     }
 
-    /// Whole-file snapshot: summed offsets (+ live chunk bytes), and a summed total only when
-    /// EVERY track total is known (else indeterminate).
+    /// Whole-file snapshot: summed offsets (+ live chunk bytes), and a summed total.
+    ///
+    /// The total is taken per track, preferring the server-reported `totalBytes` and falling
+    /// back to the extraction-time `approxBytes`. It stays nil only when some track has neither
+    /// — a partial sum would understate the job and the bar would overshoot. Any track that
+    /// fell back marks the whole snapshot `isEstimated`, since adaptive tracks download
+    /// sequentially and the second one's real size isn't known until it starts.
     static func snapshot(for job: TransferJob, liveReceived: Int64 = 0) -> ProgressSnapshot {
         let received = job.tracks.reduce(Int64(0)) { $0 + $1.bytesWritten } + liveReceived
-        let totals = job.tracks.map(\.totalBytes)
-        let total: Int64? = totals.contains(where: { $0 == nil })
+        let sizes = job.tracks.map { (real: $0.totalBytes, estimate: $0.approxBytes) }
+        let total: Int64? = sizes.contains(where: { $0.real == nil && $0.estimate == nil })
             ? nil
-            : totals.compactMap { $0 }.reduce(0, +)
-        return ProgressSnapshot(state: job.state, receivedBytes: received, totalBytes: total)
+            : sizes.compactMap { $0.real ?? $0.estimate }.reduce(0, +)
+        let isEstimated = total != nil && sizes.contains { $0.real == nil && $0.estimate != nil }
+        return ProgressSnapshot(state: job.state, receivedBytes: received,
+                                totalBytes: total, isEstimated: isEstimated)
     }
 
     /// Persists a state mutation from a non-throwing, delegate-driven path. Recovery for a

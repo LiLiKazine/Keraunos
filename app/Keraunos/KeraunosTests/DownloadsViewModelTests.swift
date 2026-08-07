@@ -25,8 +25,55 @@ struct DownloadsViewModelTests {
                     state: state, kind: kind ?? .progressive(track("p.part")),
                     suggestedFilename: filename, savedFilename: nil, autoSaveToPhotos: false)
     }
-    private func snap(_ state: JobState, _ received: Int64, _ total: Int64?) -> ProgressSnapshot {
-        ProgressSnapshot(state: state, receivedBytes: received, totalBytes: total)
+    private func snap(_ state: JobState, _ received: Int64, _ total: Int64?,
+                      isEstimated: Bool = false) -> ProgressSnapshot {
+        ProgressSnapshot(state: state, receivedBytes: received, totalBytes: total,
+                         isEstimated: isEstimated)
+    }
+
+    // MARK: estimated totals
+
+    @Test func estimatedTotalsAreFlaggedOnTheRow() {
+        let j = job(state: .downloading, kind: .progressive(track("p.part", taskIdentifier: 3)))
+        let rows = DownloadsViewModel.rows(jobs: [j],
+                                          snapshots: [j.id: snap(.downloading, 300, 10_000, isEstimated: true)])
+        #expect(rows[0].fraction == 0.03)
+        #expect(rows[0].isEstimatedTotal)
+    }
+
+    @Test func exactTotalsAreNotFlagged() {
+        let j = job(state: .downloading, kind: .progressive(track("p.part", taskIdentifier: 3)))
+        let rows = DownloadsViewModel.rows(jobs: [j], snapshots: [j.id: snap(.downloading, 300, 1000)])
+        #expect(!rows[0].isEstimatedTotal)
+    }
+
+    /// A job with no snapshot has no total either, so it can't be claiming an estimate.
+    @Test func aRowWithoutASnapshotIsNotFlaggedAsEstimated() {
+        let j = job(state: .paused, kind: .progressive(track("p.part", bytesWritten: 10)))
+        #expect(!DownloadsViewModel.rows(jobs: [j], snapshots: [:])[0].isEstimatedTotal)
+    }
+
+    // MARK: the percentage shown next to the bar
+
+    @Test func exactPercentIsPlain() {
+        #expect(TransferQueueRow.percentText(fraction: 0.25, isEstimated: false) == "25%")
+        #expect(TransferQueueRow.percentText(fraction: 1.0, isEstimated: false) == "100%")
+    }
+
+    @Test func estimatedPercentIsHedged() {
+        #expect(TransferQueueRow.percentText(fraction: 0.25, isEstimated: true) == "~25%")
+    }
+
+    /// A low `filesize_approx` overshoots — "137%" reads as a bug, and a premature "100%" is a
+    /// lie while the job is still downloading. Cap an estimate at 99%.
+    @Test func anOvershootingEstimateIsCappedBelowComplete() {
+        #expect(TransferQueueRow.percentText(fraction: 1.37, isEstimated: true) == "~99%")
+        #expect(TransferQueueRow.percentText(fraction: 9.0, isEstimated: true) == "~99%")
+    }
+
+    @Test func percentNeverGoesNegativeOrPastComplete() {
+        #expect(TransferQueueRow.percentText(fraction: -0.5, isEstimated: false) == "0%")
+        #expect(TransferQueueRow.percentText(fraction: 1.2, isEstimated: false) == "100%")
     }
 
     // MARK: identity & labels

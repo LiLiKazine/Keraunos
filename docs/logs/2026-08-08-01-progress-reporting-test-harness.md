@@ -8,7 +8,8 @@
 |--------|-------|
 | `ded0dcf` | Aggregation math (`snapshot(for:)`) + the queue-row mapping seam |
 | `3e64d2a` | Publication invariant across all coordinator transitions — found and fixed a missing `publish` in `taskDidFail` |
-| (this) | Single-shot tracks learn their total from the delegate, so the bar is determinate before completion |
+| `332e4d4` | Single-shot tracks learn their total from the delegate, so the bar is determinate before completion |
+| (this) | Carry yt-dlp's per-format size as a display-only estimate, closing the adaptive video phase |
 
 ## Context
 
@@ -218,3 +219,89 @@ already recorded.
 - No effect on completeness logic: single-shot keeps `bytesWritten == 0` until completion, so a
   learned total leaves the track incomplete (`0 < total`) and `firstIncompleteTrackIndex` /
   `rowState` behave exactly as before.
+
+---
+
+## Follow-up: the adaptive video phase — a size estimate that cannot break a download
+
+### Context
+
+After `332e4d4`, single-shot transfers show an exact percentage. Adaptive (DASH) jobs did not:
+`snapshot(for:)` needs *every* track's total, tracks download sequentially, and the second
+track's size isn't known until it starts — so the entire video phase (the bulk of the bytes)
+stayed indeterminate and a real percentage appeared only during the short audio tail.
+
+yt-dlp already reports a per-format size; it just never reached the job. `_track()` in
+`keraunos_extract.py` omitted it, `MediaTrack` had no field for it, and
+`TransferJobFactory` seeded `totalBytes: nil`.
+
+### Options
+
+| Approach | Pros | Cons |
+|----------|------|------|
+| Seed the estimate into `TrackJob.totalBytes` | no new field; `snapshot(for:)` works unchanged | **unsafe** — see below |
+| Estimate the missing track from the known one (e.g. audio ≈ 10% of video) | no new plumbing at all | invents a number; wrong across codecs and bitrates |
+| **New display-only `approxBytes`, preferred per-track only when no real total exists (chosen)** | determinate from byte zero; cannot influence transfer control flow; degrades to today's behavior when yt-dlp reports no size | one additive field through 4 layers; the number can drift, so the UI must hedge it |
+
+### Decision
+
+Carry yt-dlp's `filesize`/`filesize_approx` as `MediaTrack.approxBytes` →
+`TrackJob.approxBytes`, a **display-only** value. `snapshot(for:)` takes each track's
+`totalBytes ?? approxBytes`, stays nil only when a track has neither, and sets a new
+`ProgressSnapshot.isEstimated` when any track fell back. The row renders an estimate as `~42%`,
+capped at 99%.
+
+### Rationale
+
+Seeding `totalBytes` looks like the cheap version and is actively dangerous — that field is
+load-bearing in three places, and `filesize_approx` is derived from bitrate, so it is routinely
+*low*:
+
+1. Chunk termination is `ended = … || (total.map { length >= $0 } ?? false)`. A low total ends
+   the transfer mid-file, and the job then finalizes a **truncated video**.
+2. `firstIncompleteTrackIndex` compares `bytesWritten < totalBytes` — a low total makes a
+   partial track look finished and skips it.
+3. `TransferFinalizer` fails a part whose bytes ≠ `totalBytes`, so a stale estimate that never
+   got overwritten would surface as a bogus `.integrityCheckFailed`.
+
+A separate field makes all three impossible by construction rather than by care.
+
+### What Changed
+
+- `PythonResources/app/keraunos_extract.py` — `_track()` emits `approx_bytes` via the existing
+  `_fmt_size()` helper (`filesize` or `filesize_approx`).
+- `KeraunosCore/MediaTrack.swift`, `TransferJob.swift` (`TrackJob`) — new optional
+  `approxBytes`, documented as display-only. Additive and Codable-safe: existing persisted jobs
+  decode it as nil and simply keep the old indeterminate behavior.
+- `KeraunosCore/ResolvedMedia.swift` — decode `approx_bytes` off the wire.
+- `KeraunosCore/TransferJobFactory.swift` — carry it onto the `TrackJob` (`totalBytes` stays nil).
+- `KeraunosCore/TransferProgress.swift` — `ProgressSnapshot.isEstimated` (defaulted, so existing
+  call sites are untouched); documented that `fraction` is deliberately **not** clamped.
+- `KeraunosCore/TransferCoordinator.swift` — two-tier total in `snapshot(for:)`.
+- `Keraunos/UI/DownloadsViewModel.swift` — `QueueItem.isEstimatedTotal`.
+- `Keraunos/Components/TransferQueueRow.swift` — `percent(fraction:isEstimated:)` /
+  `percentText(…)`, used by the status line and the bar's accessibility value.
+- Tests: 4 Python (payload sizes, per-track not summed), 2 extraction decoding, 1 factory,
+  5 aggregation, **2 coordinator safety regressions**, 7 app-side (flag propagation + percent
+  formatting). All written before the implementation.
+
+### What Was Discovered
+
+- **The safety tests are the point of this change.** `aLowEstimateDoesNotTerminateAChunkedDownload
+  Early` drives a real 400-byte file with a 150-byte estimate and asserts the transfer keeps
+  going past 200 bytes and ends on the *real* total; `aTrackPastItsEstimateIsStillIncomplete`
+  asserts a job past its estimate still downloads instead of jumping to merging. Without them
+  a later "simplification" that folds `approxBytes` into `totalBytes` would silently ship
+  truncated videos — and every other test would stay green.
+- **Where the estimate actually gets used is narrower than expected**, which is reassuring: a
+  chunked track learns its real total from `Content-Range` on chunk 1, and a single-shot track
+  from the delegate on the first callback (`332e4d4`). So the estimate covers exactly two
+  windows — before the first byte, and a not-yet-started second adaptive track. Both are
+  precisely the holes that were indeterminate.
+- **A completed job is never flagged estimated**: completion writes real totals for every track,
+  so the row can't end on "~100%".
+- The percent cap has to be 99, not 100, for estimates: a low `filesize_approx` produces
+  `fraction > 1`, and both "137%" and a premature "100%" read as bugs while bytes are still
+  arriving. `ProgressBar` already clamped the *bar*; the text did not.
+- `_track()` calls `_fmt_size()`, which is defined ~60 lines below it. Fine in Python (name
+  resolution happens at call time), and it keeps the helper next to its other caller.

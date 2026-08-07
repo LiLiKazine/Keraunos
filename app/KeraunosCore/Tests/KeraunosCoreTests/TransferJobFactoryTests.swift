@@ -6,8 +6,28 @@ import Foundation
     private let page = URL(string: "https://site.example/watch?v=1")!
     private let sel = FormatSelection(formatID: "22", height: 720, isAdaptive: false)
 
-    private func track(_ url: String, headers: [String: String] = ["User-Agent": "yt"], chunk: Int? = nil) -> MediaTrack {
-        MediaTrack(url: URL(string: url)!, httpHeaders: headers, codec: "h264", fileExtension: "mp4", chunkSize: chunk)
+    private func track(_ url: String, headers: [String: String] = ["User-Agent": "yt"], chunk: Int? = nil,
+                      approxBytes: Int64? = nil) -> MediaTrack {
+        MediaTrack(url: URL(string: url)!, httpHeaders: headers, codec: "h264", fileExtension: "mp4",
+                   chunkSize: chunk, approxBytes: approxBytes)
+    }
+
+    /// The extraction-time size estimate rides along as `approxBytes` — display only. It must
+    /// NOT land in `totalBytes`, which gates chunk termination, track completeness, and the
+    /// finalizer's integrity check.
+    @Test func carriesApproxBytesWithoutSeedingTotalBytes() {
+        let media = ResolvedMedia(kind: .adaptive(video: track("https://cdn/v.m4s", approxBytes: 9000),
+                                                  audio: track("https://cdn/a.m4s", approxBytes: 1000)),
+                                  title: "T", suggestedFilename: "T.mp4")
+        let id = UUID()
+        let job = TransferJobFactory.make(id: id, from: media, sourcePageURL: page, selection: sel,
+                                          autoSaveToPhotos: false, credentialRef: nil,
+                                          createdAt: Date(), partPrefix: id.uuidString)
+        guard case .adaptive(let v, let a) = job.kind else { Issue.record("expected adaptive"); return }
+        #expect(v.approxBytes == 9000)
+        #expect(a.approxBytes == 1000)
+        #expect(v.totalBytes == nil)
+        #expect(a.totalBytes == nil)
     }
 
     @Test func progressiveCarriesHeadersAndChunkAndName() {

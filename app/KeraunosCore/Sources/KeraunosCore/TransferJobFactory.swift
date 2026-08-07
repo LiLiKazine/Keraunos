@@ -25,6 +25,7 @@ public enum TransferJobFactory {
     private static func trackJob(_ t: MediaTrack, name: String) -> TrackJob {
         TrackJob(remoteURL: t.url, urlExpiresAt: MediaURLExpiry.expiry(of: t.url),
                  chunkSize: t.chunkSize, partFileName: name, bytesWritten: 0, totalBytes: nil,
-                 resumeData: nil, taskIdentifier: nil, requestHeaders: t.httpHeaders)
+                 resumeData: nil, taskIdentifier: nil, requestHeaders: t.httpHeaders,
+                 approxBytes: t.approxBytes)
     }
 }
