@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Privacy manifest for CPython's _ssl extension module.
+
+  _ssl statically links OpenSSL, which Apple's App Store scanner fingerprints as
+  BoringSSL / openssl_grpc — a "commonly used third-party SDK" that must ship a
+  privacy manifest (ITMS-91061). Python-Apple-support does not provide one, so
+  Keraunos supplies it; see PythonResources/seed-privacy-manifests.sh.
+
+  _ssl performs TLS only. It collects nothing and tracks nothing. Its one
+  required-reason API use is stat()-ing certificate files (OpenSSL's by_file.c /
+  by_dir.c and load_verify_locations) inside the app bundle — the certifi CA
+  bundle — which is C617.1.
+-->
+<plist version="1.0">
+<dict>
+	<key>NSPrivacyTracking</key>
+	<false/>
+	<key>NSPrivacyTrackingDomains</key>
+	<array/>
+	<key>NSPrivacyCollectedDataTypes</key>
+	<array/>
+	<key>NSPrivacyAccessedAPITypes</key>
+	<array>
+		<dict>
+			<key>NSPrivacyAccessedAPIType</key>
+			<string>NSPrivacyAccessedAPICategoryFileTimestamp</string>
+			<key>NSPrivacyAccessedAPITypeReasons</key>
+			<array>
+				<string>C617.1</string>
+			</array>
+		</dict>
+	</array>
+</dict>
+</plist>

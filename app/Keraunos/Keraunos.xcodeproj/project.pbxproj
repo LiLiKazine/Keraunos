@@ -372,7 +372,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "set -e\nsource \"$PROJECT_DIR/PythonResources/Python.xcframework/build/utils.sh\"\nrsync -a --delete \"$PROJECT_DIR/PythonResources/app/\" \"$CODESIGNING_FOLDER_PATH/app/\"\nrsync -a --delete \"$PROJECT_DIR/PythonResources/app_packages/\" \"$CODESIGNING_FOLDER_PATH/app_packages/\"\ninstall_python \"PythonResources/Python.xcframework\" \"app\" \"app_packages\"\n";
+			shellScript = "set -e\nsource \"$PROJECT_DIR/PythonResources/Python.xcframework/build/utils.sh\"\nrsync -a --delete \"$PROJECT_DIR/PythonResources/app/\" \"$CODESIGNING_FOLDER_PATH/app/\"\nrsync -a --delete \"$PROJECT_DIR/PythonResources/app_packages/\" \"$CODESIGNING_FOLDER_PATH/app_packages/\"\n# _ssl/_hashlib embed OpenSSL and need a privacy manifest or the App Store rejects the upload with ITMS-91061; install_python installs them per-module.\n\"$PROJECT_DIR/PythonResources/seed-privacy-manifests.sh\" \"$PROJECT_DIR/PythonResources/Python.xcframework\"\ninstall_python \"PythonResources/Python.xcframework\" \"app\" \"app_packages\"\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 

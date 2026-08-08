@@ -119,6 +119,15 @@ Native" palette).
   fold the two back together.
 - Embedded Python has **no system CA store** — bundle `certifi` and point the SSL
   context at it, or all HTTPS extraction fails.
+- **`_ssl`/`_hashlib` embed OpenSSL and need privacy manifests**, or the App Store
+  rejects the upload with **ITMS-91061** and the version drops to `INVALID_BINARY`
+  (this killed build 46). Python-Apple-support ships none, and `Python.xcframework/`
+  is gitignored + re-downloaded on Xcode Cloud, so they can't be committed into it:
+  `PythonResources/seed-privacy-manifests.sh` copies them from tracked source into
+  each slice's `lib-dynload/` during the "Process Python libraries" phase, and
+  `utils.sh` installs + signs them into the frameworks. **After bumping the Python
+  version, re-run the OpenSSL scan in that script's header** — a newly linked module
+  without a manifest is a rejection, not a build error.
 - **Multi-threaded embedded Python needs `PyEval_SaveThread()` after init.**
   `keraunos_python_init` releases the GIL once after `Py_InitializeFromConfig`; without
   it any worker thread (e.g. the extraction watchdog) deadlocks in `PyGILState_Ensure`.

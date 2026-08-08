@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Privacy manifest for CPython's _hashlib extension module.
+
+  _hashlib statically links OpenSSL's libcrypto, which Apple's App Store scanner
+  fingerprints as BoringSSL / openssl_grpc — a "commonly used third-party SDK"
+  that must ship a privacy manifest (ITMS-91061). Python-Apple-support does not
+  provide one, so Keraunos supplies it; see
+  PythonResources/seed-privacy-manifests.sh.
+
+  _hashlib computes message digests over in-memory buffers. It collects nothing,
+  tracks nothing, touches no files, and uses no required-reason API.
+-->
+<plist version="1.0">
+<dict>
+	<key>NSPrivacyTracking</key>
+	<false/>
+	<key>NSPrivacyTrackingDomains</key>
+	<array/>
+	<key>NSPrivacyCollectedDataTypes</key>
+	<array/>
+	<key>NSPrivacyAccessedAPITypes</key>
+	<array/>
+</dict>
+</plist>
