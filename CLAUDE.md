@@ -131,10 +131,19 @@ Native" palette).
 - **Multi-threaded embedded Python needs `PyEval_SaveThread()` after init.**
   `keraunos_python_init` releases the GIL once after `Py_InitializeFromConfig`; without
   it any worker thread (e.g. the extraction watchdog) deadlocks in `PyGILState_Ensure`.
-- **`@_cdecl` entry points must be `nonisolated`.** The app target builds with
-  `-default-isolation=MainActor`, so even global functions default to MainActor; a C
-  entry point called off the main thread (e.g. `keraunos_js_eval` on the extraction
-  worker) traps in `dispatch_assert_queue` unless marked `nonisolated`.
+- **Anything invoked off the main thread must be `nonisolated`.** The app target builds
+  with `-default-isolation=MainActor`, so functions, methods, and the closures inside
+  them are MainActor-isolated unless you say otherwise. When a non-Swift-Concurrency API
+  calls one of them on its own queue, the runtime's isolation check traps in
+  `dispatch_assert_queue` (`EXC_BREAKPOINT`/SIGTRAP). Three instances so far:
+  `@_cdecl` C entry points (`keraunos_js_eval` on the extraction worker),
+  `BackgroundTransferService` (URLSession delegate queue — the whole class is
+  `nonisolated`), and `PhotoLibrarySaver.save` (the `PHPhotoLibrary.performChanges`
+  block runs on `com.apple.PHPhotoLibrary.changes`). The trap fires at the *callee*,
+  so it looks like the framework crashed. **These hide behind one-time gates** — the
+  Photos one only fired after the add-only permission was granted, so every run before
+  the first Allow looked fine. Reset with
+  `xcrun simctl privacy <udid> reset photos-add <bundle-id>` to retest.
 - **Clean-build after Swift/ObjC/bridge changes.** Incremental Xcode builds reliably
   re-sync `PythonResources/` (the "Process Python libraries" phase is `alwaysOutOfDate`),
   but can ship **stale compiled Swift/ObjC** — if on-device behavior contradicts the
