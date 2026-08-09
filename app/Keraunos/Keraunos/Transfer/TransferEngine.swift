@@ -48,7 +48,7 @@ final class TransferEngine {
     let finalizer: TransferFinalizer
     let progress: TransferProgress
 
-    private let downloadStore = DownloadStore()
+    private let libraryStore = LibraryStore()
     private let photoSaver: any PhotoSaving = PhotoLibrarySaver()
     private let diagnostics: any TransferDiagnostics
 
@@ -97,7 +97,7 @@ final class TransferEngine {
         coordinator = TransferCoordinator(store: store, session: service,
                                           diagnostics: diagnostics, progress: progress)
         finalizer = TransferFinalizer(store: store, merger: AVFoundationMerger(diagnostics: diagnostics),
-                                      downloadStore: downloadStore, diagnostics: diagnostics,
+                                      libraryStore: libraryStore, diagnostics: diagnostics,
                                       progress: progress)
     }
 
@@ -217,7 +217,7 @@ final class TransferEngine {
             let completed = await finalizer.finalizeReadyJobs()
             for id in completed {
                 if let job = await store.job(id: id), job.autoSaveToPhotos, let name = job.savedFilename {
-                    if let fileURL = try? SafeFileComponent(name).url(in: downloadStore.directory),
+                    if let fileURL = try? SafeFileComponent(name).url(in: libraryStore.directory),
                        PhotosCompatibility.canSave(fileURL) {
                         switch await photoSaver.save(fileURL) {
                         case .saved:

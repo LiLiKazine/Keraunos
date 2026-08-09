@@ -2,7 +2,7 @@ import Testing
 import Foundation
 import KeraunosCore
 
-struct DownloadStoreTests {
+struct LibraryStoreTests {
     private func write(_ name: String, in dir: URL, modified: Date) throws -> URL {
         let url = dir.appendingPathComponent(name)
         try Data().write(to: url)
@@ -19,7 +19,7 @@ struct DownloadStoreTests {
         _ = try write("b.mp4", in: dir, modified: Date(timeIntervalSince1970: 200))
         try Data().write(to: dir.appendingPathComponent("notes.txt"))
 
-        let names = DownloadStore(directory: dir).savedFiles().map(\.lastPathComponent)
+        let names = LibraryStore(directory: dir).savedFiles().map(\.lastPathComponent)
         #expect(names == ["b.mp4", "a.mp4"])
     }
 
@@ -28,19 +28,19 @@ struct DownloadStoreTests {
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         let file = dir.appendingPathComponent("clip.mp4")
         try Data(count: 2048).write(to: file)
-        let store = DownloadStore(directory: dir)
+        let store = LibraryStore(directory: dir)
         #expect(store.fileSize(file) == 2048)
         #expect(store.fileSize(dir.appendingPathComponent("ghost.mp4")) == nil)
     }
 
     @Test func defaultDirectoryIsDocuments() {
-        #expect(DownloadStore().directory.path.contains("/Documents"))
+        #expect(LibraryStore().directory.path.contains("/Documents"))
     }
 
     @Test func deleteRemovesFileAndDropsItFromListing() throws {
         let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        let store = DownloadStore(directory: dir)
+        let store = LibraryStore(directory: dir)
         let keep = dir.appendingPathComponent("keep.mp4")
         let drop = dir.appendingPathComponent("drop.mp4")
         try Data().write(to: keep)
@@ -55,7 +55,7 @@ struct DownloadStoreTests {
     @Test func uniqueDestinationAvoidsClobberingExistingFiles() throws {
         let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        let store = DownloadStore(directory: dir)
+        let store = LibraryStore(directory: dir)
 
         #expect(store.uniqueDestination(for: "clip.mp4").lastPathComponent == "clip.mp4")
         try Data().write(to: dir.appendingPathComponent("clip.mp4"))
@@ -68,7 +68,7 @@ struct DownloadStoreTests {
         let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         // A title like "AC/DC – Live.mp4" must not be treated as a subdirectory path.
-        let dest = DownloadStore(directory: dir).uniqueDestination(for: "AC/DC – Live.mp4")
+        let dest = LibraryStore(directory: dir).uniqueDestination(for: "AC/DC – Live.mp4")
         #expect(!dest.lastPathComponent.contains("/"))
         #expect(dest.deletingLastPathComponent().path == dir.path)   // stays in the store dir
     }
@@ -76,7 +76,7 @@ struct DownloadStoreTests {
     @Test func uniqueDestinationNeutralizesPathTraversal() throws {
         let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        let dest = DownloadStore(directory: dir).uniqueDestination(for: "../../evil.mp4")
+        let dest = LibraryStore(directory: dir).uniqueDestination(for: "../../evil.mp4")
         #expect(dest.deletingLastPathComponent().path == dir.path)   // can't escape upward
         #expect(!dest.lastPathComponent.contains("/"))
     }
@@ -85,7 +85,7 @@ struct DownloadStoreTests {
         let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         let huge = String(repeating: "a", count: 400) + ".mp4"
-        let dest = DownloadStore(directory: dir).uniqueDestination(for: huge)
+        let dest = LibraryStore(directory: dir).uniqueDestination(for: huge)
         #expect(dest.lastPathComponent.utf8.count <= 255)        // APFS per-component limit
         #expect(dest.lastPathComponent.hasSuffix(".mp4"))         // extension preserved
         // And it's actually writable at that length.
@@ -96,7 +96,7 @@ struct DownloadStoreTests {
         let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         // 200 four-byte emoji = 800 bytes; truncation must not split a scalar.
-        let dest = DownloadStore(directory: dir).uniqueDestination(for: String(repeating: "🎬", count: 200) + ".mp4")
+        let dest = LibraryStore(directory: dir).uniqueDestination(for: String(repeating: "🎬", count: 200) + ".mp4")
         let name = dest.lastPathComponent
         #expect(name.utf8.count <= 255)
         #expect(name.hasSuffix(".mp4"))
@@ -107,7 +107,7 @@ struct DownloadStoreTests {
     @Test func uniqueDestinationFallsBackForEmptyOrDotNames() throws {
         let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        let store = DownloadStore(directory: dir)
+        let store = LibraryStore(directory: dir)
         #expect(!store.uniqueDestination(for: "   ").lastPathComponent.isEmpty)
         #expect(store.uniqueDestination(for: "..").deletingLastPathComponent().path == dir.path)
     }
@@ -117,7 +117,7 @@ struct DownloadStoreTests {
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         // Deleting an already-absent file must not throw — the list stays the source of
         // truth and a stale row should clear cleanly rather than surface an error.
-        try DownloadStore(directory: dir).delete(dir.appendingPathComponent("ghost.mp4"))
+        try LibraryStore(directory: dir).delete(dir.appendingPathComponent("ghost.mp4"))
     }
 
     // MARK: - Extension allow-set tests
@@ -133,7 +133,7 @@ struct DownloadStoreTests {
         _ = try write("d.mkv",  in: dir, modified: Date(timeIntervalSince1970: 4))
         _ = try write("e.webm", in: dir, modified: Date(timeIntervalSince1970: 5))
 
-        let names = Set(DownloadStore(directory: dir).savedFiles().map(\.lastPathComponent))
+        let names = Set(LibraryStore(directory: dir).savedFiles().map(\.lastPathComponent))
         #expect(names == ["a.mp4", "b.mov", "c.m4v", "d.mkv", "e.webm"])
     }
 
@@ -146,7 +146,7 @@ struct DownloadStoreTests {
         _ = try write("cookies.txt",   in: dir, modified: Date(timeIntervalSince1970: 3))
         _ = try write("notes.txt",     in: dir, modified: Date(timeIntervalSince1970: 4))
 
-        let names = DownloadStore(directory: dir).savedFiles().map(\.lastPathComponent)
+        let names = LibraryStore(directory: dir).savedFiles().map(\.lastPathComponent)
         #expect(names == ["clip.mp4"])
     }
 
@@ -156,7 +156,7 @@ struct DownloadStoreTests {
         _ = try write("CLIP.MP4", in: dir, modified: Date(timeIntervalSince1970: 2))
         _ = try write("clip.MOV", in: dir, modified: Date(timeIntervalSince1970: 1))
 
-        let names = Set(DownloadStore(directory: dir).savedFiles().map(\.lastPathComponent))
+        let names = Set(LibraryStore(directory: dir).savedFiles().map(\.lastPathComponent))
         #expect(names == ["CLIP.MP4", "clip.MOV"])
     }
 }

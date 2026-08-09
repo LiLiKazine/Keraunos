@@ -5,12 +5,12 @@ struct ContentView: View {
     @State private var cookieStore: CookieStore
     @State private var preferences: Preferences
     @State private var model: DownloadViewModel
-    private let store: DownloadStore
+    private let store: LibraryStore
 
     init() {
         let cookieStore = CookieStore()
         let preferences = Preferences()
-        let store = DownloadStore()
+        let store = LibraryStore()
         self.store = store
         _cookieStore = State(initialValue: cookieStore)
         _preferences = State(initialValue: preferences)
@@ -39,7 +39,7 @@ struct ContentView: View {
     return AppShell(
         model: DownloadViewModel(
             extractor: MockExtractor(),
-            store: DownloadStore(),
+            store: LibraryStore(),
             preferences: preferences),
         cookieStore: cookieStore,
         preferences: preferences)

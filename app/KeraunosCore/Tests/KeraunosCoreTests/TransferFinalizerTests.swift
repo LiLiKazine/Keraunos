@@ -48,9 +48,9 @@ struct TransferFinalizerTests {
     /// A probe returning a fixed capacity.
     struct FixedDisk: DiskSpaceProbing { let cap: Int64?; func availableCapacity(at url: URL) -> Int64? { cap } }
 
-    private func makeStores(_ base: URL) throws -> (TransferJobStore, DownloadStore) {
+    private func makeStores(_ base: URL) throws -> (TransferJobStore, LibraryStore) {
         let store = try TransferJobStore(directory: base.appendingPathComponent("transfers"))
-        let downloads = DownloadStore(directory: base.appendingPathComponent("downloads"))
+        let downloads = LibraryStore(directory: base.appendingPathComponent("downloads"))
         try FileManager.default.createDirectory(at: downloads.directory, withIntermediateDirectories: true)
         return (store, downloads)
     }
@@ -74,7 +74,7 @@ struct TransferFinalizerTests {
         )
 
         let fin = TransferFinalizer(store: store, merger: MockMerger(),
-                                    downloadStore: downloads, disk: FixedDisk(cap: 1_000_000))
+                                    libraryStore: downloads, disk: FixedDisk(cap: 1_000_000))
         let completed = await fin.finalizeReadyJobs()
 
         #expect(completed == [j.id])
@@ -102,7 +102,7 @@ struct TransferFinalizerTests {
         try installPromotedOutput(bytes, for: j, store: store, destination: destination)
 
         let fin = TransferFinalizer(store: store, merger: MockMerger(),
-                                    downloadStore: downloads, disk: FixedDisk(cap: 0))
+                                    libraryStore: downloads, disk: FixedDisk(cap: 0))
         let completed = await fin.finalizeReadyJobs()
 
         #expect(completed == [j.id])
@@ -131,7 +131,7 @@ struct TransferFinalizerTests {
 
         let merger = MockMerger()
         let fin = TransferFinalizer(store: store, merger: merger,
-                                    downloadStore: downloads, disk: FixedDisk(cap: 1_000_000))
+                                    libraryStore: downloads, disk: FixedDisk(cap: 1_000_000))
         let completed = await fin.finalizeReadyJobs()
 
         #expect(completed == [j.id])
@@ -150,7 +150,7 @@ struct TransferFinalizerTests {
     @Test func equalLengthProgressiveReplacementAfterPromotionIsPreserved() async throws {
         let storage = try TemporaryTransferJobStore()
         let store = storage.store
-        let downloads = try makeDownloadStore(storage.directory)
+        let downloads = try makeLibraryStore(storage.directory)
         let j = job(kind: .progressive(track(part: "p.part", total: 500)),
                     state: .merging, savedFilename: "Clip.mp4",
                     finalizationPhase: .readyToPromote)
@@ -162,7 +162,7 @@ struct TransferFinalizerTests {
         let occupied = downloads.directory.appendingPathComponent("Clip.mp4")
         try replacement.write(to: occupied)
 
-        let fin = TransferFinalizer(store: store, merger: MockMerger(), downloadStore: downloads)
+        let fin = TransferFinalizer(store: store, merger: MockMerger(), libraryStore: downloads)
         let completed = await fin.finalizeReadyJobs()
 
         #expect(completed == [j.id])
@@ -176,7 +176,7 @@ struct TransferFinalizerTests {
     @Test func completedAdaptiveReplacementUsesCheckpointBeforeDeletingSources() async throws {
         let storage = try TemporaryTransferJobStore()
         let store = storage.store
-        let downloads = try makeDownloadStore(storage.directory)
+        let downloads = try makeLibraryStore(storage.directory)
         let j = job(kind: .adaptive(video: track(part: "v.part", total: 300),
                                     audio: track(part: "a.part", total: 100)),
                     state: .completed, savedFilename: "Clip.mp4")
@@ -193,7 +193,7 @@ struct TransferFinalizerTests {
         try replacement.write(to: occupied)
         let merger = MockMerger()
 
-        let fin = TransferFinalizer(store: store, merger: merger, downloadStore: downloads)
+        let fin = TransferFinalizer(store: store, merger: merger, libraryStore: downloads)
         let completed = await fin.finalizeReadyJobs()
 
         #expect(completed == [j.id])
@@ -209,12 +209,12 @@ struct TransferFinalizerTests {
     @Test func replacementAfterCompletedBeforeStoreRemovalRecoversFromRetainedIdentity() async throws {
         let storage = try TemporaryTransferJobStore()
         let store = storage.store
-        let downloads = try makeDownloadStore(storage.directory)
+        let downloads = try makeLibraryStore(storage.directory)
         let j = job(kind: .progressive(track(part: "p.part", total: 500)))
         try await store.upsert(j)
         let ownedBytes = Data(repeating: 5, count: 500)
         try ownedBytes.write(to: store.partFileURL(for: "p.part"))
-        let fin = TransferFinalizer(store: store, merger: MockMerger(), downloadStore: downloads)
+        let fin = TransferFinalizer(store: store, merger: MockMerger(), libraryStore: downloads)
         #expect(await fin.finalizeReadyJobs() == [j.id])
         let checkpoint = store.partFileURL(for: j.finalizationPromotionCheckpointFileName)
         #expect(FileManager.default.fileExists(atPath: checkpoint.path))
@@ -236,7 +236,7 @@ struct TransferFinalizerTests {
     @Test func completedLegacyEqualLengthReplacementReFinalizesFromRetainedSource() async throws {
         let storage = try TemporaryTransferJobStore()
         let store = storage.store
-        let downloads = try makeDownloadStore(storage.directory)
+        let downloads = try makeLibraryStore(storage.directory)
         let j = job(kind: .progressive(track(part: "p.part", total: 500)),
                     state: .completed, savedFilename: "Clip.mp4")
         try await store.upsert(j)
@@ -246,7 +246,7 @@ struct TransferFinalizerTests {
         let occupied = downloads.directory.appendingPathComponent("Clip.mp4")
         try replacement.write(to: occupied)
 
-        let fin = TransferFinalizer(store: store, merger: MockMerger(), downloadStore: downloads)
+        let fin = TransferFinalizer(store: store, merger: MockMerger(), libraryStore: downloads)
         let completed = await fin.finalizeReadyJobs()
 
         #expect(completed == [j.id])
@@ -265,7 +265,7 @@ struct TransferFinalizerTests {
 
         let merger = MockMerger()
         let fin = TransferFinalizer(store: store, merger: merger,
-                                    downloadStore: downloads, disk: FixedDisk(cap: 1_000_000))
+                                    libraryStore: downloads, disk: FixedDisk(cap: 1_000_000))
         _ = await fin.finalizeReadyJobs()
 
         let done = await store.job(id: j.id)!
@@ -285,7 +285,7 @@ struct TransferFinalizerTests {
         try Data(repeating: 2, count: 300).write(to: store.partFileURL(for: "v.part"))
         try Data(repeating: 3, count: 100).write(to: store.partFileURL(for: "a.part"))
         let merger = SuspendedMerger()
-        let fin = TransferFinalizer(store: store, merger: merger, downloadStore: downloads)
+        let fin = TransferFinalizer(store: store, merger: merger, libraryStore: downloads)
 
         async let firstPass = fin.finalizeReadyJobs()
         await merger.waitUntilStarted()
@@ -311,7 +311,7 @@ struct TransferFinalizerTests {
             to: downloads.directory.appendingPathComponent("Clip.mp4"))
 
         let fin = TransferFinalizer(store: store, merger: MockMerger(),
-                                    downloadStore: downloads, disk: FixedDisk(cap: 1_000_000))
+                                    libraryStore: downloads, disk: FixedDisk(cap: 1_000_000))
         let completed = await fin.finalizeReadyJobs()
 
         #expect(completed == [j.id])
@@ -334,7 +334,7 @@ struct TransferFinalizerTests {
         try bytes.write(to: store.partFileURL(for: j.finalizationReadyFileName))
 
         let fin = TransferFinalizer(store: store, merger: MockMerger(),
-                                    downloadStore: downloads, disk: FixedDisk(cap: 1_000_000))
+                                    libraryStore: downloads, disk: FixedDisk(cap: 1_000_000))
         let completed = await fin.finalizeReadyJobs()
 
         #expect(completed == [j.id])
@@ -354,7 +354,7 @@ struct TransferFinalizerTests {
         let retained = Data(repeating: 7, count: 100)
         try retained.write(to: ready)
 
-        let fin = TransferFinalizer(store: store, merger: MockMerger(), downloadStore: downloads)
+        let fin = TransferFinalizer(store: store, merger: MockMerger(), libraryStore: downloads)
         let completed = await fin.finalizeReadyJobs()
 
         #expect(completed.isEmpty)
@@ -367,7 +367,7 @@ struct TransferFinalizerTests {
         let storage = try TemporaryTransferJobStore()
         let transferDirectory = storage.directory
         let store = storage.store
-        let downloads = try makeDownloadStore(storage.directory)
+        let downloads = try makeLibraryStore(storage.directory)
         let j = job(kind: .progressive(track(part: "p.part", total: 500)),
                     state: .merging, savedFilename: "Clip.mp4",
                     finalizationPhase: .readyToPromote)
@@ -387,7 +387,7 @@ struct TransferFinalizerTests {
         }
 
         let fin = TransferFinalizer(store: store, merger: MockMerger(),
-                                    downloadStore: downloads, disk: FixedDisk(cap: 1_000_000))
+                                    libraryStore: downloads, disk: FixedDisk(cap: 1_000_000))
         let completed = await fin.finalizeReadyJobs()
 
         #expect(completed.isEmpty)
@@ -419,7 +419,7 @@ struct TransferFinalizerTests {
         try installPromotedOutput(bytes, for: j, store: store, destination: destination)
 
         let fin = TransferFinalizer(store: store, merger: MockMerger(),
-                                    downloadStore: downloads, disk: FixedDisk(cap: 0))
+                                    libraryStore: downloads, disk: FixedDisk(cap: 0))
         let completed = await fin.finalizeReadyJobs()
 
         #expect(completed == [j.id])
@@ -435,7 +435,7 @@ struct TransferFinalizerTests {
         try Data(repeating: 4, count: 500).write(to: source)
 
         let fin = TransferFinalizer(store: store, merger: MockMerger(),
-                                    downloadStore: downloads, disk: FixedDisk(cap: 100))
+                                    libraryStore: downloads, disk: FixedDisk(cap: 100))
         let completed = await fin.finalizeReadyJobs()
 
         #expect(completed == [j.id])
@@ -456,7 +456,7 @@ struct TransferFinalizerTests {
 
         let merger = MockMerger()
         let fin = TransferFinalizer(store: store, merger: merger,
-                                    downloadStore: downloads, disk: FixedDisk(cap: 1_000_000))
+                                    libraryStore: downloads, disk: FixedDisk(cap: 1_000_000))
         let completed = await fin.finalizeReadyJobs()
 
         #expect(completed == [j.id])
@@ -467,7 +467,7 @@ struct TransferFinalizerTests {
     @Test func equalLengthDifferentProgressiveOccupantIsPreserved() async throws {
         let storage = try TemporaryTransferJobStore()
         let store = storage.store
-        let downloads = try makeDownloadStore(storage.directory)
+        let downloads = try makeLibraryStore(storage.directory)
         let j = job(kind: .progressive(track(part: "p.part", total: 500)),
                     state: .merging, savedFilename: "Clip.mp4")
         try await store.upsert(j)
@@ -478,7 +478,7 @@ struct TransferFinalizerTests {
         try occupantBytes.write(to: occupied)
 
         let fin = TransferFinalizer(store: store, merger: MockMerger(),
-                                    downloadStore: downloads, disk: FixedDisk(cap: 1_000_000))
+                                    libraryStore: downloads, disk: FixedDisk(cap: 1_000_000))
         let completed = await fin.finalizeReadyJobs()
 
         #expect(completed == [j.id])
@@ -492,7 +492,7 @@ struct TransferFinalizerTests {
     @Test func adaptiveReservedDestinationCollisionIsPreservedAndReallocated() async throws {
         let storage = try TemporaryTransferJobStore()
         let store = storage.store
-        let downloads = try makeDownloadStore(storage.directory)
+        let downloads = try makeLibraryStore(storage.directory)
         let j = job(kind: .adaptive(video: track(part: "v.part", total: 300),
                                     audio: track(part: "a.part", total: 100)),
                     state: .merging, savedFilename: "Clip.mp4")
@@ -505,7 +505,7 @@ struct TransferFinalizerTests {
 
         let merger = MockMerger()
         let fin = TransferFinalizer(store: store, merger: merger,
-                                    downloadStore: downloads, disk: FixedDisk(cap: 1_000_000))
+                                    libraryStore: downloads, disk: FixedDisk(cap: 1_000_000))
         let completed = await fin.finalizeReadyJobs()
 
         #expect(completed == [j.id])
@@ -517,7 +517,7 @@ struct TransferFinalizerTests {
     @Test func persistedCompletedJobIsReturnedAndItsRetainedPartsAreCleaned() async throws {
         let storage = try TemporaryTransferJobStore()
         let store = storage.store
-        let downloads = try makeDownloadStore(storage.directory)
+        let downloads = try makeLibraryStore(storage.directory)
         let j = job(kind: .progressive(track(part: "p.part", total: 500)),
                     state: .completed, savedFilename: "Clip.mp4")
         try await store.upsert(j)
@@ -526,7 +526,7 @@ struct TransferFinalizerTests {
         try Data(repeating: 1, count: 500).write(
             to: downloads.directory.appendingPathComponent("Clip.mp4"))
 
-        let fin = TransferFinalizer(store: store, merger: MockMerger(), downloadStore: downloads)
+        let fin = TransferFinalizer(store: store, merger: MockMerger(), libraryStore: downloads)
         let completed = await fin.finalizeReadyJobs()
 
         #expect(completed == [j.id])
@@ -537,7 +537,7 @@ struct TransferFinalizerTests {
     @Test func completedJobWithMissingOutputRetainsPartsWhenRecoveryCannotFinish() async throws {
         let storage = try TemporaryTransferJobStore()
         let store = storage.store
-        let downloads = try makeDownloadStore(storage.directory)
+        let downloads = try makeLibraryStore(storage.directory)
         let j = job(kind: .adaptive(video: track(part: "v.part", total: 300),
                                     audio: track(part: "a.part", total: 100)),
                     state: .completed, savedFilename: "Clip.mp4")
@@ -549,7 +549,7 @@ struct TransferFinalizerTests {
         let merger = MockMerger()
         merger.shouldFail = true
 
-        let fin = TransferFinalizer(store: store, merger: merger, downloadStore: downloads)
+        let fin = TransferFinalizer(store: store, merger: merger, libraryStore: downloads)
         let completed = await fin.finalizeReadyJobs()
 
         #expect(completed.isEmpty, "a missing saved output is not a deliverable")
@@ -561,7 +561,7 @@ struct TransferFinalizerTests {
     @Test func completedProgressiveJobWithIncompleteOutputReFinalizesWithoutOverwritingIt() async throws {
         let storage = try TemporaryTransferJobStore()
         let store = storage.store
-        let downloads = try makeDownloadStore(storage.directory)
+        let downloads = try makeLibraryStore(storage.directory)
         let j = job(kind: .progressive(track(part: "p.part", total: 500)),
                     state: .completed, savedFilename: "Clip.mp4")
         try await store.upsert(j)
@@ -571,7 +571,7 @@ struct TransferFinalizerTests {
         let occupantBytes = Data(repeating: 4, count: 100)
         try occupantBytes.write(to: incomplete)
 
-        let fin = TransferFinalizer(store: store, merger: MockMerger(), downloadStore: downloads)
+        let fin = TransferFinalizer(store: store, merger: MockMerger(), libraryStore: downloads)
         let completed = await fin.finalizeReadyJobs()
 
         #expect(completed == [j.id])
@@ -608,8 +608,8 @@ struct TransferFinalizerTests {
             to: storage.directory.appendingPathComponent("transfers.json"), options: .atomic)
 
         let reloaded = try storage.reloadedStore()
-        let downloads = try makeDownloadStore(storage.directory)
-        let fin = TransferFinalizer(store: reloaded, merger: MockMerger(), downloadStore: downloads)
+        let downloads = try makeLibraryStore(storage.directory)
+        let fin = TransferFinalizer(store: reloaded, merger: MockMerger(), libraryStore: downloads)
         let completed = await fin.finalizeReadyJobs()
 
         #expect(completed.isEmpty)
@@ -624,13 +624,13 @@ struct TransferFinalizerTests {
         try Data(repeating: 1, count: 400).write(to: store.partFileURL(for: "p.part"))   // short!
 
         let fin = TransferFinalizer(store: store, merger: MockMerger(),
-                                    downloadStore: downloads, disk: FixedDisk(cap: 1_000_000))
+                                    libraryStore: downloads, disk: FixedDisk(cap: 1_000_000))
         _ = await fin.finalizeReadyJobs()
         #expect(await store.job(id: j.id)!.state == .failed(.integrityCheckFailed))
     }
 
-    private func makeDownloadStore(_ base: URL) throws -> DownloadStore {
-        let downloads = DownloadStore(directory: base.appendingPathComponent("downloads"))
+    private func makeLibraryStore(_ base: URL) throws -> LibraryStore {
+        let downloads = LibraryStore(directory: base.appendingPathComponent("downloads"))
         try FileManager.default.createDirectory(at: downloads.directory, withIntermediateDirectories: true)
         return downloads
     }
@@ -645,7 +645,7 @@ struct TransferFinalizerTests {
 
         let merger = MockMerger()
         let fin = TransferFinalizer(store: store, merger: merger,
-                                    downloadStore: downloads, disk: FixedDisk(cap: 100))   // < 400 needed
+                                    libraryStore: downloads, disk: FixedDisk(cap: 100))   // < 400 needed
         _ = await fin.finalizeReadyJobs()
         #expect(await store.job(id: j.id)!.state == .failed(.insufficientSpace))
         #expect(merger.received == nil)
@@ -661,7 +661,7 @@ struct TransferFinalizerTests {
 
         let merger = MockMerger(); merger.shouldFail = true
         let fin = TransferFinalizer(store: store, merger: merger,
-                                    downloadStore: downloads, disk: FixedDisk(cap: 1_000_000))
+                                    libraryStore: downloads, disk: FixedDisk(cap: 1_000_000))
         _ = await fin.finalizeReadyJobs()
         // A mux failure is a MERGE failure, not an integrity/incomplete-data failure — the
         // parts passed the length check above. Reporting it as `.integrityCheckFailed` would
@@ -677,7 +677,7 @@ struct TransferFinalizerTests {
         let j = job(kind: .progressive(track(part: "p.part", total: 500)))
         try await store.upsert(j)
         try Data(repeating: 1, count: 500).write(to: store.partFileURL(for: "p.part"))
-        let fin = TransferFinalizer(store: store, merger: MockMerger(), downloadStore: downloads, progress: bus)
+        let fin = TransferFinalizer(store: store, merger: MockMerger(), libraryStore: downloads, progress: bus)
         _ = await fin.finalizeReadyJobs()
         #expect(await store.job(id: j.id)?.state == .completed)
         #expect(await bus.snapshot(for: j.id)?.state == .completed)

@@ -18,7 +18,7 @@ struct DownloadViewModelTests {
     }
     private func vm(extractor: any MediaExtracting, dir: URL,
                     enqueuer: any JobEnqueuing = SpyEnqueuer()) -> DownloadViewModel {
-        DownloadViewModel(extractor: extractor, store: DownloadStore(directory: dir), enqueuer: enqueuer)
+        DownloadViewModel(extractor: extractor, store: LibraryStore(directory: dir), enqueuer: enqueuer)
     }
     private func choices(_ options: [FormatOption]) -> MockExtractor {
         var m = MockExtractor(result: .success(progressive("picked.mp4")))
@@ -40,7 +40,7 @@ struct DownloadViewModelTests {
 
     private func saverVM(_ saver: any PhotoSaving) -> DownloadViewModel {
         DownloadViewModel(extractor: MockExtractor(),
-                          store: DownloadStore(directory: tempDir()),
+                          store: LibraryStore(directory: tempDir()),
                           photoSaver: saver)
     }
 
@@ -155,7 +155,7 @@ struct DownloadViewModelTests {
         ])
         let model = DownloadViewModel(
             extractor: extractor,
-            store: DownloadStore(directory: tempDir()),
+            store: LibraryStore(directory: tempDir()),
             enqueuer: spy)
         model.urlText = "https://x.test/post/1"
         await model.startDownload()
@@ -174,7 +174,7 @@ struct DownloadViewModelTests {
         ])
         let model = DownloadViewModel(
             extractor: extractor,
-            store: DownloadStore(directory: tempDir()),
+            store: LibraryStore(directory: tempDir()),
             enqueuer: spy)
         model.urlText = "https://x.test/post/1"
         await model.startDownload()

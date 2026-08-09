@@ -32,7 +32,7 @@ final class DownloadViewModel {   // main-actor by default (app target)
     private(set) var currentTask: Task<Void, Never>?
 
     private let extractor: any MediaExtracting
-    private let store: DownloadStore
+    private let store: LibraryStore
     /// Extraction/foreground-download failures recorded by this view model.
     private let failureLog: FailureLog
     /// The background transfer engine's own failure log (finalize/merge/integrity), written
@@ -43,7 +43,7 @@ final class DownloadViewModel {   // main-actor by default (app target)
     private let preferences: Preferences
     private let enqueuer: any JobEnqueuing
 
-    init(extractor: any MediaExtracting, store: DownloadStore,
+    init(extractor: any MediaExtracting, store: LibraryStore,
          failureLog: FailureLog? = nil, transferLog: FailureLog? = nil,
          photoSaver: (any PhotoSaving)? = nil,
          preferences: Preferences = Preferences(), enqueuer: any JobEnqueuing = TransferEngine.shared) {

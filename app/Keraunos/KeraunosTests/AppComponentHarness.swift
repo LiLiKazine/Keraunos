@@ -33,7 +33,7 @@ final class DownloadViewModelHarness {
         self.storage = storage
         model = DownloadViewModel(
             extractor: extractor,
-            store: DownloadStore(directory: storage.directory),
+            store: LibraryStore(directory: storage.directory),
             photoSaver: photoSaver,
             preferences: preferences,
             enqueuer: enqueuer)
