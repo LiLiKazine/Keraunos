@@ -1,8 +1,8 @@
 import Foundation
 
 /// The event-driven transfer engine. Drives `TransferJob`s against a `TransferSession`,
-/// porting the chunked corruption guards from the old `Downloader.downloadChunked` onto
-/// background-capable download tasks and enforcing the Phase-1 crash-consistency ordering.
+/// applying the chunked corruption guards on background-capable download tasks and
+/// enforcing the Phase-1 crash-consistency ordering.
 /// Download completion advances a job to `.readyToMerge`; merging is Phase 4.
 public actor TransferCoordinator {
     private let store: TransferJobStore

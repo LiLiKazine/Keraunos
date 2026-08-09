@@ -8,7 +8,7 @@ public enum KeraunosError: Error, Equatable {
     case requiresAuth
     /// Network failure while *resolving* the URL (Python extraction side).
     case extractNetwork
-    /// Network failure while *transferring* a track (Swift `Downloader` side).
+    /// Network failure while *transferring* a track (Swift transfer-queue side).
     case downloadNetwork
     case runtime(detail: String)
     case cancelled

@@ -15,14 +15,12 @@ resumes across backgrounding and relaunch.
 
 **Two layers:**
 - **`app/KeraunosCore/`** — a Swift 6 SPM package holding the platform-agnostic core:
-  URL normalization, format selection, `Downloader` (incl. ranged/chunked transfer), the
-  durable background-transfer state machine (`TransferJob`/`TransferJobStore`/
-  `TransferCoordinator`/`TransferSession`/`TransferFinalizer`/`TransferProgress`),
+  URL normalization, format selection, the durable background-transfer state machine
+  (`TransferJob`/`TransferJobStore`/`TransferCoordinator`/`TransferSession`/
+  `TransferFinalizer`/`TransferProgress`, incl. ranged/chunked transfer),
   `MediaMerging`/`AVFoundationMerger`, stores, cookies, and the `KeraunosError` model.
   Protocol-seamed (`MediaExtracting`, `MediaMerging`, `PhotoSaving`, `TransferSession`,
-  `TransferDiagnostics`) so it's testable without a simulator. (`MediaAssembler` is the
-  legacy single-shot assembler, superseded by the transfer queue and no longer on the live
-  path.)
+  `TransferDiagnostics`) so it's testable without a simulator.
 - **`app/Keraunos/Keraunos/`** — the app target: the CPython/yt-dlp bridge
   (`PythonRuntime/`), the background-transfer stack (`Transfer/` — the `TransferEngine`
   composition root, `BackgroundTransferService`, and `AppDelegate` relaunch glue), the
@@ -94,8 +92,8 @@ Native" palette).
 - **`KeraunosCore` tests run without a simulator** (`swift test`) — the fastest loop;
   keep new pure-Swift logic in the package so it stays simulator-free.
 - Pure-Swift units (format selector, path/filename, error mapping) are written first (TDD).
-- `Downloader`/`Extractor` integration tests run against **localhost**, never real
-  sites — avoids flakiness and ToS concerns.
+- `TransferCoordinator`/`Extractor` integration tests run against **localhost**, never
+  real sites — avoids flakiness and ToS concerns.
 
 ## Gotchas
 
@@ -108,13 +106,12 @@ Native" palette).
   out (ffmpeg) can't run. DASH video+audio merging therefore runs **natively**
   (`AVFoundationMerger`), and transfer is native `URLSession` — not Python. (An
   ffmpeg-backed `MediaMerging` could drop in later behind the same protocol.)
-- **Downloads run through the durable background queue, not `MediaAssembler`.** The UI
-  (`DownloadViewModel`) resolves a URL then enqueues a `TransferJob` into
-  `TransferEngine.shared`; a background `URLSession` transfers each track and
-  `TransferFinalizer` verifies + merges. Jobs and their `.part` files persist under
-  `<Application Support>/Transfers/` (crash-consistent, reconciled on launch), so a
-  download survives suspension/relaunch. Build new download features on this path —
-  `MediaAssembler` is legacy and unwired.
+- **Downloads run through the durable background queue.** The UI (`DownloadViewModel`)
+  resolves a URL then enqueues a `TransferJob` into `TransferEngine.shared`; a background
+  `URLSession` transfers each track and `TransferFinalizer` verifies + merges. Jobs and
+  their `.part` files persist under `<Application Support>/Transfers/` (crash-consistent,
+  reconciled on launch), so a download survives suspension/relaunch. Build new download
+  features on this path.
 - **A merge/mux failure is `FailureReason.mergeFailed`, distinct from
   `.integrityCheckFailed`.** Integrity = a part's bytes ≠ its expected length; merge =
   bytes were fine but AVFoundation couldn't combine them (usually a codec it can't
@@ -154,6 +151,7 @@ Native" palette).
   source, suspect a stale binary first and ⇧⌘K (Clean Build Folder) before debugging.
 - **YouTube (googlevideo) throttles unranged full-file GETs** → a single
   `URLSession.download` receives no bytes and dies with `-1001`. yt-dlp hints
-  `downloader_options.http_chunk_size` on those formats; `Downloader` honors it with
-  HTTP Range chunks (`downloadChunked`). Only hinted tracks are chunked — every other
-  site stays single-shot. Don't "simplify" the chunked path away.
+  `downloader_options.http_chunk_size` on those formats; it is carried onto the job as
+  `TrackJob.chunkSize`, and `TransferCoordinator` honors it by issuing HTTP Range chunks.
+  Only hinted tracks are chunked — every other site stays single-shot. Don't "simplify"
+  the chunked path away.
