@@ -194,14 +194,14 @@ enum AppTestMedia {
     static func option(
         height: Int = 720,
         formatID: String = "22",
-        isAdaptive: Bool = false
+        isDASH: Bool = false
     ) -> FormatOption {
         FormatOption(
             height: height,
             codecLabel: "H.264",
             approxBytes: nil,
             formatID: formatID,
-            isAdaptive: isAdaptive)
+            isDASH: isDASH)
     }
 }
 
@@ -250,16 +250,16 @@ enum AppTestTransfer {
         credentialRef: String? = nil
     ) -> TransferJob {
         let effectiveKind = kind ?? .progressive(track())
-        let kindIsAdaptive: Bool
+        let kindIsDASH: Bool
         switch effectiveKind {
-        case .progressive: kindIsAdaptive = false
-        case .adaptive: kindIsAdaptive = true
+        case .progressive: kindIsDASH = false
+        case .dash: kindIsDASH = true
         }
         return TransferJob(
             id: id,
             sourcePageURL: URL(string: page)!,
             formatSelection: FormatSelection(
-                formatID: "x", height: height, isAdaptive: kindIsAdaptive),
+                formatID: "x", height: height, isDASH: kindIsDASH),
             credentialRef: credentialRef,
             createdAt: Date(timeIntervalSince1970: createdAt),
             state: state,

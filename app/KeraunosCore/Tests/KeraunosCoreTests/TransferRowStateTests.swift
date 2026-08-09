@@ -11,7 +11,7 @@ import Foundation
     private func job(state: JobState, credentialRef: String? = nil,
                      track t: TrackJob? = nil) -> TransferJob {
         TransferJob(id: UUID(), sourcePageURL: URL(string: "https://ex")!,
-                    formatSelection: FormatSelection(formatID: "22", height: 720, isAdaptive: false),
+                    formatSelection: FormatSelection(formatID: "22", height: 720, isDASH: false),
                     credentialRef: credentialRef, createdAt: Date(), state: state,
                     kind: .progressive(t ?? track()), suggestedFilename: "v.mp4",
                     savedFilename: nil, autoSaveToPhotos: false)

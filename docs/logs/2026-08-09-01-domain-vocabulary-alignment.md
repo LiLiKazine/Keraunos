@@ -6,7 +6,10 @@
 
 | Commit | Description |
 | --- | --- |
-| (this) | Record the glossary as `CONTEXT.md` and open the alignment arc |
+| `4c773c1` | Record the glossary as `CONTEXT.md` and open the alignment arc |
+| `69fa677` | Delete the legacy `Downloader`/`MediaAssembler` path |
+| `406cc60` | Rename `DownloadStore` to `LibraryStore` |
+| (this) | Rename `adaptive` to DASH in Swift, freezing the persisted keys |
 
 ## Context
 
@@ -64,6 +67,23 @@ more mechanical gap than re-writing the docs.
 
 - Added `CONTEXT.md` at the repo root — 18 terms in four clusters (what the user asks for /
   choosing what to fetch / carrying it out / access), each with an `_Avoid_` list.
+- **Deleted** `Downloader.swift` (`FileDownloading`, `Downloader`, `DownloadProgressDelegate`)
+  and `MediaAssembler.swift`, plus `DownloaderTests`, `DownloadProgressDelegateTests`,
+  `MediaAssemblerTests`, `StubNetworkSuite` and `StubURLProtocol`.
+- **Renamed** `DownloadStore` → `LibraryStore` (and its tests), and the `downloadStore`
+  parameter/property → `libraryStore` in `TransferFinalizer` and `TransferEngine`.
+- **Renamed** `FormatOption.isAdaptive` → `isDASH`, `FormatSelection.isAdaptive` → `isDASH`,
+  `TransferJob.Kind.adaptive` → `.dash`, and `ResolvedMedia.Kind.adaptive` → `.dash`, with
+  `CodingKeys` on the two persisted types pinning the old wire names.
+- Added two wire-format guards in `TransferJobTests`: one decoding a literal legacy payload,
+  one asserting today's encoder still emits `"adaptive"` / `"isAdaptive"`.
+- Corrected the stale CLAUDE.md chunking gotcha and the architecture blurb.
+
+## Verification
+
+- Core package: 239 tests across 25 suites pass (was 256/29 — 19 tests went with the deleted
+  legacy path, 2 wire-format guards added).
+- Full app scheme passes on the iPhone 17 simulator.
 
 ## What Was Discovered
 
@@ -86,3 +106,29 @@ more mechanical gap than re-writing the docs.
 - The user-facing `"Adaptive"` quality label (`DownloadsViewModel.swift:100`) is deliberately
   **not** renamed to "DASH". The glossary governs domain language; "DASH" would be worse copy
   for an end user in a slot that otherwise reads "1080p".
+- **A blanket `sed` on the rename is actively dangerous, and it bit once.** Replacing
+  `isAdaptive` everywhere rewrote the `CodingKeys` raw value to `case isDASH = "isDASH"` —
+  silently undoing the wire freeze the same commit existed to guarantee. Caught only because
+  the encoded key was re-checked afterwards. macOS `sed` also has no `\b`, so the paired
+  `.adaptive` → `.dash` pass matched nothing and looked like it had succeeded.
+- **Three separate meanings of "adaptive" live in this codebase** and only one of them was
+  ours to rename:
+  - `GridItem(.adaptive(minimum:))` in `LibraryScreen` — SwiftUI layout, unrelated
+  - `"adaptive"` as the extraction wire value from Python (`ResolvedMedia`, and the
+    `adaptive: Bool` payload field) — an external contract
+  - `AppShell`'s "adaptive shell" doc comment — UI layout again
+
+  A whole-word replace across the repo would have corrupted all three.
+- The wire format was confirmed empirically rather than assumed, by dumping a real encoded
+  job before touching anything: `formatSelection.isAdaptive` is a bool and `kind.adaptive` is
+  the enum discriminator, exactly the two keys the `CodingKeys` now pin.
+- The pre-existing Codable tests could not have caught a wire break — they encode and decode
+  with the same build, so both sides move together. That gap is why the two literal-payload
+  guards were added.
+
+## Residual scope
+
+- `FormatSelection` still carries `formatID`/`height`/`isDASH` whose only live readers are a
+  quality label and one diagnostic string, despite documenting itself as the Refresh re-pick
+  record. Deciding whether it earns its place is a design question, deliberately not folded
+  into a rename commit.

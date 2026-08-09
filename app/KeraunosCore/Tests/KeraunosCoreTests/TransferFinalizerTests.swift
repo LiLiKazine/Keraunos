@@ -39,7 +39,7 @@ struct TransferFinalizerTests {
                      state: JobState = .readyToMerge, savedFilename: String? = nil,
                      finalizationPhase: TransferJob.FinalizationPhase? = nil) -> TransferJob {
         TransferJob(id: UUID(), sourcePageURL: URL(string: "https://ex.com")!,
-                    formatSelection: FormatSelection(formatID: "x", height: nil, isAdaptive: false),
+                    formatSelection: FormatSelection(formatID: "x", height: nil, isDASH: false),
                     credentialRef: nil, createdAt: Date(timeIntervalSince1970: 1),
                     state: state, kind: kind, suggestedFilename: filename,
                     savedFilename: savedFilename, autoSaveToPhotos: false,
@@ -112,9 +112,9 @@ struct TransferFinalizerTests {
                                                             includingPropertiesForKeys: nil).count == 1)
     }
 
-    @Test func adaptiveReadyStageSurvivesCollisionWithoutRepeatingMerge() async throws {
+    @Test func dashReadyStageSurvivesCollisionWithoutRepeatingMerge() async throws {
         let (store, downloads) = try makeStores(tempDir())
-        let j = job(kind: .adaptive(video: track(part: "v.part", total: 300),
+        let j = job(kind: .dash(video: track(part: "v.part", total: 300),
                                     audio: track(part: "a.part", total: 100)),
                     state: .merging, savedFilename: "Clip.mp4",
                     finalizationPhase: .readyToPromote)
@@ -173,11 +173,11 @@ struct TransferFinalizerTests {
         #expect(FileManager.default.fileExists(atPath: checkpoint.path))
     }
 
-    @Test func completedAdaptiveReplacementUsesCheckpointBeforeDeletingSources() async throws {
+    @Test func completedDASHReplacementUsesCheckpointBeforeDeletingSources() async throws {
         let storage = try TemporaryTransferJobStore()
         let store = storage.store
         let downloads = try makeLibraryStore(storage.directory)
-        let j = job(kind: .adaptive(video: track(part: "v.part", total: 300),
+        let j = job(kind: .dash(video: track(part: "v.part", total: 300),
                                     audio: track(part: "a.part", total: 100)),
                     state: .completed, savedFilename: "Clip.mp4")
         try await store.upsert(j)
@@ -255,9 +255,9 @@ struct TransferFinalizerTests {
                 == sourceBytes)
     }
 
-    @Test func adaptiveMergesBothPartsAndCompletes() async throws {
+    @Test func dashMergesBothPartsAndCompletes() async throws {
         let (store, downloads) = try makeStores(tempDir())
-        let j = job(kind: .adaptive(video: track(part: "v.part", total: 300),
+        let j = job(kind: .dash(video: track(part: "v.part", total: 300),
                                     audio: track(part: "a.part", total: 100)))
         try await store.upsert(j)
         try Data(repeating: 2, count: 300).write(to: store.partFileURL(for: "v.part"))
@@ -277,9 +277,9 @@ struct TransferFinalizerTests {
     }
 
     @Test(.timeLimit(.minutes(1)))
-    func concurrentFinalizePassesDoNotRepeatAdaptiveMerge() async throws {
+    func concurrentFinalizePassesDoNotRepeatDASHMerge() async throws {
         let (store, downloads) = try makeStores(tempDir())
-        let j = job(kind: .adaptive(video: track(part: "v.part", total: 300),
+        let j = job(kind: .dash(video: track(part: "v.part", total: 300),
                                     audio: track(part: "a.part", total: 100)))
         try await store.upsert(j)
         try Data(repeating: 2, count: 300).write(to: store.partFileURL(for: "v.part"))
@@ -445,9 +445,9 @@ struct TransferFinalizerTests {
             atPath: downloads.directory.appendingPathComponent("Clip.mp4").path))
     }
 
-    @Test func persistedMergingAdaptiveJobReusesReservedDestination() async throws {
+    @Test func persistedMergingDASHJobReusesReservedDestination() async throws {
         let (store, downloads) = try makeStores(tempDir())
-        let j = job(kind: .adaptive(video: track(part: "v.part", total: 300),
+        let j = job(kind: .dash(video: track(part: "v.part", total: 300),
                                     audio: track(part: "a.part", total: 100)),
                     state: .merging, savedFilename: "Clip (2).mp4")
         try await store.upsert(j)
@@ -489,11 +489,11 @@ struct TransferFinalizerTests {
                 == sourceBytes)
     }
 
-    @Test func adaptiveReservedDestinationCollisionIsPreservedAndReallocated() async throws {
+    @Test func dashReservedDestinationCollisionIsPreservedAndReallocated() async throws {
         let storage = try TemporaryTransferJobStore()
         let store = storage.store
         let downloads = try makeLibraryStore(storage.directory)
-        let j = job(kind: .adaptive(video: track(part: "v.part", total: 300),
+        let j = job(kind: .dash(video: track(part: "v.part", total: 300),
                                     audio: track(part: "a.part", total: 100)),
                     state: .merging, savedFilename: "Clip.mp4")
         try await store.upsert(j)
@@ -538,7 +538,7 @@ struct TransferFinalizerTests {
         let storage = try TemporaryTransferJobStore()
         let store = storage.store
         let downloads = try makeLibraryStore(storage.directory)
-        let j = job(kind: .adaptive(video: track(part: "v.part", total: 300),
+        let j = job(kind: .dash(video: track(part: "v.part", total: 300),
                                     audio: track(part: "a.part", total: 100)),
                     state: .completed, savedFilename: "Clip.mp4")
         try await store.upsert(j)
@@ -584,8 +584,8 @@ struct TransferFinalizerTests {
     }
 
     @Test(arguments: [false, true])
-    func malformedProgressiveAndAdaptiveRecoveryCannotReachOutsideDirectory(
-        _ isAdaptive: Bool
+    func malformedProgressiveAndDASHRecoveryCannotReachOutsideDirectory(
+        _ isDASH: Bool
     ) async throws {
         let storage = try TemporaryTransferJobStore()
         let outsideDirectory = storage.directory.appendingPathComponent("outside", isDirectory: true)
@@ -596,9 +596,9 @@ struct TransferFinalizerTests {
 
         let malicious = track(part: "../outside/sentinel", total: Int64(sentinel.count))
         let kind: TransferJob.Kind
-        if isAdaptive {
+        if isDASH {
             let audio = track(part: "safe.part", total: 1)
-            kind = .adaptive(video: malicious, audio: audio)
+            kind = .dash(video: malicious, audio: audio)
             try Data([1]).write(to: storage.store.partFileURL(for: "safe.part"))
         } else {
             kind = .progressive(malicious)
@@ -637,7 +637,7 @@ struct TransferFinalizerTests {
 
     @Test func insufficientDiskFailsBeforeMerge() async throws {
         let (store, downloads) = try makeStores(tempDir())
-        let j = job(kind: .adaptive(video: track(part: "v.part", total: 300),
+        let j = job(kind: .dash(video: track(part: "v.part", total: 300),
                                     audio: track(part: "a.part", total: 100)))
         try await store.upsert(j)
         try Data(repeating: 2, count: 300).write(to: store.partFileURL(for: "v.part"))
@@ -653,7 +653,7 @@ struct TransferFinalizerTests {
 
     @Test func mergeFailureIsReportedAndPartsRetained() async throws {
         let (store, downloads) = try makeStores(tempDir())
-        let j = job(kind: .adaptive(video: track(part: "v.part", total: 300),
+        let j = job(kind: .dash(video: track(part: "v.part", total: 300),
                                     audio: track(part: "a.part", total: 100)))
         try await store.upsert(j)
         try Data(repeating: 2, count: 300).write(to: store.partFileURL(for: "v.part"))

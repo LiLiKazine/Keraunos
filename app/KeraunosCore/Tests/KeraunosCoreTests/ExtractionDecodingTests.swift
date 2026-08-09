@@ -17,14 +17,14 @@ struct ExtractionDecodingTests {
         #expect(track.fileExtension == "mp4")
     }
 
-    @Test func decodesAdaptive() throws {
+    @Test func decodesDASH() throws {
         let json = #"""
         {"ok":true,"kind":"adaptive","title":"T","filename":"clip.mp4",
          "video":{"url":"https://x.test/v.m4v","headers":{"User-Agent":"yt"},"vcodec":"hvc1","ext":"mp4"},
          "audio":{"url":"https://x.test/a.m4a","headers":{"Referer":"r"},"acodec":"mp4a","ext":"m4a"}}
         """#
         let media = try ExtractionDecoder.decode(Data(json.utf8))
-        guard case let .adaptive(video, audio) = media.kind else { Issue.record("expected adaptive"); return }
+        guard case let .dash(video, audio) = media.kind else { Issue.record("expected DASH"); return }
         #expect(video.url == URL(string: "https://x.test/v.m4v"))
         #expect(video.codec == "hvc1")
         #expect(audio.url == URL(string: "https://x.test/a.m4a"))
@@ -76,14 +76,14 @@ struct ExtractionDecodingTests {
 
     /// yt-dlp's `filesize`/`filesize_approx` for the chosen format, so the queue can show a
     /// determinate bar before any byte arrives.
-    @Test func decodesApproxBytesForBothAdaptiveTracks() throws {
+    @Test func decodesApproxBytesForBothDASHTracks() throws {
         let json = #"""
         {"ok":true,"kind":"adaptive","title":"T","filename":"c.mp4",
          "video":{"url":"https://x.test/v.m4s","headers":{},"vcodec":"avc1","ext":"m4s","approx_bytes":9000},
          "audio":{"url":"https://x.test/a.m4s","headers":{},"acodec":"mp4a","ext":"m4a","approx_bytes":1000}}
         """#
         let media = try ExtractionDecoder.decode(Data(json.utf8))
-        guard case let .adaptive(video, audio) = media.kind else { Issue.record("expected adaptive"); return }
+        guard case let .dash(video, audio) = media.kind else { Issue.record("expected DASH"); return }
         #expect(video.approxBytes == 9000)
         #expect(audio.approxBytes == 1000)
     }

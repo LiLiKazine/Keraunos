@@ -1,7 +1,7 @@
 import Foundation
 
 /// One directly-downloadable media stream (progressive file, or a video-only /
-/// audio-only track of an adaptive source). `httpHeaders` are yt-dlp's per-format
+/// audio-only track of a DASH source). `httpHeaders` are yt-dlp's per-format
 /// request headers, replayed by the downloader so CDNs accept the request.
 public struct MediaTrack: Equatable, Sendable {
     public let url: URL

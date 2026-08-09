@@ -12,8 +12,8 @@ public enum TransferJobFactory {
         switch media.kind {
         case .progressive(let t):
             kind = .progressive(trackJob(t, name: "\(partPrefix)-media.part"))
-        case .adaptive(let v, let a):
-            kind = .adaptive(video: trackJob(v, name: "\(partPrefix)-video.part"),
+        case .dash(let v, let a):
+            kind = .dash(video: trackJob(v, name: "\(partPrefix)-video.part"),
                              audio: trackJob(a, name: "\(partPrefix)-audio.part"))
         }
         return TransferJob(id: id, sourcePageURL: sourcePageURL, formatSelection: selection,

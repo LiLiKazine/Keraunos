@@ -8,10 +8,10 @@ private enum FinalizationError: Error {
 
 /// Takes `.readyToMerge` and crash-interrupted `.merging` jobs to `.completed`. It validates source
 /// lengths, reserves the durable output name, and produces a deterministic job-owned ready stage:
-/// progressive jobs atomically move their existing part, while adaptive jobs mux once into a
+/// progressive jobs atomically move their existing part, while DASH jobs mux once into a
 /// bounded partial stage and atomically checkpoint it as ready. Promotion into `LibraryStore`
 /// atomically creates a no-overwrite hard link, and its durable identity checkpoint makes every
-/// crash window idempotent without a whole-file copy or byte comparison. Adaptive source parts
+/// crash window idempotent without a whole-file copy or byte comparison. DASH source parts
 /// remain until `.completed` is durable;
 /// a progressive source becomes the owned ready/final file as it advances. Photos/background-task
 /// handling remains app-target glue around this actor.
@@ -171,7 +171,7 @@ public actor TransferFinalizer {
                     // Both paths are on the transfer store volume. Rename preserves the inode and
                     // never duplicates a multi-gigabyte progressive download.
                     try FileManager.default.moveItem(at: sourceURLs[0], to: readyStage)
-                case .adaptive:
+                case .dash:
                     let required = job.tracks.reduce(Int64(0)) { $0 + ($1.totalBytes ?? 0) }
                     if let available = disk.availableCapacity(at: store.partsDirectory),
                        available < required {
@@ -251,7 +251,7 @@ public actor TransferFinalizer {
         switch job.kind {
         case .progressive:
             return try uniqueDestination(for: job.suggestedFilename)
-        case .adaptive:
+        case .dash:
             let base = (job.suggestedFilename as NSString).deletingPathExtension
             return try uniqueDestination(for: "\(base).mp4")
         }
@@ -278,7 +278,7 @@ public actor TransferFinalizer {
         guard let size = regularFileSize(at: url) else { return false }
         switch job.kind {
         case .progressive(let track): return track.totalBytes == size
-        case .adaptive: return size > 0
+        case .dash: return size > 0
         }
     }
 

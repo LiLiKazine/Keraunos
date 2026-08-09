@@ -97,7 +97,7 @@ final class DownloadsViewModel {
     private(set) var savedTitles: [String] = []
 
     static func qualityLabel(_ f: FormatSelection) -> String {
-        f.height.map { "\($0)p" } ?? (f.isAdaptive ? "Adaptive" : "Video")
+        f.height.map { "\($0)p" } ?? (f.isDASH ? "Adaptive" : "Video")
     }
 
     // MARK: Actions

@@ -19,7 +19,7 @@ import KeraunosCore
     }
     private func job(id: UUID = UUID(), kind: TransferJob.Kind, state: JobState = .queued) -> TransferJob {
         TransferJob(id: id, sourcePageURL: URL(string: "https://ex.com")!,
-                    formatSelection: FormatSelection(formatID: "x", height: nil, isAdaptive: false),
+                    formatSelection: FormatSelection(formatID: "x", height: nil, isDASH: false),
                     credentialRef: nil, createdAt: Date(timeIntervalSince1970: 1),
                     state: state, kind: kind, suggestedFilename: "f.mp4",
                     savedFilename: nil, autoSaveToPhotos: false)

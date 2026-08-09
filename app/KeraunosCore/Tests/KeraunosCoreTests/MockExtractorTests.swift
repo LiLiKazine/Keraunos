@@ -18,7 +18,7 @@ struct MockExtractorTests {
 
     @Test func listFormatsUsesExplicitListingOverride() async throws {
         let option = FormatOption(height: 720, codecLabel: "H.264", approxBytes: nil,
-                                  formatID: "22", isAdaptive: false)
+                                  formatID: "22", isDASH: false)
         var mock = MockExtractor(result: .success(media))
         mock.listing = .success(.choices([option]))
         guard case let .choices(opts) = try await mock.listFormats(URL(string: "https://x.test")!) else {

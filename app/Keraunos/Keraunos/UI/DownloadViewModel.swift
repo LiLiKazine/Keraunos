@@ -58,10 +58,10 @@ final class DownloadViewModel {   // main-actor by default (app target)
         prepareDiagnosticsExport()
     }
 
-    /// The stream to download when the user hasn't chosen: the highest muxed (non-adaptive)
+    /// The stream to download when the user hasn't chosen: the highest muxed (non-DASH)
     /// resolution, or the highest overall if every option needs a separate audio track.
     static func bestOption(_ options: [FormatOption]) -> FormatOption? {
-        let muxed = options.filter { !$0.isAdaptive }
+        let muxed = options.filter { !$0.isDASH }
         return (muxed.isEmpty ? options : muxed).max { $0.height < $1.height }
     }
 
@@ -113,12 +113,12 @@ final class DownloadViewModel {   // main-actor by default (app target)
         do {
             switch try await extractor.listFormats(url) {
             case .ready(let media):
-                let isAdaptive: Bool
+                let isDASH: Bool
                 switch media.kind {
-                case .progressive: isAdaptive = false
-                case .adaptive: isAdaptive = true
+                case .progressive: isDASH = false
+                case .dash: isDASH = true
                 }
-                await enqueue(media, from: url, selection: FormatSelection(formatID: "", height: nil, isAdaptive: isAdaptive))
+                await enqueue(media, from: url, selection: FormatSelection(formatID: "", height: nil, isDASH: isDASH))
             case .choices(let options):
                 // Honor the "highest available" preference by skipping the picker entirely.
                 if preferences.defaultQuality == .highest, let best = Self.bestOption(options) {
@@ -182,7 +182,7 @@ final class DownloadViewModel {   // main-actor by default (app target)
     /// `.needsRefresh` re-extraction re-picks the SAME format rather than showing the picker
     /// again.
     private func selection(from option: FormatOption) -> FormatSelection {
-        FormatSelection(formatID: option.formatID, height: option.height, isAdaptive: option.isAdaptive)
+        FormatSelection(formatID: option.formatID, height: option.height, isDASH: option.isDASH)
     }
 
     /// Enqueues a resolved media onto the background engine instead of downloading in the

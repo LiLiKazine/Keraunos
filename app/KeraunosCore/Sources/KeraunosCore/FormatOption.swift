@@ -1,22 +1,22 @@
 import Foundation
 
 /// One user-selectable resolution from the picker. `formatID` is yt-dlp's format id,
-/// replayed in phase 2 to re-select exactly this stream; `isAdaptive` marks a video-only
+/// replayed in phase 2 to re-select exactly this stream; `isDASH` marks a video-only
 /// stream that must be paired with a separate audio track (vs. an already-muxed file).
 public struct FormatOption: Equatable, Sendable {
     public let height: Int
     public let codecLabel: String
     public let approxBytes: Int64?
     public let formatID: String
-    public let isAdaptive: Bool
+    public let isDASH: Bool
 
     public init(height: Int, codecLabel: String, approxBytes: Int64?,
-                formatID: String, isAdaptive: Bool) {
+                formatID: String, isDASH: Bool) {
         self.height = height
         self.codecLabel = codecLabel
         self.approxBytes = approxBytes
         self.formatID = formatID
-        self.isAdaptive = isAdaptive
+        self.isDASH = isDASH
     }
 
     /// Picker row text, e.g. "1080p · H.264 · 47.2 MB". Codec and size segments are

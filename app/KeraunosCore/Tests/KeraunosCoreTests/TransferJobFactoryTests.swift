@@ -4,7 +4,7 @@ import Foundation
 
 @Suite struct TransferJobFactoryTests {
     private let page = URL(string: "https://site.example/watch?v=1")!
-    private let sel = FormatSelection(formatID: "22", height: 720, isAdaptive: false)
+    private let sel = FormatSelection(formatID: "22", height: 720, isDASH: false)
 
     private func track(_ url: String, headers: [String: String] = ["User-Agent": "yt"], chunk: Int? = nil,
                       approxBytes: Int64? = nil) -> MediaTrack {
@@ -16,14 +16,14 @@ import Foundation
     /// NOT land in `totalBytes`, which gates chunk termination, track completeness, and the
     /// finalizer's integrity check.
     @Test func carriesApproxBytesWithoutSeedingTotalBytes() {
-        let media = ResolvedMedia(kind: .adaptive(video: track("https://cdn/v.m4s", approxBytes: 9000),
+        let media = ResolvedMedia(kind: .dash(video: track("https://cdn/v.m4s", approxBytes: 9000),
                                                   audio: track("https://cdn/a.m4s", approxBytes: 1000)),
                                   title: "T", suggestedFilename: "T.mp4")
         let id = UUID()
         let job = TransferJobFactory.make(id: id, from: media, sourcePageURL: page, selection: sel,
                                           autoSaveToPhotos: false, credentialRef: nil,
                                           createdAt: Date(), partPrefix: id.uuidString)
-        guard case .adaptive(let v, let a) = job.kind else { Issue.record("expected adaptive"); return }
+        guard case .dash(let v, let a) = job.kind else { Issue.record("expected DASH"); return }
         #expect(v.approxBytes == 9000)
         #expect(a.approxBytes == 1000)
         #expect(v.totalBytes == nil)
@@ -47,15 +47,15 @@ import Foundation
         #expect(t.totalBytes == nil)
     }
 
-    @Test func adaptiveMakesTwoNamedTracks() {
-        let media = ResolvedMedia(kind: .adaptive(video: track("https://cdn/v.m4s", chunk: 2),
+    @Test func dashMakesTwoNamedTracks() {
+        let media = ResolvedMedia(kind: .dash(video: track("https://cdn/v.m4s", chunk: 2),
                                                   audio: track("https://cdn/a.m4s")),
                                   title: "T", suggestedFilename: "T.mp4")
         let id = UUID()
         let job = TransferJobFactory.make(id: id, from: media, sourcePageURL: page, selection: sel,
                                           autoSaveToPhotos: false, credentialRef: nil,
                                           createdAt: Date(), partPrefix: id.uuidString)
-        guard case .adaptive(let v, let a) = job.kind else { Issue.record("expected adaptive"); return }
+        guard case .dash(let v, let a) = job.kind else { Issue.record("expected DASH"); return }
         #expect(v.partFileName == "\(id.uuidString)-video.part")
         #expect(a.partFileName == "\(id.uuidString)-audio.part")
         #expect(v.chunkSize == 2)

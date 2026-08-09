@@ -240,7 +240,7 @@ struct DownloadViewModelTests {
     @Test func multipleFormatsShowPickerAndDoNotDownloadYet() async {
         let options = [sampleOption,
             FormatOption(height: 360, codecLabel: "H.264", approxBytes: nil,
-                         formatID: "18", isAdaptive: false)]
+                         formatID: "18", isDASH: false)]
         let harness = DownloadViewModelHarness.choices(
             options, resolvingTo: AppTestMedia.progressive(filename: "picked.mp4"))
 
@@ -289,21 +289,21 @@ struct DownloadViewModelTests {
         #expect(model.pendingOptions == nil)
     }
 
-    @Test func bestOptionPrefersHighestMuxedOverAdaptive() {
+    @Test func bestOptionPrefersHighestMuxedOverDASH() {
         let options = [
-            FormatOption(height: 2160, codecLabel: "HEVC", approxBytes: nil, formatID: "a", isAdaptive: true),
-            FormatOption(height: 1080, codecLabel: "H.264", approxBytes: nil, formatID: "b", isAdaptive: false),
-            FormatOption(height: 720, codecLabel: "H.264", approxBytes: nil, formatID: "c", isAdaptive: false),
+            FormatOption(height: 2160, codecLabel: "HEVC", approxBytes: nil, formatID: "a", isDASH: true),
+            FormatOption(height: 1080, codecLabel: "H.264", approxBytes: nil, formatID: "b", isDASH: false),
+            FormatOption(height: 720, codecLabel: "H.264", approxBytes: nil, formatID: "c", isDASH: false),
         ]
-        // A 2160p adaptive stream needs a separate audio track + merge, so the highest
+        // A 2160p DASH stream needs a separate audio track + merge, so the highest
         // already-muxed stream (1080p) is preferred for a no-question download.
         #expect(DownloadViewModel.bestOption(options)?.formatID == "b")
     }
 
     @Test func highestQualityPreferenceSkipsPickerAndEnqueuesBest() async throws {
         let options = [
-            FormatOption(height: 360, codecLabel: "H.264", approxBytes: nil, formatID: "18", isAdaptive: false),
-            FormatOption(height: 1080, codecLabel: "H.264", approxBytes: nil, formatID: "137", isAdaptive: false),
+            FormatOption(height: 360, codecLabel: "H.264", approxBytes: nil, formatID: "18", isDASH: false),
+            FormatOption(height: 1080, codecLabel: "H.264", approxBytes: nil, formatID: "137", isDASH: false),
         ]
         let harness = DownloadViewModelHarness.choices(
             options,
