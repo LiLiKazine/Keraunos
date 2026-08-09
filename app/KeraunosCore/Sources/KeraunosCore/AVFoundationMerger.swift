@@ -23,17 +23,20 @@ public struct AVFoundationMerger: MediaMerging {
         // spurious `.mergeFailed`. (This passes on the simulator, which doesn't enforce the
         // extension boundary — the gap that let the symlink version ship.) A hard link is another
         // directory entry for the same inode, so the daemon opens the real bytes directly through
-        // the path it was granted. `tmp/` and Application Support share the app container's one
-        // filesystem, so `linkItem` is valid. (WebM/Opus still can't passthrough — that surfaces
-        // as `.mergeFailed`, the ffmpeg-needed case.)
-        let scratch = FileManager.default.temporaryDirectory
-            .appendingPathComponent(UUID().uuidString, isDirectory: true)
-        try FileManager.default.createDirectory(at: scratch, withIntermediateDirectories: true)
-        defer { removeScratch(scratch) }
-        let videoLink = scratch.appendingPathComponent("video.mp4")
-        let audioLink = scratch.appendingPathComponent("audio.mp4")
-        try FileManager.default.linkItem(at: videoURL, to: videoLink)
-        try FileManager.default.linkItem(at: audioURL, to: audioLink)
+        // the path it was granted. The deterministic aliases live beside the partial output, so
+        // `linkItem` is necessarily same-volume. (WebM/Opus still can't passthrough — that
+        // surfaces as `.mergeFailed`, the ffmpeg-needed case.)
+        // Derive two stable aliases from the owned partial output instead of allocating UUID temp
+        // directories. A process death can therefore retain at most two hard links for this job;
+        // retry replaces them and TransferJobStore removal/orphan reconciliation owns the names.
+        let parent = output.deletingLastPathComponent()
+        let videoLink = parent.appendingPathComponent(
+            "\(output.lastPathComponent).scratch-video.mp4")
+        let audioLink = parent.appendingPathComponent(
+            "\(output.lastPathComponent).scratch-audio.m4a")
+        defer { removeScratchLinks([videoLink, audioLink]) }
+        try replaceScratchLink(at: videoLink, with: videoURL)
+        try replaceScratchLink(at: audioLink, with: audioURL)
 
         let videoAsset = AVURLAsset(url: videoLink)
         let audioAsset = AVURLAsset(url: audioLink)
@@ -64,16 +67,11 @@ public struct AVFoundationMerger: MediaMerging {
             await recordMergeFailure(phase: "no-passthrough-session", underlying: nil, video: videoAsset, audio: audioAsset)
             throw KeraunosError.mergeFailed
         }
-        // `uniqueDestination` gives a fresh path, but clear a stale collision defensively. A
-        // missing file is the expected case, so only remove when one is actually present —
-        // handling the removal error explicitly rather than discarding it.
-        if FileManager.default.fileExists(atPath: output.path) {
-            do {
-                try FileManager.default.removeItem(at: output)
-            } catch {
-                diagnostics?.record(kind: "merge_output_replace",
-                                    detail: "\(output.lastPathComponent): \(error)")
-            }
+        // Final destinations are user-visible files. The caller reserves a fresh path; if an
+        // occupant appears before export, fail without replacing it so recovery can reallocate.
+        guard !FileManager.default.fileExists(atPath: output.path) else {
+            diagnostics?.record(kind: "merge_output_collision", detail: output.lastPathComponent)
+            throw KeraunosError.mergeFailed
         }
         do {
             try await export.export(to: output, as: .mp4)
@@ -144,14 +142,44 @@ public struct AVFoundationMerger: MediaMerging {
         }
     }
 
-    /// Removes the temp symlink directory. Best-effort — a leftover symlink in the OS temp dir
-    /// is harmless — but recorded (never silently swallowed) so a chronic failure stays visible.
-    private func removeScratch(_ url: URL) {
+    private func replaceScratchLink(at scratch: URL, with source: URL) throws {
+        if let type = try objectTypeIfPresent(at: scratch) {
+            // Removing a regular hard link or a symbolic-link directory entry cannot touch the
+            // linked target. Never recursively remove an unexpected directory/device at an owned
+            // scratch name.
+            guard type == .typeRegular || type == .typeSymbolicLink else {
+                throw KeraunosError.mergeFailed
+            }
+            try FileManager.default.removeItem(at: scratch)
+        }
+        try FileManager.default.linkItem(at: source, to: scratch)
+    }
+
+    /// Best-effort on normal return; deterministic ownership is the crash cleanup backstop.
+    private func removeScratchLinks(_ urls: [URL]) {
+        for url in urls {
+            do {
+                guard let type = try objectTypeIfPresent(at: url) else { continue }
+                guard type == .typeRegular || type == .typeSymbolicLink else {
+                    diagnostics?.record(kind: "merge_scratch_cleanup",
+                                        detail: "refused non-file \(url.lastPathComponent)")
+                    continue
+                }
+                try FileManager.default.removeItem(at: url)
+            } catch {
+                diagnostics?.record(kind: "merge_scratch_cleanup",
+                                    detail: "\(url.lastPathComponent): \(error)")
+            }
+        }
+    }
+
+    private func objectTypeIfPresent(at url: URL) throws -> FileAttributeType? {
         do {
-            try FileManager.default.removeItem(at: url)
-        } catch {
-            diagnostics?.record(kind: "merge_scratch_cleanup",
-                                detail: "\(url.lastPathComponent): \(error)")
+            return try FileManager.default.attributesOfItem(atPath: url.path)[.type]
+                as? FileAttributeType
+        } catch let error as CocoaError
+            where error.code == .fileNoSuchFile || error.code == .fileReadNoSuchFile {
+            return nil
         }
     }
 }

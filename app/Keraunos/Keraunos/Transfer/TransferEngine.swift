@@ -12,6 +12,27 @@ struct FailureLogDiagnostics: TransferDiagnostics {
     }
 }
 
+/// Main-actor owner of iOS's background-session completion handler. Installing the handler and
+/// opening the background session are one operation so session creation can never race ahead of
+/// the handler iOS requires us to call after its queued events drain.
+@MainActor
+final class BackgroundEventLifecycle {
+    private var completions: [() -> Void] = []
+
+    func handleEvents(completion: @escaping () -> Void, startSession: () -> Void) {
+        // UIKit should deliver one handler per background-session drain, but coalesce defensively:
+        // a second delivery before the drain completes must not orphan the first OS assertion.
+        completions.append(completion)
+        startSession()
+    }
+
+    func eventsDidFinish() {
+        let completions = completions
+        self.completions = []
+        for completion in completions { completion() }
+    }
+}
+
 /// Composition root for the background-transfer stack and owner of the launch sequence. A
 /// process-wide singleton because the background `URLSession` must be unique per identifier.
 ///
@@ -32,9 +53,7 @@ final class TransferEngine {
     private let diagnostics: any TransferDiagnostics
 
     private var didStart = false
-    /// The OS completion handler from `handleEventsForBackgroundURLSession`, held on the main
-    /// actor and fired once the session reports all events drained.
-    private var backgroundCompletion: (() -> Void)?
+    private let backgroundLifecycle = BackgroundEventLifecycle()
     /// Live assertion keeping the app awake across a finalize/merge pass.
     private var mergeAssertion: UIBackgroundTaskIdentifier = .invalid
     /// Re-entrancy guard: only one finalize pass runs at a time. `startIfNeeded()`,
@@ -71,7 +90,7 @@ final class TransferEngine {
         // A store that can't even be created is unrecoverable — surface it loudly rather than
         // limp along; the app cannot run background transfers without it.
         store = Self.makeStore(directory: base, diagnostics: diagnostics)
-        service = BackgroundTransferService(
+        service = Self.makeService(
             stagingDirectory: base.appendingPathComponent("staging", isDirectory: true),
             diagnostics: diagnostics)
         progress = TransferProgress()
@@ -90,6 +109,18 @@ final class TransferEngine {
         }
     }
 
+    private static func makeService(
+        stagingDirectory: URL,
+        diagnostics: any TransferDiagnostics
+    ) -> BackgroundTransferService {
+        do {
+            return try BackgroundTransferService(stagingDirectory: stagingDirectory,
+                                                 diagnostics: diagnostics)
+        } catch {
+            fatalError("TransferEngine: cannot create the staging store at \(stagingDirectory): \(error)")
+        }
+    }
+
     /// The launch sequence, in the mandated order (load store → wire delegate → create
     /// session). Idempotent — safe to call from both `onAppear` and the app-delegate hook.
     func startIfNeeded() {
@@ -99,11 +130,18 @@ final class TransferEngine {
         //    that hops to the main actor to fire the OS completion handler we hold there).
         service.attach(coordinator: coordinator,
                        onFinishEvents: { Task { @MainActor in TransferEngine.shared.fireBackgroundCompletion() } })
-        service.createSession()                     // 3. create session — opens the floodgates
+        do {
+            try service.createSession()             // 3. create session — opens the floodgates
+        } catch {
+            didStart = false
+            diagnostics.record(kind: "transfer_session_start", detail: "\(error)")
+            backgroundLifecycle.eventsDidFinish()
+            return
+        }
         Task {
             await coordinator.reassociateAndResume()   // rebind live tasks, resume vanished ones
             await reconcileOrphans()                    // sweep parts with no owning job
-            await runFinalizePass()                     // pick up any .readyToMerge from last run
+            await runFinalizePass()                     // recover ready/interrupted finalization
         }
         // Watch the progress bus for the life of the process: any job the coordinator advances
         // to `.readyToMerge` (notably a foreground-completed download) triggers a finalize pass.
@@ -120,8 +158,9 @@ final class TransferEngine {
     /// Called by `AppDelegate` when iOS relaunches to finish background events. The handler
     /// stays on the main actor (never crosses into the nonisolated service).
     func handleBackgroundEvents(completion: @escaping () -> Void) {
-        startIfNeeded()
-        backgroundCompletion = completion
+        backgroundLifecycle.handleEvents(completion: completion) {
+            startIfNeeded()
+        }
     }
 
     /// Called on every scene-phase activation (cold launch and every subsequent foreground).
@@ -142,9 +181,7 @@ final class TransferEngine {
 
     /// Invokes and clears the stored OS completion handler once events have drained.
     func fireBackgroundCompletion() {
-        let handler = backgroundCompletion
-        backgroundCompletion = nil
-        handler?()
+        backgroundLifecycle.eventsDidFinish()
     }
 
     // MARK: - Launch steps
@@ -160,7 +197,9 @@ final class TransferEngine {
 
     /// Finalizes ready jobs under a background-task assertion (S2 conservative default: run in
     /// the foreground rather than gamble on the background-launch window), then auto-saves any
-    /// completed job flagged for Photos.
+    /// completed job flagged for Photos. Persisted `.completed` jobs are deliberately redelivered
+    /// after a crash so cleanup and store removal finish. Photos delivery is therefore at-least-once:
+    /// a crash after Photos accepted a save but before job removal can produce a duplicate.
     private func runFinalizePass() async {
         // A pass is already running; flag it to loop once more so a job that reached
         // `.readyToMerge` mid-pass is still finalized rather than dropped by this guard.
@@ -178,8 +217,8 @@ final class TransferEngine {
             let completed = await finalizer.finalizeReadyJobs()
             for id in completed {
                 if let job = await store.job(id: id), job.autoSaveToPhotos, let name = job.savedFilename {
-                    let fileURL = downloadStore.directory.appendingPathComponent(name)
-                    if PhotosCompatibility.canSave(fileURL) {
+                    if let fileURL = try? SafeFileComponent(name).url(in: downloadStore.directory),
+                       PhotosCompatibility.canSave(fileURL) {
                         switch await photoSaver.save(fileURL) {
                         case .saved:
                             break

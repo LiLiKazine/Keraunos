@@ -34,6 +34,31 @@ struct AVFoundationMergerTests {
         #expect(line != nil)
         #expect(line?.detail.contains("video-body=html") == true)
     }
+
+    @Test func staleDeterministicHardLinksAreReusedAndCleanedWithoutAccumulating() async throws {
+        let id = UUID()
+        let video = tempFile("v.mp4", bytes: Data("not video".utf8))
+        let audio = tempFile("a.m4a", bytes: Data("not audio".utf8))
+        let outputDirectory = video.deletingLastPathComponent()
+        let output = outputDirectory.appendingPathComponent(
+            "\(id.uuidString).finalizing.partial.mp4")
+        let videoScratch = outputDirectory.appendingPathComponent(
+            "\(id.uuidString).finalizing.partial.mp4.scratch-video.mp4")
+        let audioScratch = outputDirectory.appendingPathComponent(
+            "\(id.uuidString).finalizing.partial.mp4.scratch-audio.m4a")
+        try Data("stale video".utf8).write(to: videoScratch)
+        try Data("stale audio".utf8).write(to: audioScratch)
+
+        await #expect(throws: KeraunosError.mergeFailed) {
+            try await AVFoundationMerger().merge(video: video, audio: audio, into: output)
+        }
+
+        #expect(!FileManager.default.fileExists(atPath: videoScratch.path))
+        #expect(!FileManager.default.fileExists(atPath: audioScratch.path))
+        let leftovers = try FileManager.default.contentsOfDirectory(
+            at: outputDirectory, includingPropertiesForKeys: nil)
+        #expect(!leftovers.contains { $0.lastPathComponent.hasPrefix(id.uuidString) })
+    }
 }
 
 /// Collects diagnostic lines so a test can assert what was recorded.
