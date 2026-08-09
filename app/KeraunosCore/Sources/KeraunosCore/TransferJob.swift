@@ -90,6 +90,14 @@ public struct TransferJob: Codable, Sendable, Equatable, Identifiable {
         case adaptive(video: TrackJob, audio: TrackJob)
     }
 
+    /// Durable checkpoint for the filesystem half of finalization. The ready checkpoint is
+    /// persisted before promoting the job-owned stage into Downloads, which makes a crash after
+    /// that atomic move distinguishable from an unrelated file occupying the reserved name.
+    public enum FinalizationPhase: String, Codable, Sendable, Equatable {
+        case preparing
+        case readyToPromote
+    }
+
     public let id: UUID
     public let sourcePageURL: URL
     public let formatSelection: FormatSelection
@@ -98,14 +106,17 @@ public struct TransferJob: Codable, Sendable, Equatable, Identifiable {
     public var state: JobState
     public var kind: Kind
     public let suggestedFilename: String
-    /// Set on completion (relative name of the file placed in the DownloadStore). The
-    /// absolute destination URL is computed at merge time, not persisted (container drift).
+    /// Reserved before finalization I/O, then retained on completion (relative name of the file
+    /// placed in the DownloadStore). The absolute destination URL is never persisted because the
+    /// app container path can drift across installs.
     public var savedFilename: String?
     public let autoSaveToPhotos: Bool
+    public var finalizationPhase: FinalizationPhase?
 
     public init(id: UUID, sourcePageURL: URL, formatSelection: FormatSelection,
                 credentialRef: String?, createdAt: Date, state: JobState, kind: Kind,
-                suggestedFilename: String, savedFilename: String?, autoSaveToPhotos: Bool) {
+                suggestedFilename: String, savedFilename: String?, autoSaveToPhotos: Bool,
+                finalizationPhase: FinalizationPhase? = nil) {
         self.id = id
         self.sourcePageURL = sourcePageURL
         self.formatSelection = formatSelection
@@ -116,6 +127,7 @@ public struct TransferJob: Codable, Sendable, Equatable, Identifiable {
         self.suggestedFilename = suggestedFilename
         self.savedFilename = savedFilename
         self.autoSaveToPhotos = autoSaveToPhotos
+        self.finalizationPhase = finalizationPhase
     }
 
     /// The job's tracks in a stable order: `[progressive]` or `[video, audio]`.
@@ -128,4 +140,51 @@ public struct TransferJob: Codable, Sendable, Equatable, Identifiable {
 
     /// Part-file names this job owns — used for cleanup and orphan reconciliation.
     public var trackPartFileNames: [String] { tracks.map(\.partFileName) }
+
+    /// Deterministic private output stages. There is no user-facing filename allocation here:
+    /// retries reuse these job-owned names, and the finalizer bounds them to at most one file.
+    public var finalizationPartialFileName: String {
+        "\(id.uuidString).finalizing.partial.\(finalizationStageExtension)"
+    }
+
+    public var finalizationReadyFileName: String {
+        "\(id.uuidString).finalizing.ready.\(finalizationStageExtension)"
+    }
+
+    /// A hard-link identity anchor created before the ready stage is promoted. Because promotion
+    /// is a same-volume rename, this entry and the destination retain the same device/inode. It
+    /// lets crash recovery distinguish our output from a same-sized replacement without hashing
+    /// or copying multi-gigabyte media.
+    public var finalizationPromotionCheckpointFileName: String {
+        "\(id.uuidString).finalizing.promoted.\(finalizationStageExtension)"
+    }
+
+    /// Deterministic media-daemon aliases used by `AVFoundationMerger`. A crash can leave at most
+    /// these two hard links per job; retry and store cleanup reuse/remove the same owned names.
+    public var finalizationVideoScratchFileName: String {
+        "\(finalizationPartialFileName).scratch-video.mp4"
+    }
+
+    public var finalizationAudioScratchFileName: String {
+        "\(finalizationPartialFileName).scratch-audio.m4a"
+    }
+
+    /// Every file in the private parts directory owned by this durable job. Store-level orphan
+    /// reconciliation uses this superset; transfer/finalizer integrity checks remain track-only.
+    public var ownedPartFileNames: [String] {
+        trackPartFileNames + [
+            finalizationPartialFileName,
+            finalizationReadyFileName,
+            finalizationPromotionCheckpointFileName,
+            finalizationVideoScratchFileName,
+            finalizationAudioScratchFileName
+        ]
+    }
+
+    private var finalizationStageExtension: String {
+        switch kind {
+        case .progressive: "media"
+        case .adaptive: "mp4"
+        }
+    }
 }

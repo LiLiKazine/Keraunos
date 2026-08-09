@@ -9,36 +9,46 @@ import KeraunosCore
 struct DownloadsViewModelTests {
     private func track(_ part: String, bytesWritten: Int64 = 0, totalBytes: Int64? = nil,
                        taskIdentifier: Int? = nil) -> TrackJob {
-        TrackJob(remoteURL: URL(string: "https://cdn.example/\(part)")!,
-                 urlExpiresAt: nil, chunkSize: nil, partFileName: part,
-                 bytesWritten: bytesWritten, totalBytes: totalBytes,
-                 resumeData: nil, taskIdentifier: taskIdentifier)
+        AppTestTransfer.track(
+            part,
+            bytesWritten: bytesWritten,
+            totalBytes: totalBytes,
+            taskIdentifier: taskIdentifier)
     }
     private func job(id: UUID = UUID(), state: JobState, createdAt: TimeInterval = 1,
                      kind: TransferJob.Kind? = nil, filename: String = "clip.mp4",
                      page: String = "https://vimeo.com/1234",
-                     height: Int? = 720, isAdaptive: Bool = false,
+                     height: Int? = 720, isAdaptive: Bool? = nil,
                      credentialRef: String? = nil) -> TransferJob {
-        TransferJob(id: id, sourcePageURL: URL(string: page)!,
-                    formatSelection: FormatSelection(formatID: "x", height: height, isAdaptive: isAdaptive),
-                    credentialRef: credentialRef, createdAt: Date(timeIntervalSince1970: createdAt),
-                    state: state, kind: kind ?? .progressive(track("p.part")),
-                    suggestedFilename: filename, savedFilename: nil, autoSaveToPhotos: false)
+        AppTestTransfer.job(
+            id: id,
+            state: state,
+            createdAt: createdAt,
+            kind: kind,
+            filename: filename,
+            page: page,
+            height: height,
+            isAdaptive: isAdaptive,
+            credentialRef: credentialRef)
     }
     private func snap(_ state: JobState, _ received: Int64, _ total: Int64?,
                       isEstimated: Bool = false) -> ProgressSnapshot {
-        ProgressSnapshot(state: state, receivedBytes: received, totalBytes: total,
-                         isEstimated: isEstimated)
+        AppTestTransfer.snapshot(
+            state,
+            receivedBytes: received,
+            totalBytes: total,
+            isEstimated: isEstimated)
     }
 
     // MARK: estimated totals
 
     @Test func estimatedTotalsAreFlaggedOnTheRow() {
         let j = job(state: .downloading, kind: .progressive(track("p.part", taskIdentifier: 3)))
-        let rows = DownloadsViewModel.rows(jobs: [j],
-                                          snapshots: [j.id: snap(.downloading, 300, 10_000, isEstimated: true)])
-        #expect(rows[0].fraction == 0.03)
-        #expect(rows[0].isEstimatedTotal)
+        let queue = QueueProjectionHarness(
+            jobs: [j],
+            snapshots: [j.id: snap(.downloading, 300, 10_000, isEstimated: true)])
+        #expect(queue.onlyRow?.fraction == 0.03)
+        #expect(queue.onlyRow?.isEstimatedTotal == true)
     }
 
     @Test func exactTotalsAreNotFlagged() {
@@ -78,16 +88,27 @@ struct DownloadsViewModelTests {
 
     // MARK: identity & labels
 
+    @Test func adaptiveFixtureDerivesAnAdaptiveFormatSelection() {
+        let adaptive = AppTestTransfer.job(
+            state: .queued,
+            kind: .adaptive(video: track("v.part"), audio: track("a.part")))
+
+        #expect(adaptive.formatSelection.isAdaptive)
+    }
+
     @Test func stripsExtensionAndCarriesHostAndQuality() {
         let j = job(state: .queued, filename: "My Clip.mp4", page: "https://vimeo.com/1234", height: 1080)
-        let row = DownloadsViewModel.rows(jobs: [j], snapshots: [:])[0]
-        #expect(row.title == "My Clip")
-        #expect(row.sourceHost == "vimeo.com")
-        #expect(row.qualityLabel == "1080p")
+        let queue = QueueProjectionHarness(jobs: [j])
+        #expect(queue.onlyRow?.title == "My Clip")
+        #expect(queue.onlyRow?.sourceHost == "vimeo.com")
+        #expect(queue.onlyRow?.qualityLabel == "1080p")
     }
 
     @Test func adaptiveWithoutHeightLabelsAsAdaptive() {
-        let j = job(state: .queued, height: nil, isAdaptive: true)
+        let j = job(
+            state: .queued,
+            kind: .adaptive(video: track("v.part"), audio: track("a.part")),
+            height: nil)
         #expect(DownloadsViewModel.rows(jobs: [j], snapshots: [:])[0].qualityLabel == "Adaptive")
     }
 
@@ -95,7 +116,7 @@ struct DownloadsViewModelTests {
 
     @Test func terminalJobsAreNotRows() {
         let jobs = [job(state: .completed), job(state: .cancelled)]
-        #expect(DownloadsViewModel.rows(jobs: jobs, snapshots: [:]).isEmpty)
+        #expect(QueueProjectionHarness(jobs: jobs).rows.isEmpty)
     }
 
     @Test func failedJobCarriesItsReason() {
@@ -107,10 +128,11 @@ struct DownloadsViewModelTests {
 
     @Test func snapshotSuppliesFractionAndBytes() {
         let j = job(state: .downloading, kind: .progressive(track("p.part", bytesWritten: 10, taskIdentifier: 7)))
-        let rows = DownloadsViewModel.rows(jobs: [j], snapshots: [j.id: snap(.downloading, 500, 2000)])
-        #expect(rows[0].fraction == 0.25)
-        #expect(rows[0].receivedBytes == 500)       // bus wins over the persisted offset
-        #expect(rows[0].totalBytes == 2000)
+        let queue = QueueProjectionHarness(
+            jobs: [j], snapshots: [j.id: snap(.downloading, 500, 2000)])
+        #expect(queue.onlyRow?.fraction == 0.25)
+        #expect(queue.onlyRow?.receivedBytes == 500) // bus wins over the persisted offset
+        #expect(queue.onlyRow?.totalBytes == 2000)
     }
 
     /// A job the bus hasn't published yet (fresh launch, before reassociation) still shows the
@@ -147,8 +169,8 @@ struct DownloadsViewModelTests {
         let active = job(state: .downloading, createdAt: 3,
                          kind: .progressive(track("p.part", taskIdentifier: 5)))
         let needsSignIn = job(state: .needsRefresh, createdAt: 4, credentialRef: "acct")
-        let rows = DownloadsViewModel.rows(jobs: [failed, queued, active, needsSignIn], snapshots: [:])
-        #expect(rows.map(\.rowState) == [.downloading, .queued, .failed(.network), .needsSignIn])
+        let queue = QueueProjectionHarness(jobs: [failed, queued, active, needsSignIn])
+        #expect(queue.rows.map(\.rowState) == [.downloading, .queued, .failed(.network), .needsSignIn])
     }
 
     @Test func tiesBreakOnCreatedAtOldestFirst() {

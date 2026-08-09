@@ -9,7 +9,8 @@
 | `ded0dcf` | Aggregation math (`snapshot(for:)`) + the queue-row mapping seam |
 | `3e64d2a` | Publication invariant across all coordinator transitions — found and fixed a missing `publish` in `taskDidFail` |
 | `332e4d4` | Single-shot tracks learn their total from the delegate, so the bar is determinate before completion |
-| (this) | Carry yt-dlp's per-format size as a display-only estimate, closing the adaptive video phase |
+| `0c1f9cf` | Carry yt-dlp's per-format size as a display-only estimate, closing the adaptive video phase |
+| (this) | Expand reusable domain/component harnesses and harden crash-safe transfer ownership |
 
 ## Context
 
@@ -305,3 +306,74 @@ A separate field makes all three impossible by construction rather than by care.
   arriving. `ProgressBar` already clamped the *bar*; the text did not.
 - `_track()` calls `_fmt_size()`, which is defined ~60 lines below it. Fine in Python (name
   resolution happens at call time), and it keeps the helper next to its other caller.
+
+---
+
+## Follow-up: reusable domain/component harnesses and crash-safe ownership
+
+### Context
+
+The progress harnesses proved individual transitions but still left each suite assembling its
+own store/session/files, while the app boundary stopped at injected view-model mocks. A broader
+review also found that the production lifecycle those tests exercised had unsafe relaunch
+windows: `.merging` jobs could strand, background URLSession completion could overtake async
+persistence, and persisted filenames/output collisions lacked a durable ownership proof.
+
+### Options
+
+| Approach | Pros | Cons |
+|----------|------|------|
+| Keep per-test fixtures and add isolated regressions | smallest diff | duplication keeps drifting; cross-component invariants remain hard to state |
+| One global app test container | minimal setup at call sites | shared mutable state, simulator coupling, and poor failure isolation |
+| **Separate Core/app/lifecycle harnesses (chosen)** | matches dependency direction; Core stays simulator-free; behavior is asserted at durable boundaries | more explicit fixture code and cleanup ownership |
+| Copy progressive parts before completion persistence | source always remains after a crash | multi-GB write amplification and temporary duplication |
+| Trust recovered outputs by byte length | cheap and simple | can accept an unrelated replacement and delete the trusted source |
+| **Atomic promotion plus a retained inode checkpoint (chosen)** | no copy; exact ownership across relaunch and Photos post-processing | requires deterministic owned artifacts and an additive durable phase |
+
+### Decision
+
+Introduce separate reusable harnesses for the transfer domain, app components, and background
+lifecycle; make filesystem ownership explicit with validated components, transactional store
+updates, deterministic stages, and a hard-link identity checkpoint retained until durable job
+removal.
+
+### What Changed
+
+- `TransferDomainHarness.swift` composes a real temporary store, scripted session, progress bus,
+  diagnostics, staging, and fresh-store reload helpers. Representative coordinator, persistence,
+  progress, and request-header tests now use that vocabulary.
+- `AppComponentHarness.swift` owns isolated files/preferences and scripts exact extraction/listing
+  commands, enqueue outcomes, queue projection, and cookie behavior.
+- `BackgroundTransferService` validates and reconciles its staging root before session creation,
+  serializes completion/failure ingress ahead of the OS drain callback, and coalesces progress to
+  one latest pending value per task.
+- `SafeFileComponent` plus `TransferJobStore` reject traversal, terminal symlinks, duplicate job
+  IDs, and case/Unicode ownership aliases. Candidate snapshots reach memory only after atomic
+  persistence; orphan reporting reflects actual safe unlink results.
+- `TransferFinalizer` persists `preparing`/`readyToPromote`, uses deterministic partial/ready
+  stages, promotes without copying, and verifies recovered destinations by device/inode through a
+  retained hard-link checkpoint. The checkpoint survives `.completed` and Photos work until
+  `TransferJobStore.remove` durably removes the job.
+- `AVFoundationMerger` replaces crash-leakable UUID scratch directories with two deterministic,
+  job-owned hard-link aliases.
+
+### What Was Discovered
+
+- The first crash fix used `copyItem` so source bytes survived completion-persistence failure. It
+  was functionally safe but a serious multi-GB performance regression; same-volume atomic
+  promotion plus a hard-link checkpoint provides durability without copying.
+- Size equality is not ownership. A same-sized progressive replacement—or any nonempty adaptive
+  replacement—could be accepted after a crash. Device/inode identity is the durable proof needed
+  before deleting sources or saving to Photos.
+- Installing the UIKit background completion before session recreation fixed one race, but the
+  delegate still launched untracked Tasks. A single FIFO worker is required so the OS drain signal
+  follows coordinator persistence; progress must be coalesced or that FIFO can grow without bound.
+- Lexical path containment rejects `../`, but an in-directory symlink still redirects file I/O.
+  Terminal object-type validation and safe direct-entry `unlink` are both necessary. A narrow
+  check-before-I/O race remains; eliminating it would require descriptor-relative
+  `openat(..., O_NOFOLLOW)` operations.
+- AVFoundation's media-daemon workaround must remain hard-link based on physical devices, but UUID
+  scratch directories leak inodes on process death. Deterministic job-owned aliases bound and
+  reconcile the same workaround.
+- Final verification: 256 Core tests across 29 suites, 66 app tests (68 invocations), iPhone 17
+  simulator build green, and independent closure review with no unresolved Critical/Major issues.

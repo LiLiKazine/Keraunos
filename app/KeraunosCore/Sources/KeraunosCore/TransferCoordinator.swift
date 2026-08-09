@@ -82,7 +82,7 @@ public actor TransferCoordinator {
         let track = job.tracks[index]
         let canResume = freshContentLength != nil && freshContentLength == track.totalBytes
         if !canResume {
-            try PartFile(url: store.partFileURL(for: track.partFileName)).truncate(to: 0)
+            try PartFile(url: store.validatedPartFileURL(for: track.partFileName)).truncate(to: 0)
         }
         try await store.update(id: jobID) {
             Self.mutateTrack(&$0, at: index) {
@@ -144,7 +144,7 @@ public actor TransferCoordinator {
                 // Server ignored Range (or single-shot): the body IS the whole file — only
                 // valid at offset 0, else appending would corrupt a partially-written file.
                 guard track.bytesWritten == 0 else { throw KeraunosError.downloadNetwork }
-                let part = PartFile(url: store.partFileURL(for: track.partFileName))
+                let part = try PartFile(url: store.validatedPartFileURL(for: track.partFileName))
                 try part.truncate(to: 0)
                 let length = try part.append(Data(contentsOf: stagedFile))
                 try await store.update(id: owner.jobID) {
@@ -153,7 +153,7 @@ public actor TransferCoordinator {
                 try await completeTrack(jobID: owner.jobID)
                 await publish(owner.jobID)
             } else if statusCode == 206 {
-                let part = PartFile(url: store.partFileURL(for: track.partFileName))
+                let part = try PartFile(url: store.validatedPartFileURL(for: track.partFileName))
                 let chunk = try Data(contentsOf: stagedFile)
                 let length = try part.append(chunk)              // fsync BEFORE persisting offset
                 let total = contentRangeTotal ?? track.totalBytes
@@ -258,7 +258,8 @@ public actor TransferCoordinator {
         if chunked {
             // Discard any un-recorded tail written before a crash, so the ranged request
             // that follows can't double-append. `bytesWritten` is authoritative.
-            try PartFile(url: store.partFileURL(for: track.partFileName)).truncate(to: track.bytesWritten)
+            try PartFile(url: store.validatedPartFileURL(for: track.partFileName))
+                .truncate(to: track.bytesWritten)
             var request = decorate(track.remoteURL)
             let upper = track.bytesWritten + Int64(track.chunkSize!) - 1
             request.setValue("bytes=\(track.bytesWritten)-\(upper)", forHTTPHeaderField: "Range")

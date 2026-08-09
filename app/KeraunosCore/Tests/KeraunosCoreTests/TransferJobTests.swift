@@ -36,10 +36,13 @@ struct TransferJobTests {
     }
 
     @Test func codableRoundTripPreservesEverything() throws {
-        let job = adaptiveJob()
+        var job = adaptiveJob()
+        job.state = .merging
+        job.finalizationPhase = .readyToPromote
         let data = try JSONEncoder().encode(job)
         let decoded = try JSONDecoder().decode(TransferJob.self, from: data)
         #expect(decoded == job)
+        #expect(decoded.finalizationPhase == .readyToPromote)
     }
 
     @Test func failedStateRoundTripsWithReason() throws {
@@ -49,10 +52,43 @@ struct TransferJobTests {
         #expect(decoded.state == .failed(.insufficientSpace))
     }
 
+    @Test func finalizationPhaseRoundTripsAndLegacyPayloadDefaultsToNil() throws {
+        var job = adaptiveJob()
+        job.finalizationPhase = .readyToPromote
+        let data = try JSONEncoder().encode(job)
+
+        let checkpointed = try JSONDecoder().decode(TransferJob.self, from: data)
+        #expect(checkpointed.finalizationPhase == .readyToPromote)
+
+        var legacyPayload = try #require(
+            JSONSerialization.jsonObject(with: data) as? [String: Any]
+        )
+        legacyPayload.removeValue(forKey: "finalizationPhase")
+        let legacyData = try JSONSerialization.data(withJSONObject: legacyPayload)
+        let legacy = try JSONDecoder().decode(TransferJob.self, from: legacyData)
+        #expect(legacy.finalizationPhase == nil)
+    }
+
     @Test func tracksAndPartNamesForAdaptive() {
         let job = adaptiveJob()
         #expect(job.tracks.count == 2)
         #expect(job.trackPartFileNames == ["job-video.part", "job-audio.part"])
+        #expect(job.finalizationPartialFileName ==
+                "11111111-1111-1111-1111-111111111111.finalizing.partial.mp4")
+        #expect(job.finalizationReadyFileName ==
+                "11111111-1111-1111-1111-111111111111.finalizing.ready.mp4")
+        #expect(job.finalizationPromotionCheckpointFileName ==
+                "11111111-1111-1111-1111-111111111111.finalizing.promoted.mp4")
+        #expect(job.ownedPartFileNames == [
+            "job-video.part",
+            "job-audio.part",
+            "11111111-1111-1111-1111-111111111111.finalizing.partial.mp4",
+            "11111111-1111-1111-1111-111111111111.finalizing.ready.mp4",
+            "11111111-1111-1111-1111-111111111111.finalizing.promoted.mp4",
+            "11111111-1111-1111-1111-111111111111.finalizing.partial.mp4.scratch-video.mp4",
+            "11111111-1111-1111-1111-111111111111.finalizing.partial.mp4.scratch-audio.m4a"
+        ])
+        #expect(Set(job.ownedPartFileNames).count == job.ownedPartFileNames.count)
     }
 
     @Test func tracksAndPartNamesForProgressive() {
@@ -61,11 +97,27 @@ struct TransferJobTests {
             urlExpiresAt: nil, chunkSize: nil, partFileName: "job-prog.part",
             bytesWritten: 0, totalBytes: nil, resumeData: nil, taskIdentifier: nil)
         let job = TransferJob(
-            id: UUID(), sourcePageURL: URL(string: "https://ex.com")!,
+            id: UUID(uuidString: "AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA")!,
+            sourcePageURL: URL(string: "https://ex.com")!,
             formatSelection: FormatSelection(formatID: "18", height: 360, isAdaptive: false),
             credentialRef: nil, createdAt: Date(timeIntervalSince1970: 1),
             state: .queued, kind: .progressive(track),
             suggestedFilename: "p.mp4", savedFilename: nil, autoSaveToPhotos: false)
         #expect(job.trackPartFileNames == ["job-prog.part"])
+        #expect(job.finalizationPartialFileName ==
+                "AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA.finalizing.partial.media")
+        #expect(job.finalizationReadyFileName ==
+                "AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA.finalizing.ready.media")
+        #expect(job.finalizationPromotionCheckpointFileName ==
+                "AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA.finalizing.promoted.media")
+        #expect(job.ownedPartFileNames == [
+            "job-prog.part",
+            "AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA.finalizing.partial.media",
+            "AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA.finalizing.ready.media",
+            "AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA.finalizing.promoted.media",
+            "AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA.finalizing.partial.media.scratch-video.mp4",
+            "AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA.finalizing.partial.media.scratch-audio.m4a"
+        ])
+        #expect(Set(job.ownedPartFileNames).count == job.ownedPartFileNames.count)
     }
 }

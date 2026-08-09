@@ -11,9 +11,10 @@ struct DownloadViewModelTests {
         return dir
     }
     private func progressive(_ name: String) -> ResolvedMedia {
-        ResolvedMedia(kind: .progressive(MediaTrack(url: URL(string: "https://x.test/v.mp4")!,
-                      httpHeaders: [:], codec: "avc1", fileExtension: "mp4")),
-                      title: "t", suggestedFilename: name)
+        AppTestMedia.progressive(
+            filename: name,
+            title: "t",
+            remoteURL: URL(string: "https://x.test/v.mp4")!)
     }
     private func vm(extractor: any MediaExtracting, dir: URL,
                     enqueuer: any JobEnqueuing = SpyEnqueuer()) -> DownloadViewModel {
@@ -25,8 +26,7 @@ struct DownloadViewModelTests {
         return m
     }
     private var sampleOption: FormatOption {
-        FormatOption(height: 720, codecLabel: "H.264", approxBytes: nil,
-                     formatID: "22", isAdaptive: false)
+        AppTestMedia.option()
     }
 
     final class MockPhotoSaver: PhotoSaving {
@@ -74,17 +74,44 @@ struct DownloadViewModelTests {
     }
 
     @Test func successfulProgressiveResolveEnqueuesJob() async {
-        let dir = tempDir()
-        let spy = SpyEnqueuer()
-        let model = vm(extractor: MockExtractor(result: .success(progressive("clip.mp4"))),
-                       dir: dir, enqueuer: spy)
-        model.urlText = "https://x.test/post/1"
-        await model.startDownload()
-        #expect(model.errorMessage == nil)
-        #expect(model.isWorking == false)
-        #expect(spy.enqueued.count == 1)
-        #expect(spy.enqueued.first?.sourcePageURL == URL(string: "https://x.test/post/1"))
-        #expect(spy.enqueued.first?.suggestedFilename == "clip.mp4")
+        let harness = DownloadViewModelHarness.ready(.progressive(filename: "clip.mp4"))
+
+        await harness.start("https://x.test/post/1")
+
+        #expect(harness.model.errorMessage == nil)
+        #expect(harness.model.isWorking == false)
+        #expect(harness.enqueuedJob?.sourcePageURL == URL(string: "https://x.test/post/1"))
+        #expect(harness.enqueuedJob?.suggestedFilename == "clip.mp4")
+    }
+
+    @Test func harnessDeinitRemovesOwnedStorageAndPreferences() throws {
+        var harness: DownloadViewModelHarness? = .ready(.progressive(filename: "clip.mp4"))
+        let directory = try #require(harness?.storageDirectory)
+        let suite = try #require(harness?.defaultsSuiteIdentifier)
+        let defaults = try #require(UserDefaults(suiteName: suite))
+        defaults.set(true, forKey: "cleanup-marker")
+
+        #expect(FileManager.default.fileExists(atPath: directory.path))
+        #expect(UserDefaults.standard.persistentDomain(forName: suite) != nil)
+
+        harness = nil
+
+        #expect(!FileManager.default.fileExists(atPath: directory.path))
+        #expect(UserDefaults.standard.persistentDomain(forName: suite) == nil)
+    }
+
+    @Test func resolvedDownloadProjectsIntoTheQueue() async throws {
+        let download = DownloadViewModelHarness.ready(
+            .progressive(filename: "Harness Clip.mp4"))
+
+        await download.start("x.test/post/1")
+
+        let job = try #require(download.enqueuedJob)
+        let row = try #require(QueueProjectionHarness(jobs: [job]).onlyRow)
+        #expect(job.sourcePageURL == URL(string: "https://x.test/post/1"))
+        #expect(row.title == "Harness Clip")
+        #expect(row.sourceHost == "x.test")
+        #expect(row.rowState == .queued)
     }
 
     // Merge failures now surface from the engine/finalizer (Task B-series), not this view
@@ -92,10 +119,11 @@ struct DownloadViewModelTests {
     // job ends at enqueue.
 
     @Test func extractionErrorShowsMessage() async {
-        let model = vm(extractor: MockExtractor(result: .failure(.needsFfmpeg)), dir: tempDir())
-        model.urlText = "https://x.test/post/1"
-        await model.startDownload()
-        #expect(model.errorMessage == KeraunosError.needsFfmpeg.errorDescription)
+        let harness = DownloadViewModelHarness.failing(.needsFfmpeg)
+
+        await harness.start("https://x.test/post/1")
+
+        #expect(harness.model.errorMessage == KeraunosError.needsFfmpeg.errorDescription)
     }
 
     @Test func openIncomingDeepLinkFillsFieldAndEnqueues() async {
@@ -121,19 +149,15 @@ struct DownloadViewModelTests {
         // Transient transport faults — a YouTube cold-start surfacing as extract_network
         // or a watchdog timeout (the EJS-in-JSC solve is heavy on the first run), or a
         // mid-transfer download blip — clear on a warm retry, which succeeds.
-        let spy = SpyEnqueuer()
-        let extractor = SequenceExtractor(results: [
+        let harness = DownloadViewModelHarness(listings: [
             .failure(first),
-            .success(progressive("clip.mp4")),
+            .success(.ready(.progressive(filename: "clip.mp4"))),
         ])
-        let model = DownloadViewModel(
-            extractor: extractor,
-            store: DownloadStore(directory: tempDir()),
-            enqueuer: spy)
-        model.urlText = "https://x.test/post/1"
-        await model.startDownload()
-        #expect(model.errorMessage == nil)            // the transient blip was never surfaced
-        #expect(spy.enqueued.count == 1)              // exactly one job — succeeded on the auto-retry
+
+        await harness.start("https://x.test/post/1")
+
+        #expect(harness.model.errorMessage == nil)     // the transient blip was never surfaced
+        #expect(harness.enqueuedJobs.count == 1)       // exactly one job — succeeded on the auto-retry
     }
 
     @Test func doesNotAutoRetryTerminalErrors() async {
@@ -228,30 +252,34 @@ struct DownloadViewModelTests {
     }
 
     @Test func multipleFormatsShowPickerAndDoNotDownloadYet() async {
-        let dir = tempDir()
-        let spy = SpyEnqueuer()
-        let model = vm(extractor: choices([sampleOption,
+        let options = [sampleOption,
             FormatOption(height: 360, codecLabel: "H.264", approxBytes: nil,
-                         formatID: "18", isAdaptive: false)]),
-                       dir: dir, enqueuer: spy)
-        model.urlText = "https://x.test/v"
-        await model.startDownload()
-        #expect(model.pendingOptions?.count == 2)
-        #expect(spy.enqueued.isEmpty)                 // nothing enqueued yet
-        #expect(model.savedFiles.isEmpty)
+                         formatID: "18", isAdaptive: false)]
+        let harness = DownloadViewModelHarness.choices(
+            options, resolvingTo: .progressive(filename: "picked.mp4"))
+
+        await harness.start("https://x.test/v")
+
+        #expect(harness.model.pendingOptions?.count == 2)
+        #expect(harness.enqueuedJobs.isEmpty)          // nothing enqueued yet
+        #expect(harness.model.savedFiles.isEmpty)
     }
 
     @Test func selectFormatResolvesAndEnqueues() async {
-        let dir = tempDir()
-        let spy = SpyEnqueuer()
-        let model = vm(extractor: choices([sampleOption]), dir: dir, enqueuer: spy)
-        model.urlText = "https://x.test/v"
-        await model.startDownload()
-        model.selectFormat(sampleOption)
-        await model.currentTask?.value
-        #expect(model.pendingOptions == nil)
-        #expect(spy.enqueued.count == 1)
-        #expect(spy.enqueued.first?.formatSelection.formatID == sampleOption.formatID)
+        let harness = DownloadViewModelHarness.choices(
+            [sampleOption], resolvingTo: .progressive(filename: "picked.mp4"))
+
+        await harness.start("x.test/v")
+        await harness.select(sampleOption)
+
+        let expectedURL = URL(string: "https://x.test/v")!
+        let resolutions = await harness.resolveCommands
+        #expect(await harness.listedURLs == [expectedURL])
+        #expect(resolutions.count == 1)
+        #expect(resolutions.first?.url == expectedURL)
+        #expect(resolutions.first?.option == sampleOption)
+        #expect(harness.model.pendingOptions == nil)
+        #expect(harness.enqueuedJob?.formatSelection.formatID == sampleOption.formatID)
     }
 
     @Test func cancelSelectionClearsPickerWithoutDownloading() async {
@@ -274,13 +302,6 @@ struct DownloadViewModelTests {
         #expect(model.pendingOptions == nil)
     }
 
-    private func prefs(quality: DefaultQuality = .ask, autoSave: Bool = false) -> Preferences {
-        let p = Preferences(defaults: UserDefaults(suiteName: UUID().uuidString)!)
-        p.defaultQuality = quality
-        p.autoSaveToPhotos = autoSave
-        return p
-    }
-
     @Test func bestOptionPrefersHighestMuxedOverAdaptive() {
         let options = [
             FormatOption(height: 2160, codecLabel: "HEVC", approxBytes: nil, formatID: "a", isAdaptive: true),
@@ -293,60 +314,57 @@ struct DownloadViewModelTests {
     }
 
     @Test func highestQualityPreferenceSkipsPickerAndEnqueuesBest() async {
-        let dir = tempDir()
-        let spy = SpyEnqueuer()
         let options = [
             FormatOption(height: 360, codecLabel: "H.264", approxBytes: nil, formatID: "18", isAdaptive: false),
             FormatOption(height: 1080, codecLabel: "H.264", approxBytes: nil, formatID: "137", isAdaptive: false),
         ]
-        let model = DownloadViewModel(
-            extractor: choices(options),
-            store: DownloadStore(directory: dir),
-            preferences: prefs(quality: .highest),
-            enqueuer: spy)
-        model.urlText = "https://x.test/v"
-        await model.startDownload()
-        #expect(model.pendingOptions == nil)              // picker skipped entirely
-        #expect(spy.enqueued.count == 1)                  // resolved and enqueued without asking
-        #expect(spy.enqueued.first?.formatSelection.formatID == "137")   // the higher-height option
+        let harness = DownloadViewModelHarness.choices(
+            options,
+            resolvingTo: .progressive(filename: "picked.mp4"),
+            quality: .highest)
+
+        await harness.start("x.test/v")
+
+        let expectedURL = URL(string: "https://x.test/v")!
+        let resolutions = await harness.resolveCommands
+        #expect(await harness.listedURLs == [expectedURL])
+        #expect(resolutions.count == 1)
+        #expect(resolutions.first?.url == expectedURL)
+        #expect(resolutions.first?.option == options[1])
+        #expect(harness.model.pendingOptions == nil)      // picker skipped entirely
+        #expect(harness.enqueuedJobs.count == 1)          // resolved and enqueued without asking
+        #expect(harness.enqueuedJob?.formatSelection.formatID == "137")
     }
 
     @Test func autoSaveToPhotosPreferencePersistsOnEnqueuedJob() async {
         // The VM no longer performs the Photos save itself (that moved to the engine's
         // finalize pass) — it only needs to carry the preference onto the job.
         let saver = MockPhotoSaver(result: .saved)
-        let spy = SpyEnqueuer()
-        let model = DownloadViewModel(
-            extractor: MockExtractor(result: .success(progressive("clip.mp4"))),
-            store: DownloadStore(directory: tempDir()),
-            photoSaver: saver,
-            preferences: prefs(autoSave: true),
-            enqueuer: spy)
-        model.urlText = "https://x.test/v"
-        await model.startDownload()
-        #expect(spy.enqueued.count == 1)
-        #expect(spy.enqueued.first?.autoSaveToPhotos == true)
+        let harness = DownloadViewModelHarness.ready(
+            .progressive(filename: "clip.mp4"),
+            autoSaveToPhotos: true,
+            photoSaver: saver)
+
+        await harness.start("https://x.test/v")
+
+        #expect(harness.enqueuedJobs.count == 1)
+        #expect(harness.enqueuedJob?.autoSaveToPhotos == true)
         #expect(saver.savedURLs.isEmpty)                  // not called from the VM anymore
     }
 
     @Test func retryAfterLoginSucceedsAndClearsSignIn() async {
-        let dir = tempDir()
-        let spy = SpyEnqueuer()
-        let extractor = SequenceExtractor(results: [
+        let harness = DownloadViewModelHarness(listings: [
             .failure(.requiresAuth),
-            .success(progressive("clip.mp4")),
+            .success(.ready(.progressive(filename: "clip.mp4"))),
         ])
-        let model = DownloadViewModel(
-            extractor: extractor,
-            store: DownloadStore(directory: dir),
-            enqueuer: spy)
-        model.urlText = "https://www.instagram.com/reel/ABC/"
-        await model.startDownload()
-        #expect(model.requiresSignIn == true)
-        await model.retry()
-        #expect(model.requiresSignIn == false)
-        #expect(spy.enqueued.count == 1)
-        #expect(model.errorMessage == nil)
+
+        await harness.start("https://www.instagram.com/reel/ABC/")
+        #expect(harness.model.requiresSignIn == true)
+        await harness.model.retry()
+
+        #expect(harness.model.requiresSignIn == false)
+        #expect(harness.enqueuedJobs.count == 1)
+        #expect(harness.model.errorMessage == nil)
     }
 }
 

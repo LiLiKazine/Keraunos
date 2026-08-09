@@ -45,5 +45,7 @@ actor ScriptedTransferSession: TransferSession {
 
     /// The `Range` header of the most recently started (ranged) task, for assertions.
     func lastRange() -> String? { started.last?.request.value(forHTTPHeaderField: "Range") }
+    func latestTaskIdentifier() -> Int? { started.last?.id }
+    func latestRequest() -> URLRequest? { started.last?.request }
     func setLive(_ ids: Set<Int>) { live = ids }
 }

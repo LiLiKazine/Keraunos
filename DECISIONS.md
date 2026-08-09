@@ -1,5 +1,8 @@
 # UI rebuild — decision log
 
+> Historical log above/below may cover earlier branches. The active test-harness work is
+> tracked in the section appended at the end of this file.
+
 Branch: `ui/production-refined-native`. Goal: replace the throwaway PoC SwiftUI with
 the locked "Refined Native" (dark) production design, wired to the existing view models.
 Behavior stays; only the UI is rebuilt.
@@ -89,3 +92,73 @@ without UI-automation taps were removed before commit.
 - Per-file **duration / resolution / source host / byte-rate** and the Settings **storage
   bar denominator** are not shown — the data model doesn't persist them; we show only real
   values (size, saved date, file type). "Download over Wi-Fi only" omitted (see checkpoint 2).
+
+---
+
+# Domain and component test harnesses — decision log
+
+Branch: `test/domain-component-harnesses`. Goal: establish reusable test harnesses for
+each architectural domain and application component before broader feature work.
+
+## Done-criteria
+- [x] Core domain harnesses cover transfer construction, persistence, coordination,
+      progress, and finalization without simulator dependencies.
+- [x] App component harnesses cover extraction/enqueue and queue-presentation behavior
+      without the process-wide transfer singleton.
+- [x] Background lifecycle and relaunch/finalization boundaries are deterministic and
+      exercised by focused tests.
+- [x] Core and app test suites pass, simulator build/typecheck passes, and final review
+      has no critical or major findings.
+
+## Hard-stop allowlist
+Standard irreversible/external actions only: no release, publish, force-push, new
+worktree, destructive data operation, or external communication.
+
+## [iteration 1] Harness boundaries before feature expansion
+- **Chose behavior-oriented harnesses rather than one mock per production type.** Each
+  harness owns a domain aggregate and exposes outcomes (persisted job, requests, progress,
+  rendered rows), preventing tests from coupling to incidental call order.
+  Alternatives: a global test container (too much shared mutable state), per-test ad hoc
+  setup (the duplication this slice is intended to remove).
+  Reversible: yes. Confidence: high.
+- **Keep Core, app-feature, and lifecycle harnesses in separate test scopes.** This matches
+  the real dependency direction and lets Core remain simulator-free.
+  Reversible: yes. Confidence: high.
+- **Permit the smallest production seam/refactor required for lifecycle tests.** The goal
+  is executable harnesses, not test-only replicas of production ordering.
+  Reversible: yes. Confidence: high.
+
+## [iteration 2] Crash-safe filesystem and background-event contracts
+- **Persist a finalization phase and retain an inode checkpoint until durable job removal.**
+  Progressive output advances by hard-link/rename without copying; adaptive output uses one
+  deterministic partial/ready stage. Relaunch trusts a destination only when its device/inode
+  matches the job-owned checkpoint, so replacements are preserved and recovery neither remuxes
+  nor deletes unrelated files. The checkpoint deliberately survives `.completed` Photos work
+  and is removed only by `TransferJobStore.remove`.
+  Reversible: yes (model field is optional for legacy decoding). Confidence: high.
+- **Make every persisted filesystem name an owned, validated component.** Store load/mutation
+  rejects traversal, terminal symlinks, duplicate job IDs, and case/Unicode ownership aliases;
+  mutations publish only after atomic persistence. Directly enumerated orphan symlinks are
+  unlinked without following their targets.
+  Reversible: yes. Confidence: high.
+- **Serialize background delegate ingress and coalesce progress per task.** Completion/failure
+  work and the URLSession drain marker remain lossless FIFO, while high-volume progress keeps
+  only the latest pending value. The staging root is validated and stale bodies/symlinks are
+  reconciled synchronously before session recreation.
+  Reversible: yes. Confidence: high.
+- **Bound AVFoundation scratch ownership.** Media-daemon hard links use deterministic job-owned
+  names instead of crash-leakable UUID directories; retry, job removal, and orphan reconciliation
+  all converge on the same artifacts.
+  Reversible: yes. Confidence: high.
+
+### Verification
+- Core package: 256 tests across 29 suites passed on macOS.
+- App unit target: 66 tests / 68 invocations passed on iPhone 17 simulator.
+- iPhone 17 simulator build succeeded; `git diff --check` is clean.
+- Final independent closure audits: 0 unresolved Critical, 0 unresolved Major.
+
+### Residual limitations
+- Filesystem validation has an unavoidable check-before-I/O race without adopting
+  descriptor-relative `openat(..., O_NOFOLLOW)` operations.
+- Legacy `.completed` jobs with neither a checkpoint nor recoverable source bytes use structural
+  output validation for compatibility; there is no remaining source data that path can destroy.

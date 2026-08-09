@@ -31,27 +31,27 @@ struct TransferCoordinatorTests {
     }
 
     @Test func progressiveSingleShotCompletesToReadyToMerge() async throws {
-        let dir = tempDir()
-        let store = try TransferJobStore(directory: dir)
-        let session = ScriptedTransferSession()
-        let coord = TransferCoordinator(store: store, session: session)
-        let j = job(kind: .progressive(track(part: "p.part", chunkSize: nil)))
+        let harness = try TransferDomainHarness()
+        let j = TransferFixtures.progressiveJob(track: .transferFixture(part: "p.part"))
 
-        try await coord.start(j)
-        #expect(await session.started.count == 1)
-        #expect(await session.lastRange() == nil)               // single-shot: no Range
+        try await harness.coordinator.start(j)
+        #expect(await harness.session.started.count == 1)
+        #expect(await harness.session.lastRange() == nil)       // single-shot: no Range
 
-        let id = await session.started[0].id
-        await coord.taskDidFinishDownloading(taskIdentifier: id, to: stage(Data(repeating: 1, count: 500)),
-                                             statusCode: 200, contentRangeTotal: nil)
+        let id = try #require(await harness.session.latestTaskIdentifier())
+        await harness.coordinator.taskDidFinishDownloading(
+            taskIdentifier: id,
+            to: try harness.stage(Data(repeating: 1, count: 500)),
+            statusCode: 200,
+            contentRangeTotal: nil
+        )
 
-        let reloaded = try TransferJobStore(directory: dir)
-        let done = await reloaded.job(id: j.id)!
+        let done = try #require(await harness.reloadedJob(j.id))
         #expect(done.state == .readyToMerge)
         #expect(done.tracks[0].bytesWritten == 500)
         #expect(done.tracks[0].totalBytes == 500)
-        #expect(store.partFileURL(for: "p.part").pathExists)
-        #expect(FileManager.default.fileSize(store.partFileURL(for: "p.part")) == 500)
+        #expect(harness.store.partFileURL(for: "p.part").pathExists)
+        #expect(FileManager.default.fileSize(harness.store.partFileURL(for: "p.part")) == 500)
     }
 
     @Test func adaptiveDownloadsVideoThenAudioSequentially() async throws {
@@ -220,54 +220,60 @@ struct TransferCoordinatorTests {
     }
 
     @Test func reassociateRebindsLiveTaskWithoutStartingNew() async throws {
-        let dir = tempDir()
-        let store = try TransferJobStore(directory: dir)
-        let session = ScriptedTransferSession()
-        let coord = TransferCoordinator(store: store, session: session)
-        let j = job(kind: .progressive(track(part: "c.part", chunkSize: 100)))
-        try await coord.start(j)
-        let id = await session.started[0].id                    // task 1 live, mid-first-chunk
+        let harness = try TransferDomainHarness()
+        let j = TransferFixtures.progressiveJob(
+            track: .transferFixture(part: "c.part", chunkSize: 100)
+        )
+        try await harness.coordinator.start(j)
+        let id = try #require(await harness.session.latestTaskIdentifier()) // live, mid-first-chunk
 
-        let coord2 = TransferCoordinator(store: store, session: session)
+        let coord2 = TransferCoordinator(
+            store: harness.store,
+            session: harness.session,
+            progress: harness.progress
+        )
         await coord2.reassociateAndResume()                     // task 1 still live
-        #expect(await session.started.count == 1)               // NO new task started
+        #expect(await harness.session.started.count == 1)       // NO new task started
 
-        await coord2.taskDidFinishDownloading(taskIdentifier: id, to: stage(Data(repeating: 1, count: 50)),
-                                              statusCode: 206, contentRangeTotal: 50)
-        #expect(await store.job(id: j.id)!.state == .readyToMerge)
+        await coord2.taskDidFinishDownloading(
+            taskIdentifier: id,
+            to: try harness.stage(Data(repeating: 1, count: 50)),
+            statusCode: 206,
+            contentRangeTotal: 50
+        )
+        #expect(await harness.persistedJob(j.id)?.state == .readyToMerge)
     }
 
     @Test func appliesPersistedRequestHeaders() async throws {
-        let dir = tempDir()
-        let store = try TransferJobStore(directory: dir)
-        let session = ScriptedTransferSession()
-        let coord = TransferCoordinator(store: store, session: session)
-        var t = track(part: "p.part", chunkSize: nil)
-        t.requestHeaders = ["User-Agent": "yt", "Cookie": "a=b"]
-        try await coord.start(job(kind: .progressive(t)))
-        let req = await session.started[0].request
+        let harness = try TransferDomainHarness()
+        let track = TrackJob.transferFixture(
+            part: "p.part",
+            requestHeaders: ["User-Agent": "yt", "Cookie": "a=b"]
+        )
+        try await harness.coordinator.start(TransferFixtures.progressiveJob(track: track))
+        let req = try #require(await harness.session.latestRequest())
         #expect(req.value(forHTTPHeaderField: "User-Agent") == "yt")
         #expect(req.value(forHTTPHeaderField: "Cookie") == "a=b")
     }
 
     @Test func reassociateResumeFailureSurfacesAsFailedNotSilentStall() async throws {
-        let dir = tempDir()
-        let store = try TransferJobStore(directory: dir)
-        let session = ScriptedTransferSession()
+        let harness = try TransferDomainHarness()
         // A downloading job whose task vanished while suspended.
-        var t = track(part: "c.part", chunkSize: 100, bytesWritten: 50, totalBytes: 250)
-        t.taskIdentifier = 42
-        try await store.upsert(job(kind: .progressive(t), state: .downloading))
-        await session.setStartError(URLError(.notConnectedToInternet))   // resume can't start
-        await session.setLive([])                                        // task 42 gone
+        let track = TrackJob.transferFixture(
+            part: "c.part", chunkSize: 100, bytesWritten: 50,
+            totalBytes: 250, taskIdentifier: 42
+        )
+        try await harness.store.upsert(
+            TransferFixtures.progressiveJob(track: track, state: .downloading)
+        )
+        await harness.session.setStartError(URLError(.notConnectedToInternet)) // resume can't start
+        await harness.session.setLive([])                                      // task 42 gone
 
-        let spy = SpyDiagnostics()
-        let coord = TransferCoordinator(store: store, session: session, diagnostics: spy)
-        await coord.reassociateAndResume()
+        await harness.coordinator.reassociateAndResume()
 
         // The failed resume is surfaced (retryable) AND recorded — not swallowed.
-        #expect(await store.all().first!.state == .failed(.network))
-        #expect(spy.kinds.contains("transfer_resume_failed"))
+        #expect(await harness.store.all().first!.state == .failed(.network))
+        #expect(harness.diagnostics.kinds.contains("transfer_resume_failed"))
     }
 
     // MARK: media-URL refresh
@@ -521,6 +527,32 @@ struct TransferCoordinatorTests {
         await coord.reassociateAndResume()
         #expect(await session.started.isEmpty)
         #expect(await store.job(id: j.id)?.state == .paused)
+    }
+
+    @Test func startingAndReceivingBytesAlignsPersistenceRequestAndProgress() async throws {
+        let harness = try TransferDomainHarness()
+        let transfer = TransferFixtures.progressiveJob(
+            track: .transferFixture(part: "cross-component.part", chunkSize: 100, totalBytes: 250)
+        )
+
+        try await harness.coordinator.start(transfer)
+        let taskID = try #require(await harness.session.latestTaskIdentifier())
+        #expect(await harness.session.latestRequest()?.value(forHTTPHeaderField: "Range") == "bytes=0-99")
+
+        await harness.coordinator.taskDidWriteData(
+            taskIdentifier: taskID,
+            totalBytesWritten: 40,
+            totalBytesExpectedToWrite: 100
+        )
+
+        let persisted = try #require(await harness.persistedJob(transfer.id))
+        let published = try #require(await harness.progress.snapshot(for: transfer.id))
+        #expect(persisted.state == .downloading)
+        #expect(persisted.tracks[0].taskIdentifier == taskID)
+        #expect(published.state == persisted.state)
+        #expect(published.receivedBytes == 40)
+        #expect(published.totalBytes == 250)
+        #expect(try await harness.reloadedJob(transfer.id) == persisted)
     }
 }
 
