@@ -10,7 +10,8 @@
 | `3e64d2a` | Publication invariant across all coordinator transitions — found and fixed a missing `publish` in `taskDidFail` |
 | `332e4d4` | Single-shot tracks learn their total from the delegate, so the bar is determinate before completion |
 | `0c1f9cf` | Carry yt-dlp's per-format size as a display-only estimate, closing the adaptive video phase |
-| (this) | Expand reusable domain/component harnesses and harden crash-safe transfer ownership |
+| `5e0ad1a` | Expand reusable domain/component harnesses and harden crash-safe transfer ownership |
+| (this) | Make harness invariants fail loudly and clarify representative adoption |
 
 ## Context
 
@@ -377,3 +378,63 @@ removal.
   reconcile the same workaround.
 - Final verification: 256 Core tests across 29 suites, 66 app tests (68 invocations), iPhone 17
   simulator build green, and independent closure review with no unresolved Critical/Major issues.
+
+---
+
+## Follow-up: harness contract clarity
+
+### Context
+
+A post-commit review found that several convenience APIs encoded invalid harness states as empty
+arrays or `nil`. Current assertions happened to catch those outcomes, but a future optional-chain
+assertion could pass for the wrong reason. The review also correctly noted that the lifecycle
+ordering test depended on a separate coalescing test for its strongest guarantee, and that the
+done-criteria could be read as claiming a complete migration of every legacy fixture.
+
+### Options
+
+| Approach | Pros | Cons |
+|----------|------|------|
+| Preserve optional conveniences and rely on call-site count checks | smallest diff | failures point at downstream values; optional-chain assertions can pass vacuously |
+| **Use `#require` accessors and non-optional scripted observation (chosen)** | invalid cardinality fails at the harness boundary with a useful issue | behavior tests that consume one item become throwing |
+| Mechanically migrate every legacy test to the new vocabulary | one apparent idiom | large churn with little behavioral value; specialized finalizer/store arrangements remain clearer locally |
+| **Keep representative adoption and narrow the claim (chosen)** | honest scope; preserves specialized fixtures | legacy helpers remain and can be migrated when touched |
+
+### Decision
+
+Make harness preconditions explicit test failures, keep the generic extraction path outside the
+script-observing harness, and describe adoption as representative rather than exhaustive.
+
+### What Changed
+
+- Single-job and single-row observations now use throwing `#require` helpers instead of returning
+  `nil`; scripted extraction is always present when command observations are exposed.
+- Script exhaustion records a Swift Testing issue before returning a domain error, so an
+  over-consuming test fails at the harness rather than masquerading as product behavior.
+- The lifecycle test asserts completion immediately after synchronous session startup and again
+  after a duplicate drain, independently pinning ordering and exactly-once behavior.
+- Harness contract checks moved into `AppComponentHarnessTests`; the storage test retains the same
+  `UserDefaults` instance to avoid cross-instance cache behavior.
+- The unused adaptive override and redundant `ResolvedMedia.progressive` wrapper were removed.
+- Core and app harness teardown now report cleanup failures consistently through Swift Testing.
+- `CLAUDE.md` documents the narrow synchronous-delegate lock exception used to preserve FIFO
+  ordering before work enters async isolation.
+
+### What Was Discovered
+
+- A test can truthfully exercise a behavior while its name overstates what that test alone pins;
+  immediate intermediate-state assertions keep the contract local and resistant to cleanup.
+- Fixture families span different domain values (`ResolvedMedia` versus `TransferJob`), so they
+  should not be collapsed merely for naming uniformity. Thin wrappers for the same value add no
+  such boundary and are better removed.
+- Cleanup from `deinit` cannot throw. Recording a Swift Testing issue preserves leak visibility
+  without trapping the entire debug test process or silently swallowing the failure.
+- Xcode's synchronized test group picked up the new harness suite automatically, but Swift still
+  requires that file to import `KeraunosCore` directly for its transfer-domain assertions; the
+  first focused build caught and localized that missing import.
+
+### Verification
+
+- Core package: 256 tests across 29 suites passed on macOS.
+- Full app scheme: 70 tests / 75 invocations, including UI tests, passed on iPhone 17 simulator.
+- `git diff --check` passed.

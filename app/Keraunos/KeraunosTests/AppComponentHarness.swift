@@ -1,4 +1,5 @@
 import Foundation
+import Testing
 import WebKit
 import KeraunosCore
 @testable import Keraunos
@@ -10,7 +11,7 @@ import KeraunosCore
 final class DownloadViewModelHarness {
     let model: DownloadViewModel
     private let enqueuer: RecordingJobEnqueuer
-    private let scriptedExtractor: ScriptedMediaExtractor?
+    private let scriptedExtractor: ScriptedMediaExtractor
     private let storage: AppHarnessStorage
 
     init(
@@ -35,19 +36,6 @@ final class DownloadViewModelHarness {
             store: DownloadStore(directory: storage.directory),
             photoSaver: photoSaver,
             preferences: preferences,
-            enqueuer: enqueuer)
-    }
-
-    init(extractor: any MediaExtracting) {
-        let enqueuer = RecordingJobEnqueuer()
-        let storage = AppHarnessStorage()
-        self.enqueuer = enqueuer
-        self.scriptedExtractor = nil
-        self.storage = storage
-        model = DownloadViewModel(
-            extractor: extractor,
-            store: DownloadStore(directory: storage.directory),
-            preferences: Preferences(defaults: storage.defaults),
             enqueuer: enqueuer)
     }
 
@@ -88,26 +76,22 @@ final class DownloadViewModelHarness {
     }
 
     var enqueuedJobs: [TransferJob] { enqueuer.jobs }
-    var enqueuedJob: TransferJob? { enqueuer.jobs.count == 1 ? enqueuer.jobs[0] : nil }
-    var storageDirectory: URL { storage.directory }
-    var defaultsSuiteIdentifier: String { storage.defaultsSuiteName }
+    func requireEnqueuedJob() throws -> TransferJob {
+        try #require(enqueuer.jobs.count == 1, "Expected exactly one enqueued job")
+        return enqueuer.jobs[0]
+    }
+
     var listedURLs: [URL] {
-        get async {
-            guard let scriptedExtractor else { return [] }
-            return await scriptedExtractor.listedURLs
-        }
+        get async { await scriptedExtractor.listedURLs }
     }
     var resolveCommands: [MediaResolveCommand] {
-        get async {
-            guard let scriptedExtractor else { return [] }
-            return await scriptedExtractor.resolveCommands
-        }
+        get async { await scriptedExtractor.resolveCommands }
     }
 }
 
 /// Owns the filesystem and UserDefaults side effects of one app-component harness.
 /// Retaining it beside the model keeps both alive for the scenario; deinit tears both down.
-private final class AppHarnessStorage {
+final class AppHarnessStorage {
     let directory: URL
     let defaults: UserDefaults
     let defaultsSuiteName: String
@@ -137,7 +121,7 @@ private final class AppHarnessStorage {
         do {
             try FileManager.default.removeItem(at: directory)
         } catch {
-            assertionFailure("Could not remove app harness directory: \(error)")
+            Issue.record("Could not remove app harness directory: \(error)")
         }
         defaults.removePersistentDomain(forName: defaultsSuiteName)
     }
@@ -172,6 +156,7 @@ actor ScriptedMediaExtractor: MediaExtracting {
         phase: String
     ) -> Result<T, KeraunosError> {
         guard !results.isEmpty else {
+            Issue.record("ScriptedMediaExtractor exhausted its \(phase) results")
             return .failure(.runtime(detail: "No scripted \(phase) result remains"))
         }
         return results.removeFirst()
@@ -220,12 +205,6 @@ enum AppTestMedia {
     }
 }
 
-extension ResolvedMedia {
-    static func progressive(filename: String) -> ResolvedMedia {
-        AppTestMedia.progressive(filename: filename)
-    }
-}
-
 // MARK: - Queue projection
 
 @MainActor
@@ -236,7 +215,10 @@ struct QueueProjectionHarness {
         rows = DownloadsViewModel.rows(jobs: jobs, snapshots: snapshots)
     }
 
-    var onlyRow: QueueItem? { rows.count == 1 ? rows[0] : nil }
+    func requireOnlyRow() throws -> QueueItem {
+        try #require(rows.count == 1, "Expected exactly one projected queue row")
+        return rows[0]
+    }
 }
 
 enum AppTestTransfer {
@@ -265,7 +247,6 @@ enum AppTestTransfer {
         filename: String = "clip.mp4",
         page: String = "https://vimeo.com/1234",
         height: Int? = 720,
-        isAdaptive: Bool? = nil,
         credentialRef: String? = nil
     ) -> TransferJob {
         let effectiveKind = kind ?? .progressive(track())
@@ -278,7 +259,7 @@ enum AppTestTransfer {
             id: id,
             sourcePageURL: URL(string: page)!,
             formatSelection: FormatSelection(
-                formatID: "x", height: height, isAdaptive: isAdaptive ?? kindIsAdaptive),
+                formatID: "x", height: height, isAdaptive: kindIsAdaptive),
             credentialRef: credentialRef,
             createdAt: Date(timeIntervalSince1970: createdAt),
             state: state,

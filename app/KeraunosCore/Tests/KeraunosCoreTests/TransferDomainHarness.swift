@@ -1,5 +1,6 @@
 import Foundation
 import KeraunosCore
+import Testing
 
 /// Stable examples for transfer-domain tests. Defaults describe one ordinary queued download;
 /// individual tests override only the state that matters to the behavior under test.
@@ -89,7 +90,11 @@ final class TemporaryTransferJobStore {
     }
 
     deinit {
-        try? FileManager.default.removeItem(at: directory)
+        do {
+            try FileManager.default.removeItem(at: directory)
+        } catch {
+            Issue.record("Could not remove Core harness directory: \(error)")
+        }
     }
 
     func reloadedStore(diagnostics: (any TransferDiagnostics)? = nil) throws -> TransferJobStore {
