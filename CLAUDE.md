@@ -41,6 +41,10 @@ truth and read the latest one before working on extraction internals.
   concurrency for parallelism — not `DispatchQueue`/GCD.
 - **Actors over locks for data safety.** Protect shared mutable state with `actor`
   isolation (and `@MainActor` for UI state), not `NSLock`/`os_unfair_lock`/serial queues.
+  The narrow exception is synchronous system-delegate ingress that must establish ordering
+  before returning: `BackgroundProgressCoalescer` uses a short-held `NSLock` to enqueue URLSession
+  callbacks into one async FIFO without spawning reorderable tasks. Never hold that lock across
+  an `await`; keep the state machine and durable work actor-isolated.
 
 ## Commands
 

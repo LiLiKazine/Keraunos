@@ -101,8 +101,8 @@ Branch: `test/domain-component-harnesses`. Goal: establish reusable test harness
 each architectural domain and application component before broader feature work.
 
 ## Done-criteria
-- [x] Core domain harnesses cover transfer construction, persistence, coordination,
-      progress, and finalization without simulator dependencies.
+- [x] Core domain harnesses provide reusable construction, persistence, coordination,
+      progress, and finalization seams, adopted by representative simulator-free tests.
 - [x] App component harnesses cover extraction/enqueue and queue-presentation behavior
       without the process-wide transfer singleton.
 - [x] Background lifecycle and relaunch/finalization boundaries are deterministic and
@@ -151,10 +151,24 @@ worktree, destructive data operation, or external communication.
   all converge on the same artifacts.
   Reversible: yes. Confidence: high.
 
+## [iteration 3] Harness contract cleanup after review
+- **Fail at the harness boundary for invalid cardinality or exhausted scripts.** Single-result
+  observations use `#require`, and an over-consumed extraction script records a Swift Testing
+  issue instead of looking like a product runtime error.
+  Reversible: yes. Confidence: high.
+- **Keep representative adoption rather than mechanically rewriting specialized tests.** The
+  reusable harnesses cover each named boundary, but existing finalizer/store arrangements remain
+  where they communicate a scenario more directly. The done-criteria now states that scope.
+  Reversible: yes. Confidence: high.
+- **Document the synchronous URLSession-delegate lock as a narrow concurrency exception.** The
+  lock only orders enqueue operations before callbacks return and is never held across `await`;
+  durable mutable work remains actor-isolated.
+  Reversible: yes. Confidence: high.
+
 ### Verification
 - Core package: 256 tests across 29 suites passed on macOS.
-- App unit target: 66 tests / 68 invocations passed on iPhone 17 simulator.
-- iPhone 17 simulator build succeeded; `git diff --check` is clean.
+- Full app scheme: 70 tests / 75 invocations, including UI tests, passed on iPhone 17 simulator.
+- The test action rebuilt the iPhone 17 simulator app; `git diff --check` is clean.
 - Final independent closure audits: 0 unresolved Critical, 0 unresolved Major.
 
 ### Residual limitations

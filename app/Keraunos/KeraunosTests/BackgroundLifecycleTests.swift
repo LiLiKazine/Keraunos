@@ -14,6 +14,7 @@ struct BackgroundLifecycleTests {
             lifecycle.eventsDidFinish()
         }
 
+        #expect(completionCount == 1)
         lifecycle.eventsDidFinish()
 
         #expect(completionCount == 1)

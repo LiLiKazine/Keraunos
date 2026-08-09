@@ -18,7 +18,7 @@ struct DownloadsViewModelTests {
     private func job(id: UUID = UUID(), state: JobState, createdAt: TimeInterval = 1,
                      kind: TransferJob.Kind? = nil, filename: String = "clip.mp4",
                      page: String = "https://vimeo.com/1234",
-                     height: Int? = 720, isAdaptive: Bool? = nil,
+                     height: Int? = 720,
                      credentialRef: String? = nil) -> TransferJob {
         AppTestTransfer.job(
             id: id,
@@ -28,7 +28,6 @@ struct DownloadsViewModelTests {
             filename: filename,
             page: page,
             height: height,
-            isAdaptive: isAdaptive,
             credentialRef: credentialRef)
     }
     private func snap(_ state: JobState, _ received: Int64, _ total: Int64?,
@@ -42,13 +41,14 @@ struct DownloadsViewModelTests {
 
     // MARK: estimated totals
 
-    @Test func estimatedTotalsAreFlaggedOnTheRow() {
+    @Test func estimatedTotalsAreFlaggedOnTheRow() throws {
         let j = job(state: .downloading, kind: .progressive(track("p.part", taskIdentifier: 3)))
         let queue = QueueProjectionHarness(
             jobs: [j],
             snapshots: [j.id: snap(.downloading, 300, 10_000, isEstimated: true)])
-        #expect(queue.onlyRow?.fraction == 0.03)
-        #expect(queue.onlyRow?.isEstimatedTotal == true)
+        let row = try queue.requireOnlyRow()
+        #expect(row.fraction == 0.03)
+        #expect(row.isEstimatedTotal == true)
     }
 
     @Test func exactTotalsAreNotFlagged() {
@@ -88,20 +88,13 @@ struct DownloadsViewModelTests {
 
     // MARK: identity & labels
 
-    @Test func adaptiveFixtureDerivesAnAdaptiveFormatSelection() {
-        let adaptive = AppTestTransfer.job(
-            state: .queued,
-            kind: .adaptive(video: track("v.part"), audio: track("a.part")))
-
-        #expect(adaptive.formatSelection.isAdaptive)
-    }
-
-    @Test func stripsExtensionAndCarriesHostAndQuality() {
+    @Test func stripsExtensionAndCarriesHostAndQuality() throws {
         let j = job(state: .queued, filename: "My Clip.mp4", page: "https://vimeo.com/1234", height: 1080)
         let queue = QueueProjectionHarness(jobs: [j])
-        #expect(queue.onlyRow?.title == "My Clip")
-        #expect(queue.onlyRow?.sourceHost == "vimeo.com")
-        #expect(queue.onlyRow?.qualityLabel == "1080p")
+        let row = try queue.requireOnlyRow()
+        #expect(row.title == "My Clip")
+        #expect(row.sourceHost == "vimeo.com")
+        #expect(row.qualityLabel == "1080p")
     }
 
     @Test func adaptiveWithoutHeightLabelsAsAdaptive() {
@@ -126,13 +119,14 @@ struct DownloadsViewModelTests {
 
     // MARK: progress merge
 
-    @Test func snapshotSuppliesFractionAndBytes() {
+    @Test func snapshotSuppliesFractionAndBytes() throws {
         let j = job(state: .downloading, kind: .progressive(track("p.part", bytesWritten: 10, taskIdentifier: 7)))
         let queue = QueueProjectionHarness(
             jobs: [j], snapshots: [j.id: snap(.downloading, 500, 2000)])
-        #expect(queue.onlyRow?.fraction == 0.25)
-        #expect(queue.onlyRow?.receivedBytes == 500) // bus wins over the persisted offset
-        #expect(queue.onlyRow?.totalBytes == 2000)
+        let row = try queue.requireOnlyRow()
+        #expect(row.fraction == 0.25)
+        #expect(row.receivedBytes == 500) // bus wins over the persisted offset
+        #expect(row.totalBytes == 2000)
     }
 
     /// A job the bus hasn't published yet (fresh launch, before reassociation) still shows the
