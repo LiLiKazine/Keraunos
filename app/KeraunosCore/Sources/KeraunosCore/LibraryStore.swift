@@ -1,9 +1,9 @@
 import Foundation
 
-/// Owns the download destination and lists finished downloads. A value type holding only a
-/// directory `URL`, so it is `Sendable` and can cross actor boundaries (e.g. into the
-/// background transfer finalizer).
-public struct DownloadStore: Sendable {
+/// Owns the Library: the destination finished Downloads are promoted into, and the listing
+/// of what is already there. A value type holding only a directory `URL`, so it is
+/// `Sendable` and can cross actor boundaries (e.g. into the background transfer finalizer).
+public struct LibraryStore: Sendable {
     public let directory: URL
 
     public init(directory: URL? = nil) {

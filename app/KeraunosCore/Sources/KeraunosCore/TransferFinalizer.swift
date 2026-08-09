@@ -9,7 +9,7 @@ private enum FinalizationError: Error {
 /// Takes `.readyToMerge` and crash-interrupted `.merging` jobs to `.completed`. It validates source
 /// lengths, reserves the durable output name, and produces a deterministic job-owned ready stage:
 /// progressive jobs atomically move their existing part, while adaptive jobs mux once into a
-/// bounded partial stage and atomically checkpoint it as ready. Promotion into `DownloadStore`
+/// bounded partial stage and atomically checkpoint it as ready. Promotion into `LibraryStore`
 /// atomically creates a no-overwrite hard link, and its durable identity checkpoint makes every
 /// crash window idempotent without a whole-file copy or byte comparison. Adaptive source parts
 /// remain until `.completed` is durable;
@@ -18,19 +18,19 @@ private enum FinalizationError: Error {
 public actor TransferFinalizer {
     private let store: TransferJobStore
     private let merger: any MediaMerging
-    private let downloadStore: DownloadStore
+    private let libraryStore: LibraryStore
     private let disk: any DiskSpaceProbing
     private let diagnostics: (any TransferDiagnostics)?
     private let progress: TransferProgress?
     private var activeJobIDs: Set<UUID> = []
 
     public init(store: TransferJobStore, merger: any MediaMerging,
-                downloadStore: DownloadStore, disk: any DiskSpaceProbing = VolumeDiskSpace(),
+                libraryStore: LibraryStore, disk: any DiskSpaceProbing = VolumeDiskSpace(),
                 diagnostics: (any TransferDiagnostics)? = nil,
                 progress: TransferProgress? = nil) {
         self.store = store
         self.merger = merger
-        self.downloadStore = downloadStore
+        self.libraryStore = libraryStore
         self.disk = disk
         self.diagnostics = diagnostics
         self.progress = progress
@@ -246,7 +246,7 @@ public actor TransferFinalizer {
     /// replaced with a sanitized reservation inside the download directory.
     private func destination(for job: TransferJob) throws -> URL {
         if job.state == .merging, let savedName = job.savedFilename {
-            return try SafeFileComponent(savedName).url(in: downloadStore.directory)
+            return try SafeFileComponent(savedName).url(in: libraryStore.directory)
         }
         switch job.kind {
         case .progressive:
@@ -258,8 +258,8 @@ public actor TransferFinalizer {
     }
 
     private func uniqueDestination(for filename: String) throws -> URL {
-        let candidate = downloadStore.uniqueDestination(for: filename)
-        return try SafeFileComponent(candidate.lastPathComponent).url(in: downloadStore.directory)
+        let candidate = libraryStore.uniqueDestination(for: filename)
+        return try SafeFileComponent(candidate.lastPathComponent).url(in: libraryStore.directory)
     }
 
     private func sourcesAreComplete(_ job: TransferJob, urls: [URL]) -> Bool {
@@ -284,7 +284,7 @@ public actor TransferFinalizer {
 
     private func completedOutputIsValid(_ job: TransferJob) -> Bool {
         guard let savedName = job.savedFilename,
-              let destination = try? SafeFileComponent(savedName).url(in: downloadStore.directory)
+              let destination = try? SafeFileComponent(savedName).url(in: libraryStore.directory)
         else { return false }
         if let checkpoint = validPromotionCheckpointURL(for: job) {
             return filesShareIdentity(checkpoint, destination)
@@ -376,7 +376,7 @@ public actor TransferFinalizer {
     private func requireSamePromotionVolume() throws {
         let keys: Set<URLResourceKey> = [.volumeIdentifierKey]
         let stageVolume = try store.partsDirectory.resourceValues(forKeys: keys).volumeIdentifier
-        let outputVolume = try downloadStore.directory.resourceValues(forKeys: keys).volumeIdentifier
+        let outputVolume = try libraryStore.directory.resourceValues(forKeys: keys).volumeIdentifier
         guard let stage = stageVolume as? NSObject,
               let output = outputVolume as? NSObject,
               stage == output else {

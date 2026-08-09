@@ -35,7 +35,7 @@ enum UITestSupport {
     /// Additive and idempotent: an existing seed is left in place and no other file is ever
     /// touched, so running with the flag against a populated library is non-destructive.
     @discardableResult
-    static func seedLibraryIfRequested(in store: DownloadStore) async -> Bool {
+    static func seedLibraryIfRequested(in store: LibraryStore) async -> Bool {
         #if DEBUG
         guard isSeedingRequested else { return false }
 

@@ -107,7 +107,7 @@ public struct TransferJob: Codable, Sendable, Equatable, Identifiable {
     public var kind: Kind
     public let suggestedFilename: String
     /// Reserved before finalization I/O, then retained on completion (relative name of the file
-    /// placed in the DownloadStore). The absolute destination URL is never persisted because the
+    /// placed in the LibraryStore). The absolute destination URL is never persisted because the
     /// app container path can drift across installs.
     public var savedFilename: String?
     public let autoSaveToPhotos: Bool
