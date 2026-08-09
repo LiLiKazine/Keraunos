@@ -29,14 +29,23 @@ public enum JobState: Codable, Sendable, Equatable {
 /// Enough to deterministically re-pick the SAME format on a refresh re-extraction, so a
 /// resumed download continues the byte-identical file rather than a different rendition.
 public struct FormatSelection: Codable, Sendable, Equatable {
+    /// The persisted key stays `isAdaptive`: `TransferJob` encodes through a bare
+    /// `JSONEncoder`, so renaming the Swift property would silently orphan every job
+    /// already queued on device. Swift reads DASH; the durable format does not change.
+    enum CodingKeys: String, CodingKey {
+        case formatID
+        case height
+        case isDASH = "isAdaptive"
+    }
+
     public let formatID: String
     public let height: Int?
-    public let isAdaptive: Bool
+    public let isDASH: Bool
 
-    public init(formatID: String, height: Int?, isAdaptive: Bool) {
+    public init(formatID: String, height: Int?, isDASH: Bool) {
         self.formatID = formatID
         self.height = height
-        self.isAdaptive = isAdaptive
+        self.isDASH = isDASH
     }
 }
 
@@ -59,7 +68,7 @@ public struct TrackJob: Codable, Sendable, Equatable {
     /// accept the transfer. Persisted with the job.
     public var requestHeaders: [String: String]
     /// The extraction-time size estimate (yt-dlp `filesize`/`filesize_approx`), carried so the
-    /// queue can show a determinate bar before the first response — adaptive tracks download
+    /// queue can show a determinate bar before the first response — DASH tracks download
     /// sequentially, so the second track's real total isn't known until it starts.
     ///
     /// **Display only, never control flow.** `totalBytes` gates chunk termination
@@ -87,7 +96,14 @@ public struct TrackJob: Codable, Sendable, Equatable {
 public struct TransferJob: Codable, Sendable, Equatable, Identifiable {
     public enum Kind: Codable, Sendable, Equatable {
         case progressive(TrackJob)
-        case adaptive(video: TrackJob, audio: TrackJob)
+        case dash(video: TrackJob, audio: TrackJob)
+
+        /// The discriminator persisted for `.dash` stays `"adaptive"` for the same reason
+        /// `FormatSelection.isDASH` keeps its key — see there.
+        enum CodingKeys: String, CodingKey {
+            case progressive
+            case dash = "adaptive"
+        }
     }
 
     /// Durable checkpoint for the filesystem half of finalization. The ready checkpoint is
@@ -134,7 +150,7 @@ public struct TransferJob: Codable, Sendable, Equatable, Identifiable {
     public var tracks: [TrackJob] {
         switch kind {
         case .progressive(let track): return [track]
-        case .adaptive(let video, let audio): return [video, audio]
+        case .dash(let video, let audio): return [video, audio]
         }
     }
 
@@ -184,7 +200,7 @@ public struct TransferJob: Codable, Sendable, Equatable, Identifiable {
     private var finalizationStageExtension: String {
         switch kind {
         case .progressive: "media"
-        case .adaptive: "mp4"
+        case .dash: "mp4"
         }
     }
 }

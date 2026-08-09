@@ -13,13 +13,13 @@ enum TransferFixtures {
         job(id: id, kind: .progressive(track), state: state)
     }
 
-    static func adaptiveJob(
+    static func dashJob(
         id: UUID = UUID(),
         video: TrackJob = .transferFixture(part: "video.part"),
         audio: TrackJob = .transferFixture(part: "audio.part"),
         state: JobState = .queued
     ) -> TransferJob {
-        job(id: id, kind: .adaptive(video: video, audio: audio), state: state)
+        job(id: id, kind: .dash(video: video, audio: audio), state: state)
     }
 
     static func job(
@@ -27,17 +27,17 @@ enum TransferFixtures {
         kind: TransferJob.Kind,
         state: JobState = .queued
     ) -> TransferJob {
-        let isAdaptive: Bool
+        let isDASH: Bool
         switch kind {
-        case .progressive: isAdaptive = false
-        case .adaptive: isAdaptive = true
+        case .progressive: isDASH = false
+        case .dash: isDASH = true
         }
 
         return TransferJob(
             id: id,
             sourcePageURL: URL(string: "https://example.com/watch")!,
             formatSelection: FormatSelection(
-                formatID: "fixture", height: nil, isAdaptive: isAdaptive
+                formatID: "fixture", height: nil, isDASH: isDASH
             ),
             credentialRef: nil,
             createdAt: Date(timeIntervalSince1970: 1),

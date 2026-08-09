@@ -24,7 +24,7 @@ struct TransferCoordinatorTests {
     }
     private func job(id: UUID = UUID(), kind: TransferJob.Kind, state: JobState = .queued) -> TransferJob {
         TransferJob(id: id, sourcePageURL: URL(string: "https://ex.com")!,
-                    formatSelection: FormatSelection(formatID: "x", height: nil, isAdaptive: false),
+                    formatSelection: FormatSelection(formatID: "x", height: nil, isDASH: false),
                     credentialRef: nil, createdAt: Date(timeIntervalSince1970: 1),
                     state: state, kind: kind, suggestedFilename: "f.mp4",
                     savedFilename: nil, autoSaveToPhotos: false)
@@ -54,12 +54,12 @@ struct TransferCoordinatorTests {
         #expect(FileManager.default.fileSize(harness.store.partFileURL(for: "p.part")) == 500)
     }
 
-    @Test func adaptiveDownloadsVideoThenAudioSequentially() async throws {
+    @Test func dashDownloadsVideoThenAudioSequentially() async throws {
         let dir = tempDir()
         let store = try TransferJobStore(directory: dir)
         let session = ScriptedTransferSession()
         let coord = TransferCoordinator(store: store, session: session)
-        let j = job(kind: .adaptive(video: track(part: "v.part", chunkSize: nil),
+        let j = job(kind: .dash(video: track(part: "v.part", chunkSize: nil),
                                     audio: track(part: "a.part", chunkSize: nil)))
         try await coord.start(j)
         #expect(await session.started.count == 1)               // only video started
@@ -441,16 +441,16 @@ struct TransferCoordinatorTests {
         #expect(snap?.totalBytes == 4_194_304)
     }
 
-    /// The adaptive handoff over the real publish path: once video finishes, the bus must
+    /// The DASH handoff over the real publish path: once video finishes, the bus must
     /// report video's bytes against an indeterminate total (audio's total isn't known until
     /// its response arrives) — never a completed bar that then restarts.
-    @Test func adaptiveHandoffPublishesSummedBytesNotAFullBar() async throws {
+    @Test func dashHandoffPublishesSummedBytesNotAFullBar() async throws {
         let dir = tempDir()
         let store = try TransferJobStore(directory: dir)
         let session = ScriptedTransferSession()
         let bus = TransferProgress()
         let coord = TransferCoordinator(store: store, session: session, progress: bus)
-        let j = job(kind: .adaptive(video: track(part: "v.part", chunkSize: nil),
+        let j = job(kind: .dash(video: track(part: "v.part", chunkSize: nil),
                                     audio: track(part: "a.part", chunkSize: nil)))
         try await coord.start(j)
 

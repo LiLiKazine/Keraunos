@@ -4,7 +4,7 @@ import Foundation
 public struct ResolvedMedia: Equatable, Sendable {
     public enum Kind: Equatable, Sendable {
         case progressive(MediaTrack)
-        case adaptive(video: MediaTrack, audio: MediaTrack)
+        case dash(video: MediaTrack, audio: MediaTrack)
     }
     public let kind: Kind
     public let title: String
@@ -76,7 +76,7 @@ public enum ExtractionDecoder {
             guard let video = Self.track(result.video), let audio = Self.track(result.audio) else {
                 throw KeraunosError.runtime(detail: "missing adaptive tracks")
             }
-            return ResolvedMedia(kind: .adaptive(video: video, audio: audio),
+            return ResolvedMedia(kind: .dash(video: video, audio: audio),
                                  title: title,
                                  suggestedFilename: Self.filename(result.filename, fallbackURL: video.url))
         default:
@@ -134,7 +134,7 @@ public enum ExtractionDecoder {
             let options = (envelope.options ?? []).map {
                 FormatOption(height: $0.height, codecLabel: $0.codec ?? "",
                              approxBytes: $0.approx_bytes, formatID: $0.format_id,
-                             isAdaptive: $0.adaptive)
+                             isDASH: $0.adaptive)
             }
             return .choices(options)
         }

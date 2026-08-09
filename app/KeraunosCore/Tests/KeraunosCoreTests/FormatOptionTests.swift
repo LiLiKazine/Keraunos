@@ -5,9 +5,9 @@ import KeraunosCore
 struct FormatOptionTests {
     private func option(height: Int = 1080, codec: String = "H.264",
                         bytes: Int64? = nil, id: String = "137",
-                        adaptive: Bool = true) -> FormatOption {
+                        DASH: Bool = true) -> FormatOption {
         FormatOption(height: height, codecLabel: codec, approxBytes: bytes,
-                     formatID: id, isAdaptive: adaptive)
+                     formatID: id, isDASH: DASH)
     }
 
     @Test func labelWithAllFields() {

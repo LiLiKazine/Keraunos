@@ -2,7 +2,7 @@ import Foundation
 
 /// A point-in-time view of one job's transfer progress, published on the `TransferProgress`
 /// bus. `fraction` is derived (received / total), nil when the total is unknown — the UI
-/// then shows an indeterminate bar (see the spec's "Waiting (background)" / early-adaptive
+/// then shows an indeterminate bar (see the spec's "Waiting (background)" / early-DASH
 /// cases). `state` mirrors the durable `JobState` so the bus alone can drive most of the row.
 public struct ProgressSnapshot: Sendable, Equatable {
     public let state: JobState

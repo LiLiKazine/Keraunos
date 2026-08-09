@@ -15,9 +15,9 @@ struct FormatListingDecodingTests {
         }
         #expect(options.count == 2)
         #expect(options[0] == FormatOption(height: 1080, codecLabel: "H.264",
-                approxBytes: 47_185_920, formatID: "137", isAdaptive: true))
+                approxBytes: 47_185_920, formatID: "137", isDASH: true))
         #expect(options[1] == FormatOption(height: 360, codecLabel: "H.264",
-                approxBytes: nil, formatID: "18", isAdaptive: false))
+                approxBytes: nil, formatID: "18", isDASH: false))
     }
 
     @Test func decodesReadyProgressiveAsReady() throws {

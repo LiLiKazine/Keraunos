@@ -57,7 +57,7 @@ actor PythonExtractor: MediaExtracting {
 
     private func blockingExtract(_ url: URL, cookiePath: String?, option: FormatOption?) throws -> ResolvedMedia {
         guard let cString = keraunos_python_extract(url.absoluteString, cookiePath,
-                                                    option?.formatID, (option?.isAdaptive ?? false) ? 1 : 0) else {
+                                                    option?.formatID, (option?.isDASH ?? false) ? 1 : 0) else {
             throw KeraunosError.runtime(detail: "null extraction result")
         }
         defer { free(cString) }

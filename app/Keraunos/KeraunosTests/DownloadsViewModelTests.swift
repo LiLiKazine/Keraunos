@@ -97,10 +97,10 @@ struct DownloadsViewModelTests {
         #expect(row.qualityLabel == "1080p")
     }
 
-    @Test func adaptiveWithoutHeightLabelsAsAdaptive() {
+    @Test func dashWithoutHeightLabelsAsAdaptive() {
         let j = job(
             state: .queued,
-            kind: .adaptive(video: track("v.part"), audio: track("a.part")),
+            kind: .dash(video: track("v.part"), audio: track("a.part")),
             height: nil)
         #expect(DownloadsViewModel.rows(jobs: [j], snapshots: [:])[0].qualityLabel == "Adaptive")
     }
@@ -132,7 +132,7 @@ struct DownloadsViewModelTests {
     /// A job the bus hasn't published yet (fresh launch, before reassociation) still shows the
     /// bytes already on disk — summed across tracks — rather than zero, with an indeterminate bar.
     @Test func withoutASnapshotFallsBackToSummedPersistedOffsets() {
-        let j = job(state: .paused, kind: .adaptive(video: track("v.part", bytesWritten: 900, totalBytes: 1000),
+        let j = job(state: .paused, kind: .dash(video: track("v.part", bytesWritten: 900, totalBytes: 1000),
                                                     audio: track("a.part", bytesWritten: 100, totalBytes: 200)))
         let row = DownloadsViewModel.rows(jobs: [j], snapshots: [:])[0]
         #expect(row.receivedBytes == 1000)

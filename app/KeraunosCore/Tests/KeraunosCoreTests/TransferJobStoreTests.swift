@@ -17,7 +17,7 @@ struct TransferJobStoreTests {
             bytesWritten: 0, totalBytes: nil, resumeData: nil, taskIdentifier: nil)
         return TransferJob(
             id: id, sourcePageURL: URL(string: "https://ex.com")!,
-            formatSelection: FormatSelection(formatID: "18", height: 360, isAdaptive: false),
+            formatSelection: FormatSelection(formatID: "18", height: 360, isDASH: false),
             credentialRef: nil, createdAt: Date(timeIntervalSince1970: 1),
             state: state, kind: .progressive(track),
             suggestedFilename: "p.mp4", savedFilename: nil, autoSaveToPhotos: false)
@@ -25,10 +25,10 @@ struct TransferJobStoreTests {
 
     @Test func sharedFixturesKeepFormatSelectionConsistentWithJobKind() {
         let progressive = TransferFixtures.progressiveJob()
-        let adaptive = TransferFixtures.adaptiveJob()
+        let DASH = TransferFixtures.dashJob()
 
-        #expect(!progressive.formatSelection.isAdaptive)
-        #expect(adaptive.formatSelection.isAdaptive)
+        #expect(!progressive.formatSelection.isDASH)
+        #expect(DASH.formatSelection.isDASH)
     }
 
     @Test func upsertPersistsAcrossStoreInstances() async throws {
@@ -283,16 +283,16 @@ struct TransferJobStoreTests {
         #expect(await storage.store.all() == [owner])
     }
 
-    @Test func adaptiveJobCannotOwnTheSamePartThroughCaseAliases() async throws {
+    @Test func dashJobCannotOwnTheSamePartThroughCaseAliases() async throws {
         let storage = try TemporaryTransferJobStore()
         var duplicate = progressiveJob(partName: "unused.part")
-        duplicate.kind = .adaptive(
+        duplicate.kind = .dash(
             video: track(partName: "media.part"),
             audio: track(partName: "MEDIA.PART"))
 
         do {
             try await storage.store.upsert(duplicate)
-            Issue.record("Expected duplicate adaptive part ownership to be rejected")
+            Issue.record("Expected duplicate DASH part ownership to be rejected")
         } catch {}
 
         #expect(await storage.store.all().isEmpty)

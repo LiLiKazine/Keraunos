@@ -21,13 +21,13 @@ struct AppComponentHarnessTests {
         #expect(defaults.persistentDomain(forName: suite) == nil)
     }
 
-    @Test func adaptiveFixtureDerivesAnAdaptiveFormatSelection() {
-        let adaptive = AppTestTransfer.job(
+    @Test func dashFixtureDerivesAnDASHFormatSelection() {
+        let DASH = AppTestTransfer.job(
             state: .queued,
-            kind: .adaptive(
+            kind: .dash(
                 video: AppTestTransfer.track("v.part"),
                 audio: AppTestTransfer.track("a.part")))
 
-        #expect(adaptive.formatSelection.isAdaptive)
+        #expect(DASH.formatSelection.isDASH)
     }
 }

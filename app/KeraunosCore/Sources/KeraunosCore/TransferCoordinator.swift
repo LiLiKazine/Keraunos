@@ -276,7 +276,7 @@ public actor TransferCoordinator {
         await publish(jobID)
     }
 
-    /// Marks the current track done and either starts the next track (adaptive) or advances
+    /// Marks the current track done and either starts the next track (DASH) or advances
     /// the whole job to `.readyToMerge`.
     private func completeTrack(jobID: UUID) async throws {
         guard let job = await store.job(id: jobID) else { return }
@@ -303,7 +303,7 @@ public actor TransferCoordinator {
     /// The total is taken per track, preferring the server-reported `totalBytes` and falling
     /// back to the extraction-time `approxBytes`. It stays nil only when some track has neither
     /// — a partial sum would understate the job and the bar would overshoot. Any track that
-    /// fell back marks the whole snapshot `isEstimated`, since adaptive tracks download
+    /// fell back marks the whole snapshot `isEstimated`, since DASH tracks download
     /// sequentially and the second one's real size isn't known until it starts.
     static func snapshot(for job: TransferJob, liveReceived: Int64 = 0) -> ProgressSnapshot {
         let received = job.tracks.reduce(Int64(0)) { $0 + $1.bytesWritten } + liveReceived
@@ -354,9 +354,9 @@ public actor TransferCoordinator {
         switch job.kind {
         case .progressive(var t):
             mutate(&t); job.kind = .progressive(t)
-        case .adaptive(var v, var a):
+        case .dash(var v, var a):
             if index == 0 { mutate(&v) } else { mutate(&a) }
-            job.kind = .adaptive(video: v, audio: a)
+            job.kind = .dash(video: v, audio: a)
         }
     }
 }
