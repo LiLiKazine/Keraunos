@@ -270,11 +270,15 @@ final class DownloadViewModel {   // main-actor by default (app target)
         [fileSizeText(file), savedDateText(file)].compactMap { $0 }.joined(separator: " · ")
     }
 
-    /// Total on-device size of all finished downloads, formatted (e.g. "3.4 GB").
-    var totalDownloadsSizeText: String {
-        savedFiles.reduce(Int64(0)) { $0 + (store.fileSize($1) ?? 0) }
+    /// Combined on-device size of the given downloads, formatted (e.g. "2.1 GB"). Files that
+    /// can't be read contribute nothing rather than voiding the whole total.
+    func totalSizeText(_ files: [URL]) -> String {
+        files.reduce(Int64(0)) { $0 + (store.fileSize($1) ?? 0) }
             .formatted(.byteCount(style: .file))
     }
+
+    /// Total on-device size of all finished downloads, formatted (e.g. "3.4 GB").
+    var totalDownloadsSizeText: String { totalSizeText(savedFiles) }
 
     /// Re-reads the saved-files list from the store. Called when the engine lands a
     /// background transfer in Library (so the toast's "Show" and the Library screen itself
@@ -290,6 +294,20 @@ final class DownloadViewModel {   // main-actor by default (app target)
         } catch {
             errorMessage = "Couldn't delete \(file.lastPathComponent)."
         }
+    }
+
+    /// Removes several finished downloads at once (Library's selection mode). Deletes as much
+    /// of the batch as it can, refreshes the list, and reports what resisted inline the way
+    /// `deleteDownload` does. Returns how many files actually went, so the caller can report it.
+    func deleteDownloads(_ files: [URL]) -> Int {
+        let failures = store.delete(files)
+        savedFiles = store.savedFiles()
+        switch failures.count {
+        case 0:  break
+        case 1:  errorMessage = "Couldn't delete \(failures[0].lastPathComponent)."
+        default: errorMessage = "Couldn't delete \(failures.count) downloads."
+        }
+        return files.count - failures.count
     }
 
     /// Whether the Downloads UI should offer "Save to Photos" for this file.

@@ -59,6 +59,29 @@ extension View {
         }
     }
 
+    /// Destructive confirmation for a whole selection. The count leads the copy rather than a
+    /// filename: a batch has no single name, and with a search filter active a selected file
+    /// may not even be on screen — so the number is the only honest description of the target.
+    func batchDeleteConfirmation(
+        isPresented: Binding<Bool>,
+        count: Int,
+        sizeText: String,
+        onConfirm: @escaping () -> Void
+    ) -> some View {
+        confirmationDialog(
+            count == 1 ? "Delete download?" : "Delete \(count) downloads?",
+            isPresented: isPresented,
+            titleVisibility: .visible
+        ) {
+            Button(count == 1 ? "Delete" : "Delete \(count)", role: .destructive, action: onConfirm)
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text(count == 1
+                 ? "This download (\(sizeText)) will be removed from this device. This can’t be undone."
+                 : "\(count) downloads (\(sizeText)) will be removed from this device. This can’t be undone.")
+        }
+    }
+
     /// Bridges the view model's one-shot `saveMessage` into a toast (used wherever a
     /// Save-to-Photos action can fire).
     func saveMessageToast(model: DownloadViewModel, toasts: ToastCenter) -> some View {

@@ -1,12 +1,22 @@
 import SwiftUI
 
 /// The in-content screen header used in compact width (iPhone / narrow iPad windows):
-/// either the brand lockup (Home) or a large screen title, with an optional Settings gear.
+/// either the brand lockup (Home) or a large screen title, with an optional Settings gear
+/// and an optional leading-of-the-gear accessory (Library's Edit / Done).
 /// In regular width the shell's navigation bar supplies the title instead, so this isn't used.
-struct CompactHeader: View {
+struct CompactHeader<Accessory: View>: View {
     var title: String
     var brand: Bool = false
     var onSettings: (() -> Void)?
+    @ViewBuilder var accessory: () -> Accessory
+
+    init(title: String, brand: Bool = false, onSettings: (() -> Void)? = nil,
+         @ViewBuilder accessory: @escaping () -> Accessory = { EmptyView() }) {
+        self.title = title
+        self.brand = brand
+        self.onSettings = onSettings
+        self.accessory = accessory
+    }
 
     var body: some View {
         HStack {
@@ -26,6 +36,7 @@ struct CompactHeader: View {
                     .foregroundStyle(Color.Theme.text1)
             }
             Spacer()
+            accessory()
             if let onSettings {
                 IconCircleButton(systemImage: "gearshape", accessibilityLabel: "Settings", action: onSettings)
             }

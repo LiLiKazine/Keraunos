@@ -120,6 +120,52 @@ struct LibraryStoreTests {
         try LibraryStore(directory: dir).delete(dir.appendingPathComponent("ghost.mp4"))
     }
 
+    // MARK: - Batch delete
+
+    @Test func deleteManyRemovesEveryFileAndReportsNoFailures() throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let store = LibraryStore(directory: dir)
+        let files = try ["a.mp4", "b.mp4", "c.mp4"].map {
+            try write($0, in: dir, modified: Date(timeIntervalSince1970: 1))
+        }
+
+        #expect(store.delete(files).isEmpty)
+        #expect(store.savedFiles().isEmpty)
+    }
+
+    @Test func deleteManyTreatsMissingFilesAsDeleted() throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let store = LibraryStore(directory: dir)
+        let real = try write("real.mp4", in: dir, modified: Date(timeIntervalSince1970: 1))
+
+        // A stale selection row for a file that vanished isn't a failure to report.
+        #expect(store.delete([real, dir.appendingPathComponent("ghost.mp4")]).isEmpty)
+        #expect(store.savedFiles().isEmpty)
+    }
+
+    @Test func deleteManyContinuesPastAnUndeletableFileAndReportsIt() throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let store = LibraryStore(directory: dir)
+        // A file inside a read-only directory can't be unlinked — the batch must delete
+        // what it can and hand back only the one that resisted.
+        let locked = dir.appendingPathComponent("locked", isDirectory: true)
+        try FileManager.default.createDirectory(at: locked, withIntermediateDirectories: true)
+        let stuck = locked.appendingPathComponent("stuck.mp4")
+        try Data().write(to: stuck)
+        let deletable = try write("ok.mp4", in: dir, modified: Date(timeIntervalSince1970: 1))
+        try FileManager.default.setAttributes([.posixPermissions: 0o500], ofItemAtPath: locked.path)
+
+        let failures = store.delete([stuck, deletable])
+        // Restore write permission so the temp tree can be cleaned up.
+        try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: locked.path)
+
+        #expect(failures == [stuck])
+        #expect(!FileManager.default.fileExists(atPath: deletable.path))
+    }
+
     // MARK: - Extension allow-set tests
 
     @Test func listsNonMp4VideoExtensions() throws {

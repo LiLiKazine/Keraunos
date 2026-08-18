@@ -92,4 +92,19 @@ public struct LibraryStore: Sendable {
             return
         }
     }
+
+    /// Removes several downloads, continuing past individual failures so one stubborn file
+    /// can't abandon the rest of the batch. Returns the files that could *not* be removed —
+    /// empty on full success — so the caller can report a partial outcome. Absent files count
+    /// as deleted, as in `delete(_:)`.
+    public func delete(_ files: [URL]) -> [URL] {
+        files.filter { file in
+            do {
+                try delete(file)
+                return false
+            } catch {
+                return true
+            }
+        }
+    }
 }

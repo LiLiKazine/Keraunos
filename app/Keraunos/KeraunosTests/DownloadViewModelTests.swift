@@ -353,6 +353,76 @@ struct DownloadViewModelTests {
         #expect(harness.enqueuedJobs.count == 1)
         #expect(harness.model.errorMessage == nil)
     }
+
+    // MARK: - Batch delete
+
+    @Test func totalSizeTextSumsTheGivenFilesAndIgnoresUnreadableOnes() throws {
+        let dir = tempDir()
+        try Data(count: 1000).write(to: dir.appendingPathComponent("a.mp4"))
+        try Data(count: 2000).write(to: dir.appendingPathComponent("b.mp4"))
+        let model = vm(extractor: MockExtractor(), dir: dir)
+
+        let text = model.totalSizeText([dir.appendingPathComponent("a.mp4"),
+                                        dir.appendingPathComponent("b.mp4"),
+                                        dir.appendingPathComponent("ghost.mp4")])
+
+        #expect(text == Int64(3000).formatted(.byteCount(style: .file)))
+    }
+
+    @Test func deleteDownloadsRemovesEverySelectedFileAndRefreshesTheList() throws {
+        let dir = tempDir()
+        for name in ["a.mp4", "b.mp4", "keep.mp4"] {
+            try Data().write(to: dir.appendingPathComponent(name))
+        }
+        let model = vm(extractor: MockExtractor(), dir: dir)
+
+        let deleted = model.deleteDownloads([dir.appendingPathComponent("a.mp4"),
+                                             dir.appendingPathComponent("b.mp4")])
+
+        #expect(deleted == 2)
+        #expect(model.savedFiles.map(\.lastPathComponent) == ["keep.mp4"])
+        #expect(model.errorMessage == nil)
+    }
+
+    @Test func deleteDownloadsSurfacesAPartialFailureAndStillDeletesTheRest() throws {
+        let dir = tempDir()
+        // A file in a read-only directory resists deletion; the rest of the batch must
+        // still go, and the survivor must be named in the message.
+        let locked = dir.appendingPathComponent("locked", isDirectory: true)
+        try FileManager.default.createDirectory(at: locked, withIntermediateDirectories: true)
+        let stuck = locked.appendingPathComponent("stuck.mp4")
+        try Data().write(to: stuck)
+        let deletable = dir.appendingPathComponent("ok.mp4")
+        try Data().write(to: deletable)
+        try FileManager.default.setAttributes([.posixPermissions: 0o500], ofItemAtPath: locked.path)
+        let model = vm(extractor: MockExtractor(), dir: dir)
+
+        let deleted = model.deleteDownloads([stuck, deletable])
+        try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: locked.path)
+
+        #expect(deleted == 1)
+        #expect(model.savedFiles.isEmpty)
+        #expect(model.errorMessage?.contains("stuck.mp4") == true)
+    }
+
+    @Test func deleteDownloadsReportsACountWhenSeveralFilesResist() throws {
+        let dir = tempDir()
+        let locked = dir.appendingPathComponent("locked", isDirectory: true)
+        try FileManager.default.createDirectory(at: locked, withIntermediateDirectories: true)
+        for name in ["one.mp4", "two.mp4"] {
+            try Data().write(to: locked.appendingPathComponent(name))
+        }
+        try FileManager.default.setAttributes([.posixPermissions: 0o500], ofItemAtPath: locked.path)
+        let model = vm(extractor: MockExtractor(), dir: dir)
+
+        let deleted = model.deleteDownloads([locked.appendingPathComponent("one.mp4"),
+                                             locked.appendingPathComponent("two.mp4")])
+        try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: locked.path)
+
+        #expect(deleted == 0)
+        // Naming two files is noise — the count carries the outcome instead.
+        #expect(model.errorMessage == "Couldn't delete 2 downloads.")
+    }
 }
 
 /// Returns a queued sequence of results across successive phase-1 calls.
